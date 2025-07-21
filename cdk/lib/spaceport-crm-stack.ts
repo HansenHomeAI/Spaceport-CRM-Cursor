@@ -399,10 +399,6 @@ export class SpaceportCrmStack extends cdk.Stack {
       },
       deployOptions: {
         stageName: "prod",
-        throttle: {
-          rateLimit: 1000,
-          burstLimit: 2000,
-        },
       },
     })
 
