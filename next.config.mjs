@@ -4,6 +4,8 @@ const nextConfig = {
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   distDir: 'out',
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor' : '',
+  basePath: process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor' : '',
   eslint: {
     ignoreDuringBuilds: true,
   },

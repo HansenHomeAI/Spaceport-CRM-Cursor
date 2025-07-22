@@ -159,7 +159,7 @@ jobs:
         echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env.local
         echo "NEXT_PUBLIC_USER_POOL_ID=${{ secrets.NEXT_PUBLIC_USER_POOL_ID }}" >> .env.local
         echo "NEXT_PUBLIC_USER_POOL_CLIENT_ID=${{ secrets.NEXT_PUBLIC_USER_POOL_CLIENT_ID }}" >> .env.local
-        pnpm run build
+        NODE_ENV=production pnpm run build
 
     - name: Debug build output
       run: |
@@ -168,6 +168,8 @@ jobs:
         ls -la
         echo "Contents of out directory (if it exists):"
         ls -la out/ || echo "out directory does not exist"
+        echo "Contents of out/_next directory (if it exists):"
+        ls -la out/_next/ || echo "_next directory does not exist"
         echo "Build completed successfully"
 
     - name: Setup Pages
