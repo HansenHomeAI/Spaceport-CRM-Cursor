@@ -26,6 +26,12 @@ export const colors = {
       border: "border-amber-500/20",
       icon: "#fbbf24", // Amber-400
     },
+    "left voicemail": {
+      bg: "bg-orange-500/10",
+      text: "text-orange-300",
+      border: "border-orange-500/20",
+      icon: "#f97316", // Orange-500
+    },
   },
 
   // Interaction type colors

@@ -26,7 +26,7 @@ export interface Lead {
   email: string
   address: string
   company?: string
-  status: "cold" | "contacted" | "interested" | "closed" | "dormant"
+  status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail"
   lastInteraction: string
   ownerId?: string
   ownerName?: string
@@ -329,7 +329,7 @@ export function LeadsTable({
             >
               <SelectTrigger className="w-32 bg-transparent border-none p-0">
                 <Badge
-                  className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-lg px-4 py-1.5 font-body`}
+                  className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-pill px-4 py-1.5 font-body`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </Badge>
@@ -382,7 +382,7 @@ export function LeadsTable({
                 variant="ghost"
                 size="sm"
                 onClick={() => handleClaimLead(row.original.id)}
-                className="text-gray-400 hover:text-white hover:bg-white/10 rounded-lg px-3 py-1 transition-all duration-200 font-body"
+                className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill px-3 py-1 transition-all duration-200 font-body"
               >
                 <UserX className="h-3 w-3 mr-1" />
                 Unclaimed
@@ -391,28 +391,20 @@ export function LeadsTable({
           }
 
           return (
-            <div className="flex flex-col gap-1">
-              <Badge
-                className={`${
-                  isOwnedByCurrentUser
-                    ? "bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30"
-                    : "bg-blue-500/20 text-blue-300 border-blue-500/30"
-                } rounded-pill px-2 py-1 font-body text-xs`}
-              >
-                <User className="h-3 w-3 mr-1" />
-                {ownerName}
-              </Badge>
-              {isOwnedByCurrentUser && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleUnclaimLead(row.original.id)}
-                  className="text-gray-400 hover:text-red-300 hover:bg-red-500/10 rounded-pill px-2 py-1 transition-all duration-200 text-xs"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => isOwnedByCurrentUser ? handleUnclaimLead(row.original.id) : null}
+              disabled={!isOwnedByCurrentUser}
+              className={`${
+                isOwnedByCurrentUser
+                  ? "bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30 hover:bg-[#CD70E4]/30"
+                  : "bg-blue-500/20 text-blue-300 border-blue-500/30 cursor-default"
+              } rounded-pill px-2 py-1 font-body text-xs transition-all duration-200`}
+            >
+              <User className="h-3 w-3 mr-1" />
+              {ownerName}
+            </Button>
           )
         },
       }),

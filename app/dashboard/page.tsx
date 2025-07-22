@@ -180,7 +180,7 @@ export default function DashboardPage() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-white/10" align="end" forceMount>
+              <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
                 <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign out</span>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
 
         {/* Enhanced Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <Card className="bg-black/20 backdrop-blur-xl border-white/10 rounded-xl">
+          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -206,7 +206,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-black/20 backdrop-blur-xl border-white/10 rounded-xl">
+          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -220,7 +220,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-black/20 backdrop-blur-xl border-white/10 rounded-xl">
+          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -228,13 +228,13 @@ export default function DashboardPage() {
                   <p className="text-3xl font-title text-primary-hierarchy">{myLeads}</p>
                 </div>
                 <div className="h-12 w-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <Plus className="h-6 w-6 text-blue-400" />
+                  <Clock className="h-6 w-6 text-blue-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-black/20 backdrop-blur-xl border-white/10 rounded-xl">
+          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-black/20 backdrop-blur-xl border-white/10 rounded-xl">
+          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -282,7 +282,7 @@ export default function DashboardPage() {
               <div className="flex gap-3 justify-center">
                 <Button
                   onClick={() => setIsImportOpen(true)}
-                  className="bg-white text-black hover:bg-gray-100 rounded-lg px-6"
+                  className="bg-white text-black hover:bg-gray-100 rounded-pill px-6"
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Import CSV
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                 <Button
                   onClick={() => setIsAddModalOpen(true)}
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10 rounded-lg px-6"
+                  className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Lead
@@ -308,7 +308,7 @@ export default function DashboardPage() {
                       <Button
                         onClick={() => setSortByRecent(!sortByRecent)}
                         variant="outline"
-                        className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-lg px-6 backdrop-blur-sm font-body ${
+                        className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
                           sortByRecent ? "bg-white/10 text-white" : ""
                         }`}
                       >
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                     )
                   }
                   variant="outline"
-                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-lg px-6 backdrop-blur-sm font-body ${
+                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
                     filterByOwnership !== "all" ? "bg-white/10 text-white" : ""
                   }`}
                 >
@@ -341,7 +341,7 @@ export default function DashboardPage() {
                 <Button
                   onClick={() => setShowDormant(!showDormant)}
                   variant="outline"
-                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-lg px-6 backdrop-blur-sm font-body ${
+                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
                     showDormant ? "bg-white/10 text-white" : ""
                   }`}
                 >
@@ -354,14 +354,14 @@ export default function DashboardPage() {
                 <Button
                   onClick={() => setIsImportOpen(true)}
                   variant="outline"
-                  className="border-white/20 text-gray-400 hover:bg-white/10 rounded-lg px-6 backdrop-blur-sm font-body"
+                  className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Import CSV
                 </Button>
                 <Button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="bg-white text-black hover:bg-gray-100 rounded-lg px-6 transition-all duration-200 font-body"
+                  className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Lead

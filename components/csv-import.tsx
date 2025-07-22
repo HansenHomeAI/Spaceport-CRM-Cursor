@@ -76,18 +76,52 @@ const parseContactInfo = (text: string) => {
     "Real Broker",
     "Keller Williams Realty",
     "Berkshire Hathaway HomeServices",
+    "Toll Brothers",
+    "Keystone Construction",
+    "Axis Realty",
+    "Realtypath",
+    "Summit Sotheby's",
+    "Compass Real Estate",
+    "McCann",
+    "The Big Sky Real Estate Co",
+    "Big Sky Sotheby's",
+    "ERA Landmark",
+    "PureWest Real Estate",
+    "Hall & Hall Partners",
+    "Best Choice Realty",
+    "Tom Evans & Ashley DiPrisco Real Estate",
+    "Berkshire Hathaway HomeServices Alaska Realty",
+    "Keller Williams Realty Alaska Group",
+    "Real Broker Alaska",
+    "The Dow Group",
+    "Upside",
+    "Premier Commercial Realty",
+    "Edina Realty",
+    "Corcoran",
+    "Houlihan Lawrence",
   ]
 
-  // Look for company names in the text
+  // Look for company names in the text - but be more careful about separation
+  let companyFound = false
   for (const keyword of companyKeywords) {
     if (text.toLowerCase().includes(keyword.toLowerCase())) {
       // Find the full company name (including variations)
       const companyRegex = new RegExp(`[^,\\n]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,\\n]*`, "i")
       const match = text.match(companyRegex)
       if (match) {
-        result.company = match[0].trim()
-        text = text.replace(match[0], "").trim()
-        break
+        // Only extract company if it's clearly separate from the name
+        // Check if there's a clear separator (comma, newline, or significant spacing)
+        const companyText = match[0].trim()
+        const beforeCompany = text.substring(0, text.indexOf(companyText)).trim()
+        const afterCompany = text.substring(text.indexOf(companyText) + companyText.length).trim()
+        
+        // If company appears after a comma or newline, it's likely separate
+        if (text.includes(',') || text.includes('\n') || beforeCompany.length > 20) {
+          result.company = companyText
+          text = text.replace(companyText, "").trim()
+          companyFound = true
+          break
+        }
       }
     }
   }
@@ -146,7 +180,7 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
       type = "email"
     }
     
-    // Extract dates from the note
+    // Extract dates from the note - use 2024 as base year for older dates
     const dateMatch = part.match(/(\w+\s+\d{1,2},?\s+\d{4})|(\d{1,2}\/\d{1,2})|(\w+\s+\d{1,2})/)
     let timestamp = new Date().toISOString()
     
@@ -156,7 +190,11 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
         // Try to parse various date formats
         let parsedDate = new Date(dateStr)
         if (isNaN(parsedDate.getTime())) {
-          // Try alternative formats
+          // Try with 2024 as base year for older dates
+          parsedDate = new Date(dateStr + ", 2024")
+        }
+        if (isNaN(parsedDate.getTime())) {
+          // Try with 2025 as base year for recent dates
           parsedDate = new Date(dateStr + ", 2025")
         }
         if (!isNaN(parsedDate.getTime())) {
@@ -223,13 +261,15 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
     const notes = parseNotes(notesText)
     
     // Determine status based on notes content
-    let status: "cold" | "contacted" | "interested" | "closed" | "dormant" = "contacted"
+    let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
     if (notesText.toLowerCase().includes("interested") || notesText.toLowerCase().includes("wants to see")) {
       status = "interested"
     } else if (notesText.toLowerCase().includes("not interested") || notesText.toLowerCase().includes("said no")) {
       status = "cold"
     } else if (notesText.toLowerCase().includes("closed") || notesText.toLowerCase().includes("sold")) {
       status = "closed"
+    } else if (notesText.toLowerCase().includes("voicemail") && !notesText.toLowerCase().includes("talked")) {
+      status = "left voicemail"
     }
 
     // Determine priority based on notes and status
@@ -240,6 +280,17 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       priority = "low"
     } else if (notesText.toLowerCase().includes("dormant") || notesText.toLowerCase().includes("spring")) {
       priority = "dormant"
+    } else if (status === "left voicemail") {
+      // Check if they should be high priority (recent contact but no response)
+      const recentNotes = notes.filter(note => {
+        const noteDate = new Date(note.timestamp)
+        const now = new Date()
+        const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
+        return daysDiff <= 14 // Within last 2 weeks
+      })
+      if (recentNotes.length > 0) {
+        priority = "high"
+      }
     }
 
     // Find the earliest date from notes for lastInteraction
@@ -264,9 +315,9 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       nextActionDate: new Date().toISOString(),
       notes: notes.length > 0 ? notes : [{
         id: Date.now().toString(),
-        text: "Initial contact made - imported from CSV",
+        text: "Imported from CSV - no interaction history",
         timestamp: new Date().toISOString(),
-        type: "call" as const,
+        type: "note" as const,
       }],
     }
   })
