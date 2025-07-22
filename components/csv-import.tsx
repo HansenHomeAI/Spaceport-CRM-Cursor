@@ -35,11 +35,19 @@ const parseContactInfo = (text: string) => {
     text = text.replace(emailMatch[0], "").trim()
   }
 
-  // Phone regex - multiple formats including parentheses
+  // Phone regex - ONLY proper phone formats (no dates!)
+  // Accepts: 000-000-0000, 0(000)-000-0000, 000.000.0000, 000 000 0000
   const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
   if (phoneMatch) {
-    result.phone = phoneMatch[0]
-    text = text.replace(phoneMatch[0], "").trim()
+    const phoneStr = phoneMatch[0]
+    // Double-check this isn't a date by ensuring it doesn't match date patterns
+    const isDatePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(phoneStr) || 
+                         /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(phoneStr)
+    
+    if (!isDatePattern) {
+      result.phone = phoneStr
+      text = text.replace(phoneStr, "").trim()
+    }
   }
 
   // Company detection - real estate keywords
@@ -104,17 +112,26 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
           let parsedDate = new Date(dateStr)
           
           if (isNaN(parsedDate.getTime())) {
-            // Try with 2024 as base year for older dates
+            // Try with 2024 as base year for older dates (Oct-Dec 2024)
             parsedDate = new Date(dateStr + ", 2024")
           }
           if (isNaN(parsedDate.getTime())) {
-            // Try with 2025 as base year for recent dates
+            // Try with 2025 as base year for recent dates (Jan-Aug 2025)
             parsedDate = new Date(dateStr + ", 2025")
           }
+          
           if (!isNaN(parsedDate.getTime())) {
-            timestamp = parsedDate.toISOString()
-            foundDate = true
-            break
+            // Validate the year makes sense for our timeframe
+            const year = parsedDate.getFullYear()
+            const month = parsedDate.getMonth() + 1 // 0-indexed to 1-indexed
+            
+            // If it's 2024, should be Oct-Dec (months 10-12)
+            // If it's 2025, should be Jan-Aug (months 1-8)
+            if ((year === 2024 && month >= 10) || (year === 2025 && month <= 8)) {
+              timestamp = parsedDate.toISOString()
+              foundDate = true
+              break
+            }
           }
         } catch (e) {
           // Continue to next pattern
@@ -148,6 +165,28 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
   })
   
   return notes
+}
+
+// Helper function to detect if a name is likely a company
+const isCompanyName = (name: string): boolean => {
+  if (!name) return false
+  
+  const companyIndicators = [
+    "real estate", "realty", "properties", "group", "team", "associates", "brokers", 
+    "homes", "land", "development", "investment", "llc", "inc", "partners", 
+    "sotheby's", "compass", "keller williams", "berkshire hathaway", "hall & hall", 
+    "best choice", "mccann", "summit", "purewest", "era", "corcoran", "houlihan lawrence",
+    "the dow group", "upside", "premier", "edina", "real broker", "toll brothers",
+    "keystone construction", "axis realty", "realtypath", "summit sotheby's", 
+    "compass real estate", "the big sky real estate co", "big sky sotheby's", 
+    "era landmark", "purewest real estate", "hall & hall partners", "best choice realty",
+    "tom evans & ashley diprisco real estate", "berkshire hathaway homeservices alaska realty",
+    "keller williams realty alaska group", "real broker alaska", "premier commercial realty",
+    "edina realty", "houlihan lawrence", "construction", "builders", "reality", "co"
+  ]
+  
+  const lowerName = name.toLowerCase()
+  return companyIndicators.some(indicator => lowerName.includes(indicator))
 }
 
 const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
@@ -244,7 +283,7 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       }
     }
 
-    // Find the most recent date from notes for lastInteraction
+    // Find the most recent date from notes for lastInteraction (NOT import date!)
     let lastInteraction = new Date().toISOString().split("T")[0]
     if (notes.length > 0) {
       const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
