@@ -268,7 +268,7 @@ const processLeadData = (leadData: Record<string, any>, rowIndex: number): Omit<
     status = "cold"
   } else if (leadData.notes.toLowerCase().includes("closed") || leadData.notes.toLowerCase().includes("sold")) {
     status = "closed"
-  } else if (leadData.notes.toLowerCase().includes("voicemail") && !leadData.notes.toLowerCase().includes("talked")) {
+  } else if (leadData.notes.toLowerCase().includes("voicemail") && !leadData.notes.toLowerCase().includes("talked") && !leadData.notes.toLowerCase().includes("picked up")) {
     status = "left voicemail"
   }
 
@@ -337,14 +337,16 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
 
   // More intelligent parsing - look for patterns like "Called, voicemail 10/23. Called, voicemail 10/28. Called 12/6"
   const interactionPatterns = [
-    // Pattern: "Called, voicemail 10/23"
+    // Pattern: "Called, voicemail 10/23" or "voicemail 10/23"
     /(called|voicemail|emailed|sent)\s*(?:,?\s*(voicemail|email|text))?\s*(\d{1,2}\/\d{1,2})/gi,
     // Pattern: "Called 12/6, going to meet"
     /(called|voicemail|emailed|sent)\s+(\d{1,2}\/\d{1,2})/gi,
     // Pattern: "Called me evening of April 7th"
     /(called|voicemail|emailed|sent).*?(april|may|june|july|august|september|october|november|december)\s+(\d{1,2})/gi,
-    // Pattern: "10/21, called"
+    // Pattern: "10/21, called" or "10/21, voicemail"
     /(\d{1,2}\/\d{1,2}),?\s*(called|voicemail|emailed|sent)/gi,
+    // Pattern: "voicemail(9/1/3)" or "voicemail 9/1/3"
+    /voicemail\s*\(?(\d{1,2}\/\d{1,2}\/\d{1,2})\)?/gi,
   ]
 
   let processedText = notesText
@@ -358,7 +360,10 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
       let type: "call" | "email" | "note" = "note"
       let dateStr = ""
       
-      if (match[1] && match[1].toLowerCase().includes("call")) {
+      // Check if it's specifically a voicemail
+      if (fullMatch.toLowerCase().includes("voicemail")) {
+        type = "call" // Keep as call type but we'll mark it as voicemail in the text
+      } else if (match[1] && match[1].toLowerCase().includes("call")) {
         type = "call"
       } else if (match[1] && (match[1].toLowerCase().includes("email") || match[1].toLowerCase().includes("sent"))) {
         type = "email"
@@ -372,6 +377,12 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
       } else if (match[2] && match[3]) {
         // Month and day format
         dateStr = `${match[2]} ${match[3]}`
+      } else if (match[1] && /\d{1,2}\/\d{1,2}\/\d{1,2}/.test(match[1])) {
+        // Handle voicemail(9/1/3) format - extract just the month/day
+        const dateParts = match[1].split('/')
+        if (dateParts.length >= 2) {
+          dateStr = `${dateParts[0]}/${dateParts[1]}`
+        }
       }
       
       if (dateStr) {
@@ -425,8 +436,10 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
       let type: "call" | "email" | "note" = "note"
       let text = part
       
-      // Determine type based on keywords
-      if (part.toLowerCase().includes("call") || part.toLowerCase().includes("voicemail")) {
+      // Determine type based on keywords - prioritize voicemail detection
+      if (part.toLowerCase().includes("voicemail")) {
+        type = "call" // Voicemails are still call type but with voicemail context
+      } else if (part.toLowerCase().includes("call")) {
         type = "call"
       } else if (part.toLowerCase().includes("email") || part.toLowerCase().includes("sent")) {
         type = "email"
