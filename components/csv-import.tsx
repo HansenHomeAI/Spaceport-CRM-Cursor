@@ -18,7 +18,136 @@ interface CSVImportProps {
 }
 
 // Enhanced parsing functions for complex data
-const parseContactInfo = (text: string) => {
+
+const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
+  const lines = content.split("\n").filter((line) => line.trim())
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+
+  const leads: Omit<Lead, "id">[] = []
+  let currentLead: any = null
+
+  // Process lines starting from index 1 (skip header)
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    const values = line.split(",").map((v) => v.trim().replace(/"/g, ""))
+    
+    // Check if this line has a valid name (first column)
+    const nameValue = values[0] || ""
+    const hasValidName = nameValue && nameValue.length > 0 && !nameValue.match(/^\s*$/)
+    
+    // If we have a current lead and this line doesn't have a name, it's likely a continuation
+    if (currentLead && !hasValidName) {
+      // This is a continuation line - merge with current lead
+      currentLead = mergeLeadData(currentLead, values, headers)
+    } else {
+      // This is a new lead - save previous one and start new
+      if (currentLead) {
+        const processedLead = processLeadData(currentLead, headers)
+        if (processedLead) {
+          leads.push(processedLead)
+        }
+      }
+      
+      // Start new lead
+      currentLead = { values, headers }
+    }
+  }
+  
+  // Don't forget the last lead
+  if (currentLead) {
+    const processedLead = processLeadData(currentLead, headers)
+    if (processedLead) {
+      leads.push(processedLead)
+    }
+  }
+
+  return leads
+}
+
+// Merge continuation data into current lead
+const mergeLeadData = (currentLead: any, newValues: string[], headers: string[]) => {
+  const mergedValues = [...currentLead.values]
+  
+  // Merge non-empty values from continuation line
+  newValues.forEach((value, index) => {
+    if (value && value.trim() && (!mergedValues[index] || !mergedValues[index].trim())) {
+      mergedValues[index] = value
+    } else if (value && value.trim() && mergedValues[index] && mergedValues[index].trim()) {
+      // If both have values, concatenate them (for notes, etc.)
+      mergedValues[index] = mergedValues[index] + " " + value
+    }
+  })
+  
+  return { values: mergedValues, headers }
+}
+
+// Process a complete lead entry
+const processLeadData = (leadData: any, headers: string[]): Omit<Lead, "id"> | null => {
+  const values = leadData.values
+  const row: any = {}
+
+  headers.forEach((header, index) => {
+    row[header] = values[index] || ""
+  })
+
+  // Extract and parse the name field (most complex part)
+  const nameField = row.name || row.contact || row.client || ""
+  const phoneField = row.phone || row.telephone || row.mobile || ""
+  const emailField = row.email || row["email address"] || ""
+  const companyField = row.company || row.business || row.organization || ""
+  const addressField = row.address || row.location || row.property || ""
+  const notesField = row.notes || row.comments || row.interactions || ""
+
+  // Parse the name field which may contain multiple pieces of information
+  const parsedNameInfo = parseComplexNameField(nameField)
+  
+  // Parse other fields for additional information
+  const parsedPhoneInfo = parsePhoneField(phoneField)
+  const parsedEmailInfo = parseEmailField(emailField)
+  const parsedCompanyInfo = parseCompanyField(companyField)
+  const parsedAddressInfo = parseAddressField(addressField)
+  const parsedNotesInfo = parseNotesField(notesField)
+
+  // Combine all parsed information
+  const finalData = {
+    name: parsedNameInfo.name || "Unknown Contact",
+    phone: parsedNameInfo.phone || parsedPhoneInfo.phone || "Not provided",
+    email: parsedNameInfo.email || parsedEmailInfo.email || "Not provided",
+    company: parsedNameInfo.company || parsedCompanyInfo.company || "",
+    address: parsedNameInfo.address || parsedAddressInfo.address || "Address not provided",
+    notes: parsedNotesInfo.notes,
+    status: determineStatus(parsedNotesInfo.notes, notesField),
+    priority: determinePriority(parsedNotesInfo.notes, notesField),
+    lastInteraction: parsedNotesInfo.lastInteraction,
+  }
+
+  // Validate that we have at least a name and address
+  if (!finalData.name || finalData.name === "Unknown Contact" || !finalData.address || finalData.address === "Address not provided") {
+    console.warn("Invalid lead data:", finalData)
+    return null
+  }
+
+  return {
+    name: finalData.name,
+    phone: finalData.phone,
+    email: finalData.email,
+    company: finalData.company,
+    address: finalData.address,
+    status: finalData.status,
+    lastInteraction: finalData.lastInteraction,
+    priority: finalData.priority,
+    nextActionDate: new Date().toISOString(),
+    notes: finalData.notes.length > 0 ? finalData.notes : [{
+      id: Date.now().toString(),
+      text: "Imported from CSV - no interaction history",
+      timestamp: new Date().toISOString(),
+      type: "note" as const,
+    }],
+  }
+}
+
+// Parse complex name field that may contain name, phone, company, etc.
+const parseComplexNameField = (nameField: string) => {
   const result = {
     name: "",
     phone: "",
@@ -27,131 +156,57 @@ const parseContactInfo = (text: string) => {
     address: "",
   }
 
-  // Email regex
-  const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
+  if (!nameField) return result
+
+  // Extract email first
+  const emailMatch = nameField.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
   if (emailMatch) {
     result.email = emailMatch[0]
-    text = text.replace(emailMatch[0], "").trim()
+    nameField = nameField.replace(emailMatch[0], "").trim()
   }
 
-  // Phone regex - multiple formats including parentheses
-  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
+  // Extract phone number (multiple formats)
+  const phoneMatch = nameField.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
   if (phoneMatch) {
     result.phone = phoneMatch[0]
-    text = text.replace(phoneMatch[0], "").trim()
+    nameField = nameField.replace(phoneMatch[0], "").trim()
   }
 
-  // Company detection - real estate keywords
+  // Look for company names in the remaining text
   const companyKeywords = [
-    "Real Estate",
-    "Realty",
-    "Properties",
-    "Group",
-    "Team",
-    "Associates",
-    "Brokers",
-    "Homes",
-    "Land",
-    "Development",
-    "Investment",
-    "LLC",
-    "Inc",
-    "Partners",
-    "Sotheby's",
-    "Compass",
-    "Keller Williams",
-    "Berkshire Hathaway",
-    "Hall & Hall",
-    "Best Choice",
-    "McCann",
-    "Summit",
-    "PureWest",
-    "ERA",
-    "Corcoran",
-    "Houlihan Lawrence",
-    "The Dow Group",
-    "Upside",
-    "Premier",
-    "Edina",
-    "Real Broker",
-    "Keller Williams Realty",
-    "Berkshire Hathaway HomeServices",
-    "Toll Brothers",
-    "Keystone Construction",
-    "Axis Realty",
-    "Realtypath",
-    "Summit Sotheby's",
-    "Compass Real Estate",
-    "McCann",
-    "The Big Sky Real Estate Co",
-    "Big Sky Sotheby's",
-    "ERA Landmark",
-    "PureWest Real Estate",
-    "Hall & Hall Partners",
-    "Best Choice Realty",
-    "Tom Evans & Ashley DiPrisco Real Estate",
-    "Berkshire Hathaway HomeServices Alaska Realty",
-    "Keller Williams Realty Alaska Group",
-    "Real Broker Alaska",
-    "The Dow Group",
-    "Upside",
-    "Premier Commercial Realty",
-    "Edina Realty",
-    "Corcoran",
-    "Houlihan Lawrence",
+    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", "Brokers", 
+    "Homes", "Land", "Development", "Investment", "LLC", "Inc", "Partners", 
+    "Sotheby's", "Compass", "Keller Williams", "Berkshire Hathaway", "Hall & Hall", 
+    "Best Choice", "McCann", "Summit", "PureWest", "ERA", "Corcoran", 
+    "Houlihan Lawrence", "The Dow Group", "Upside", "Premier", "Edina", 
+    "Real Broker", "Keller Williams Realty", "Berkshire Hathaway HomeServices",
+    "Toll Brothers", "Keystone Construction", "Axis Realty", "Realtypath",
+    "Summit Sotheby's", "Compass Real Estate", "The Big Sky Real Estate Co",
+    "Big Sky Sotheby's", "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners",
+    "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate",
+    "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group",
+    "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty"
   ]
 
-  // Look for company names in the text - but be more careful about separation
-  let companyFound = false
   for (const keyword of companyKeywords) {
-    if (text.toLowerCase().includes(keyword.toLowerCase())) {
-      // Find the full company name (including variations)
+    if (nameField.toLowerCase().includes(keyword.toLowerCase())) {
+      // Find the full company name
       const companyRegex = new RegExp(`[^,\\n]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,\\n]*`, "i")
-      const match = text.match(companyRegex)
+      const match = nameField.match(companyRegex)
       if (match) {
-        // Only extract company if it's clearly separate from the name
-        // Check if there's a clear separator (comma, newline, or significant spacing)
-        const companyText = match[0].trim()
-        const beforeCompany = text.substring(0, text.indexOf(companyText)).trim()
-        const afterCompany = text.substring(text.indexOf(companyText) + companyText.length).trim()
-        
-        // If company appears after a comma or newline, it's likely separate
-        if (text.includes(',') || text.includes('\n') || beforeCompany.length > 20) {
-          result.company = companyText
-          text = text.replace(companyText, "").trim()
-          companyFound = true
-          break
-        }
-      }
-    }
-  }
-
-  // Address detection (contains numbers and common address words)
-  const addressKeywords = [
-    "Street", "St", "Avenue", "Ave", "Road", "Rd", "Drive", "Dr", "Lane", "Ln",
-    "Boulevard", "Blvd", "Way", "Circle", "Cir", "Loop", "Trail", "Trl", "Court", "Ct",
-    "Place", "Pl", "Terrace", "Ter", "Heights", "Hts", "Ridge", "Rdg", "Point", "Pt"
-  ]
-  
-  for (const keyword of addressKeywords) {
-    if (text.toLowerCase().includes(keyword.toLowerCase())) {
-      const addressRegex = new RegExp(`[^,\\n]*\\d+[^,\\n]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,\\n]*`, "i")
-      const match = text.match(addressRegex)
-      if (match) {
-        result.address = match[0].trim()
-        text = text.replace(match[0], "").trim()
+        result.company = match[0].trim()
+        nameField = nameField.replace(match[0], "").trim()
         break
       }
     }
   }
 
   // Clean up name - remove parenthetical aliases and extra info
-  text = text.replace(/\([^)]*\)/g, "") // Remove (aka Lawrence) type content
-  text = text.replace(/,.*$/, "") // Remove everything after first comma
-  text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
+  nameField = nameField.replace(/\([^)]*\)/g, "") // Remove (aka Lawrence) type content
+  nameField = nameField.replace(/\s+/g, " ").trim() // Clean up whitespace
 
   // Extract name (first few words before any remaining punctuation)
-  const nameMatch = text.match(/^([A-Za-z\s]+)/)
+  const nameMatch = nameField.match(/^([A-Za-z\s]+)/)
   if (nameMatch) {
     result.name = nameMatch[1].trim()
   }
@@ -159,13 +214,79 @@ const parseContactInfo = (text: string) => {
   return result
 }
 
-const parseNotes = (notesText: string): Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> => {
-  const notes: Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> = []
-  
-  if (!notesText) return notes
+// Parse phone field
+const parsePhoneField = (phoneField: string) => {
+  const result = { phone: "" }
+  if (!phoneField) return result
 
-  // Split by common separators but be smarter about it
-  const noteParts = notesText.split(/[,;]|\band\b/).map(part => part.trim()).filter(part => part.length > 0)
+  const phoneMatch = phoneField.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
+  if (phoneMatch) {
+    result.phone = phoneMatch[0]
+  }
+
+  return result
+}
+
+// Parse email field
+const parseEmailField = (emailField: string) => {
+  const result = { email: "" }
+  if (!emailField) return result
+
+  const emailMatch = emailField.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
+  if (emailMatch) {
+    result.email = emailMatch[0]
+  }
+
+  return result
+}
+
+// Parse company field
+const parseCompanyField = (companyField: string) => {
+  const result = { company: "" }
+  if (!companyField) return result
+
+  // Check if it looks like a company name
+  if (companyField.length > 2 && !companyField.match(/^\d/)) {
+    result.company = companyField.trim()
+  }
+
+  return result
+}
+
+// Parse address field
+const parseAddressField = (addressField: string) => {
+  const result = { address: "" }
+  if (!addressField) return result
+
+  // Check if it looks like an address (contains numbers and address keywords)
+  const addressKeywords = [
+    "Street", "St", "Avenue", "Ave", "Road", "Rd", "Drive", "Dr", "Lane", "Ln",
+    "Boulevard", "Blvd", "Way", "Circle", "Cir", "Loop", "Trail", "Trl", "Court", "Ct",
+    "Place", "Pl", "Terrace", "Ter", "Heights", "Hts", "Ridge", "Rdg", "Point", "Pt"
+  ]
+
+  const hasAddressKeyword = addressKeywords.some(keyword => 
+    addressField.toLowerCase().includes(keyword.toLowerCase())
+  )
+  const hasNumbers = /\d/.test(addressField)
+
+  if (hasAddressKeyword || hasNumbers) {
+    result.address = addressField.trim()
+  }
+
+  return result
+}
+
+// Parse notes field and extract interaction history
+const parseNotesField = (notesField: string) => {
+  const notes: Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> = []
+  let lastInteraction = new Date().toISOString().split("T")[0]
+  
+  if (!notesField) return { notes, lastInteraction }
+
+  // Split by common separators but be more careful
+  const noteParts = notesField.split(/[,;]|\band\b/).map(part => part.trim()).filter(part => part.length > 0)
+  const allDates: Date[] = []
   
   noteParts.forEach((part, index) => {
     if (part.length < 5) return // Skip very short parts
@@ -173,42 +294,40 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
     let type: "call" | "email" | "note" = "note"
     let text = part
     
-          // Determine type based on keywords - be more specific about voicemail
-      if (part.toLowerCase().includes("voicemail") || part.toLowerCase().includes("left message")) {
-        type = "call" // Still a call but we'll mark it as voicemail in status
-        // Update the text to be more specific about voicemail
-        if (!part.toLowerCase().includes("voicemail")) {
-          text = part + " (voicemail)"
-        }
-      } else if (part.toLowerCase().includes("call") && !part.toLowerCase().includes("voicemail")) {
-        type = "call"
-      } else if (part.toLowerCase().includes("email") || part.toLowerCase().includes("sent")) {
-        type = "email"
-      }
+    // Determine type based on keywords - voicemail overrides call
+    if (part.toLowerCase().includes("voicemail")) {
+      type = "call" // Keep as call but we'll handle voicemail status separately
+    } else if (part.toLowerCase().includes("call")) {
+      type = "call"
+    } else if (part.toLowerCase().includes("email") || part.toLowerCase().includes("sent")) {
+      type = "email"
+    }
     
-    // Extract dates from the note - use 2024 as base year for older dates
-    const dateMatch = part.match(/(\w+\s+\d{1,2},?\s+\d{4})|(\d{1,2}\/\d{1,2})|(\w+\s+\d{1,2})/)
+    // Extract dates from the note - multiple date formats
+    const dateMatches = part.match(/(\w+\s+\d{1,2},?\s+\d{4})|(\d{1,2}\/\d{1,2})|(\w+\s+\d{1,2})/g)
     let timestamp = new Date().toISOString()
     
-    if (dateMatch) {
-      try {
-        const dateStr = dateMatch[0]
-        // Try to parse various date formats
-        let parsedDate = new Date(dateStr)
-        if (isNaN(parsedDate.getTime())) {
-          // Try with 2024 as base year for older dates
-          parsedDate = new Date(dateStr + ", 2024")
+    if (dateMatches) {
+      dateMatches.forEach(dateStr => {
+        try {
+          // Try to parse various date formats
+          let parsedDate = new Date(dateStr)
+          if (isNaN(parsedDate.getTime())) {
+            // Try with 2024 as base year for older dates
+            parsedDate = new Date(dateStr + ", 2024")
+          }
+          if (isNaN(parsedDate.getTime())) {
+            // Try with 2025 as base year for recent dates
+            parsedDate = new Date(dateStr + ", 2025")
+          }
+          if (!isNaN(parsedDate.getTime())) {
+            allDates.push(parsedDate)
+            timestamp = parsedDate.toISOString()
+          }
+        } catch (e) {
+          // Keep current date if parsing fails
         }
-        if (isNaN(parsedDate.getTime())) {
-          // Try with 2025 as base year for recent dates
-          parsedDate = new Date(dateStr + ", 2025")
-        }
-        if (!isNaN(parsedDate.getTime())) {
-          timestamp = parsedDate.toISOString()
-        }
-      } catch (e) {
-        // Keep current date if parsing fails
-      }
+      })
     }
     
     notes.push({
@@ -219,184 +338,56 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
     })
   })
   
-  return notes
+  // Find the most recent date for lastInteraction
+  if (allDates.length > 0) {
+    const mostRecentDate = new Date(Math.max(...allDates.map(d => d.getTime())))
+    lastInteraction = mostRecentDate.toISOString().split("T")[0]
+  }
+  
+  return { notes, lastInteraction }
 }
 
-// New intelligent CSV parsing that handles multi-line data
-const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
-  const lines = content.split("\n").filter((line) => line.trim())
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+// Determine status based on notes content
+const determineStatus = (notes: any[], notesField: string): "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" => {
+  const notesText = notesField.toLowerCase()
+  
+  if (notesText.includes("interested") || notesText.includes("wants to see")) {
+    return "interested"
+  } else if (notesText.includes("not interested") || notesText.includes("said no")) {
+    return "cold"
+  } else if (notesText.includes("closed") || notesText.includes("sold")) {
+    return "closed"
+  } else if (notesText.includes("voicemail") && !notesText.includes("talked")) {
+    return "left voicemail"
+  }
+  
+  return "contacted"
+}
 
-  const leads: Omit<Lead, "id">[] = []
-  let currentLead: any = null
-
-  // Process each line after headers
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]
-    
-         // Check if this line has a name (starts with a letter and has contact info)
-     const hasName = /^[A-Za-z]/.test(line.trim()) && 
-                    (line.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(line)) &&
-                    line.trim().length > 3 // Ensure it's not just a single word
-    
-    if (hasName) {
-      // This is a new lead - save the previous one if it exists
-      if (currentLead && currentLead.name && currentLead.name !== "Unknown Contact") {
-        leads.push(currentLead)
-      }
-      
-      // Start parsing a new lead
-      currentLead = {
-        name: "",
-        phone: "",
-        email: "",
-        company: "",
-        address: "",
-        status: "contacted" as const,
-        lastInteraction: new Date().toISOString().split("T")[0],
-        priority: "medium" as const,
-        nextActionDate: new Date().toISOString(),
-        notes: [],
-      }
-      
-      // Parse the contact info from this line
-      const contactInfo = parseContactInfo(line)
-      currentLead.name = contactInfo.name || "Unknown Contact"
-      currentLead.phone = contactInfo.phone || "Not provided"
-      currentLead.email = contactInfo.email || "Not provided"
-      currentLead.company = contactInfo.company || ""
-      currentLead.address = contactInfo.address || ""
-      
-      // Look for additional info in subsequent lines that might belong to this contact
-      let j = i + 1
-      while (j < lines.length) {
-        const nextLine = lines[j].trim()
-        
-        // If next line starts with a name, it's a new contact
-        if (/^[A-Za-z]/.test(nextLine) && 
-            (nextLine.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(nextLine))) {
-          break
-        }
-        
-        // If next line is empty, skip it
-        if (!nextLine) {
-          j++
-          continue
-        }
-        
-                 // Check if this line contains additional contact info
-         const additionalInfo = parseContactInfo(nextLine)
-         if (additionalInfo.name && additionalInfo.name !== currentLead.name) {
-           // This might be company info or additional contact
-           if (!currentLead.company && additionalInfo.company) {
-             currentLead.company = additionalInfo.company
-           }
-           if (!currentLead.address && additionalInfo.address) {
-             currentLead.address = additionalInfo.address
-           }
-         }
-         
-         // Also check if this line contains an address (even without a name)
-         if (!currentLead.address && (
-           nextLine.includes("Rd") || 
-           nextLine.includes("St") || 
-           nextLine.includes("Ave") || 
-           nextLine.includes("Dr") ||
-           nextLine.includes("UT") ||
-           nextLine.includes("ID") ||
-           nextLine.includes("MT") ||
-           nextLine.includes("WY") ||
-           nextLine.includes("AK") ||
-           nextLine.includes("NY") ||
-           nextLine.includes("NH") ||
-           nextLine.includes("TX") ||
-           nextLine.includes("MN") ||
-           nextLine.includes("MA") ||
-           nextLine.includes("IL") ||
-           nextLine.includes("MO") ||
-           nextLine.includes("OK") ||
-           nextLine.includes("CO")
-         )) {
-           currentLead.address = nextLine.trim()
-         }
-        
-        // Check if this line contains notes/interactions
-        if (nextLine.toLowerCase().includes("call") || 
-            nextLine.toLowerCase().includes("email") || 
-            nextLine.toLowerCase().includes("voicemail") ||
-            nextLine.toLowerCase().includes("sent") ||
-            /\d{1,2}\/\d{1,2}/.test(nextLine) ||
-            /\w+\s+\d{1,2}/.test(nextLine)) {
-          
-          // Parse notes from this line
-          const notes = parseNotes(nextLine)
-          currentLead.notes.push(...notes)
-        }
-        
-        j++
-      }
-      
-             // Determine status based on all collected notes
-       const allNotes = currentLead.notes.map((n: any) => n.text).join(" ").toLowerCase()
-       if (allNotes.includes("interested") || allNotes.includes("wants to see")) {
-         currentLead.status = "interested"
-       } else if (allNotes.includes("not interested") || allNotes.includes("said no")) {
-         currentLead.status = "cold"
-       } else if (allNotes.includes("closed") || allNotes.includes("sold")) {
-         currentLead.status = "closed"
-       } else if (allNotes.includes("voicemail") && !allNotes.includes("talked") && !allNotes.includes("picked up")) {
-         currentLead.status = "left voicemail"
-       }
-
-      // Determine priority based on notes and status
-      if (currentLead.status === "interested") {
-        currentLead.priority = "high"
-      } else if (currentLead.status === "cold") {
-        currentLead.priority = "low"
-      } else if (allNotes.includes("dormant") || allNotes.includes("spring")) {
-        currentLead.priority = "dormant"
-      } else if (currentLead.status === "left voicemail") {
-        // Check if they should be high priority (recent contact but no response)
-        const recentNotes = currentLead.notes.filter((note: any) => {
-          const noteDate = new Date(note.timestamp)
-          const now = new Date()
-          const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
-          return daysDiff <= 14 // Within last 2 weeks
-        })
-        if (recentNotes.length > 0) {
-          currentLead.priority = "high"
-        }
-      }
-
-      // Find the earliest date from notes for lastInteraction
-               if (currentLead.notes.length > 0) {
-           const dates = currentLead.notes.map((note: any) => new Date(note.timestamp)).filter((date: Date) => !isNaN(date.getTime()))
-           if (dates.length > 0) {
-             const earliestDate = new Date(Math.min(...dates.map((d: Date) => d.getTime())))
-             currentLead.lastInteraction = earliestDate.toISOString().split("T")[0]
-           }
-         }
-
-      // Add default note if no notes were found
-      if (currentLead.notes.length === 0) {
-        currentLead.notes = [{
-          id: Date.now().toString(),
-          text: "Imported from CSV - no interaction history",
-          timestamp: new Date().toISOString(),
-          type: "note" as const,
-        }]
-      }
-      
-      i = j - 1 // Skip the lines we've already processed
+// Determine priority based on notes and status
+const determinePriority = (notes: any[], notesField: string): "high" | "medium" | "low" | "dormant" => {
+  const notesText = notesField.toLowerCase()
+  
+  if (notesText.includes("interested") || notesText.includes("wants to see")) {
+    return "high"
+  } else if (notesText.includes("not interested") || notesText.includes("said no")) {
+    return "low"
+  } else if (notesText.includes("dormant") || notesText.includes("spring")) {
+    return "dormant"
+  } else if (notesText.includes("voicemail")) {
+    // Check if they should be high priority (recent contact but no response)
+    const recentNotes = notes.filter(note => {
+      const noteDate = new Date(note.timestamp)
+      const now = new Date()
+      const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
+      return daysDiff <= 14 // Within last 2 weeks
+    })
+    if (recentNotes.length > 0) {
+      return "high"
     }
   }
   
-  // Don't forget the last lead
-  if (currentLead && currentLead.name && currentLead.name !== "Unknown Contact") {
-    leads.push(currentLead)
-  }
-
-  return leads
+  return "medium"
 }
 
 export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
