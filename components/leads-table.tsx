@@ -32,6 +32,7 @@ export interface Lead {
   ownerName?: string
   priority: "high" | "medium" | "low" | "dormant"
   nextActionDate: string
+  needsAttention?: boolean
   notes: Array<{
     id: string
     text: string
@@ -265,6 +266,18 @@ export function LeadsTable({
                 >
                   {value}
                 </div>
+                {lead.needsAttention && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
+                        <p className="font-body text-red-300">Missing required fields - needs attention</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
               <div className="text-gray-400 font-body text-sm">{row.original.email}</div>
               <div className="text-gray-400 font-body text-sm">{row.original.phone}</div>

@@ -254,8 +254,11 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       }
     }
 
-    // Validate that we have at least a name and address
-    if (!name.trim() || !address.trim()) {
+    // Check if this contact needs attention
+    const needsAttention = !name.trim() || name === "Unknown Contact" || 
+                          !address.trim() || address === "Address not provided"
+    
+    if (needsAttention) {
       console.warn(`Row ${lineIndex + 1}: Missing required fields - Name: "${name}", Address: "${address}"`)
     }
 
@@ -269,6 +272,7 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       lastInteraction: lastInteraction,
       priority: priority,
       nextActionDate: new Date().toISOString(),
+      needsAttention: needsAttention,
       notes: notes.length > 0 ? notes : [{
         id: Date.now().toString(),
         text: "Imported from CSV - no interaction history",
@@ -317,7 +321,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
         const content = e.target?.result as string
         const parsed = parseCSVContent(content)
         
-        // Check for missing required fields
+        // Check for missing required fields but allow import
         const missingFields = parsed.filter(lead => 
           !lead.name.trim() || lead.name === "Unknown Contact" || 
           !lead.address.trim() || lead.address === "Address not provided"
@@ -326,13 +330,13 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
         if (missingFields.length > 0) {
           setMessage({ 
             type: "error", 
-            text: `${missingFields.length} contacts are missing required fields (name or address). Please check your CSV format.` 
+            text: `${missingFields.length} contacts are missing required fields and will be flagged for attention.` 
           })
-          return
+        } else {
+          setMessage(null)
         }
         
         setCsvData(parsed)
-        setMessage(null)
       } catch (error) {
         setMessage({ type: "error", text: "Error parsing CSV file" })
       }

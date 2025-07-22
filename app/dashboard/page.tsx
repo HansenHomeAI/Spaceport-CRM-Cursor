@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [sortByRecent, setSortByRecent] = useState(false)
   const [showDormant, setShowDormant] = useState(false)
+  const [showNeedsAttention, setShowNeedsAttention] = useState(false)
   const [filterByOwnership, setFilterByOwnership] = useState<"all" | "mine" | "unclaimed">("all")
 
   // Redirect if not authenticated (only after loading is complete)
@@ -56,15 +57,20 @@ export default function DashboardPage() {
   const unclaimedLeads = leads.filter((lead) => !lead.ownerId).length
   const dormantLeads = leads.filter((lead) => lead.priority === "dormant").length
   const highPriorityLeads = leads.filter((lead) => lead.priority === "high").length
+  const needsAttentionLeads = leads.filter((lead) => lead.needsAttention).length
 
-  // Filter leads based on ownership
+  // Filter leads based on ownership and attention needs
   const filteredLeads = leads.filter((lead) => {
+    // Filter by ownership
     if (filterByOwnership === "mine") {
-      return lead.ownerId === user?.id
+      if (!lead.ownerId || lead.ownerId !== user?.id) return false
+    } else if (filterByOwnership === "unclaimed") {
+      if (lead.ownerId) return false
     }
-    if (filterByOwnership === "unclaimed") {
-      return !lead.ownerId
-    }
+    
+    // Filter by attention needs
+    if (showNeedsAttention && !lead.needsAttention) return false
+    
     return true
   })
 
@@ -261,6 +267,20 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 font-body text-sm">Need Attention</p>
+                  <p className="text-3xl font-title text-primary-hierarchy">{needsAttentionLeads}</p>
+                </div>
+                <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-red-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {leads.length === 0 ? (
@@ -347,6 +367,17 @@ export default function DashboardPage() {
                 >
                   {showDormant ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
                   {showDormant ? "Hide Dormant" : "Show Dormant"}
+                </Button>
+
+                <Button
+                  onClick={() => setShowNeedsAttention(!showNeedsAttention)}
+                  variant="outline"
+                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
+                    showNeedsAttention ? "bg-red-500/20 text-red-300 border-red-500/30" : ""
+                  }`}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  {showNeedsAttention ? "Hide Issues" : "Show Issues"}
                 </Button>
               </div>
 
