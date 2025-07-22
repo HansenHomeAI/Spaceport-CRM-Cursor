@@ -19,7 +19,7 @@ import { FollowUpPriority } from "@/components/follow-up-priority"
 import Image from "next/image"
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>([]) // Start with empty array
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
@@ -30,9 +30,9 @@ export default function DashboardPage() {
   const [showDormant, setShowDormant] = useState(false)
   const [filterByOwnership, setFilterByOwnership] = useState<"all" | "mine" | "unclaimed">("all")
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       // Use window.location for static export compatibility
       if (process.env.NODE_ENV === 'production') {
         window.location.href = '/Spaceport-CRM-Cursor/login/'
@@ -40,7 +40,7 @@ export default function DashboardPage() {
         router.push("/login")
       }
     }
-  }, [user, router])
+  }, [user, loading, router])
 
   // Calculate metrics
   const callsMade = leads.reduce((acc, lead) => acc + lead.notes.filter((note) => note.type === "call").length, 0)
@@ -123,12 +123,16 @@ export default function DashboardPage() {
     }
   }
 
-  if (!user) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     )
+  }
+
+  if (!user) {
+    return null // Will redirect via useEffect
   }
 
   return (

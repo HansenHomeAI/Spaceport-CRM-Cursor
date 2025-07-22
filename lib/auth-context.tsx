@@ -13,6 +13,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null
+  loading: boolean
   signIn: (email: string, password: string) => Promise<{ success: boolean; message: string }>
   signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; message: string }>
   signInDemo: () => void
@@ -30,6 +31,7 @@ const demoAccounts = [
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
   // Check for existing session on mount
   useEffect(() => {
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("spaceport_user")
       }
     }
+    setLoading(false)
   }, [])
 
   const signIn = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
@@ -132,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("spaceport_user")
   }
 
-  return <AuthContext.Provider value={{ user, signIn, signUp, signInDemo, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, signIn, signUp, signInDemo, signOut }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
