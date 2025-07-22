@@ -43,7 +43,12 @@ export default function LoginPage() {
 
       if (result.success) {
         setMessage({ type: "success", text: result.message })
-        router.push("/dashboard")
+        // Use window.location for static export compatibility
+        if (process.env.NODE_ENV === 'production') {
+          window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+        } else {
+          router.push("/dashboard")
+        }
       } else {
         setMessage({ type: "error", text: result.message })
       }
@@ -76,7 +81,12 @@ export default function LoginPage() {
 
       if (result.success) {
         setMessage({ type: "success", text: result.message })
-        router.push("/dashboard")
+        // Use window.location for static export compatibility
+        if (process.env.NODE_ENV === 'production') {
+          window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+        } else {
+          router.push("/dashboard")
+        }
       } else {
         setMessage({ type: "error", text: result.message })
       }
@@ -89,7 +99,12 @@ export default function LoginPage() {
 
   const handleDemoSignIn = () => {
     signInDemo()
-    router.push("/dashboard")
+    // Use window.location for static export compatibility
+    if (process.env.NODE_ENV === 'production') {
+      window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+    } else {
+      router.push("/dashboard")
+    }
   }
 
   return (
@@ -97,7 +112,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center">
-            <Image src="/logo-icon.svg" alt="Company Logo" width={64} height={64} className="w-full h-full" />
+            <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={64} height={64} className="w-full h-full" />
           </div>
           <CardTitle className="text-white text-2xl">Welcome</CardTitle>
           <CardDescription className="text-gray-400">Sign in to your account or create a new one</CardDescription>

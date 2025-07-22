@@ -33,7 +33,12 @@ export default function DashboardPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!user) {
-      router.push("/login")
+      // Use window.location for static export compatibility
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = '/Spaceport-CRM-Cursor/login/'
+      } else {
+        router.push("/login")
+      }
     }
   }, [user, router])
 
@@ -110,7 +115,12 @@ export default function DashboardPage() {
 
   const handleSignOut = () => {
     signOut()
-    router.push("/login")
+    // Use window.location for static export compatibility
+    if (process.env.NODE_ENV === 'production') {
+      window.location.href = '/Spaceport-CRM-Cursor/login/'
+    } else {
+      router.push("/login")
+    }
   }
 
   if (!user) {
@@ -132,7 +142,7 @@ export default function DashboardPage() {
           className="flex items-center justify-between mb-8"
         >
           <div className="flex items-center gap-4">
-            <Image src="/logo-icon.svg" alt="Company Logo" width={40} height={40} className="w-10 h-10" />
+            <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={40} height={40} className="w-10 h-10" />
             <div>
               <h1 className="text-3xl font-title text-white mb-2">Welcome back, {user?.name}</h1>
               <p className="text-gray-400 font-body">

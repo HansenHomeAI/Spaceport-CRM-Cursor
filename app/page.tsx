@@ -5,26 +5,26 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 
 export default function HomePage() {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
+    if (user) {
+      // Use window.location for static export compatibility
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+      } else {
         router.push("/dashboard")
+      }
+    } else {
+      // Use window.location for static export compatibility
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = '/Spaceport-CRM-Cursor/login/'
       } else {
         router.push("/login")
       }
     }
-  }, [user, loading, router])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    )
-  }
+  }, [user, router])
 
   return null
 }
