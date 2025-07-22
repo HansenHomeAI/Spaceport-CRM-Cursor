@@ -164,7 +164,7 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
   
   if (!notesText) return notes
 
-  // Split by common separators but be more intelligent about it
+  // Split by common separators but be smarter about it
   const noteParts = notesText.split(/[,;]|\band\b/).map(part => part.trim()).filter(part => part.length > 0)
   
   noteParts.forEach((part, index) => {
@@ -173,14 +173,18 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
     let type: "call" | "email" | "note" = "note"
     let text = part
     
-    // Determine type based on keywords - be more specific about voicemail
-    if (part.toLowerCase().includes("voicemail") || part.toLowerCase().includes("left message")) {
-      type = "call" // Voicemail is still a call type
-    } else if (part.toLowerCase().includes("call") && !part.toLowerCase().includes("voicemail")) {
-      type = "call"
-    } else if (part.toLowerCase().includes("email") || part.toLowerCase().includes("sent")) {
-      type = "email"
-    }
+          // Determine type based on keywords - be more specific about voicemail
+      if (part.toLowerCase().includes("voicemail") || part.toLowerCase().includes("left message")) {
+        type = "call" // Still a call but we'll mark it as voicemail in status
+        // Update the text to be more specific about voicemail
+        if (!part.toLowerCase().includes("voicemail")) {
+          text = part + " (voicemail)"
+        }
+      } else if (part.toLowerCase().includes("call") && !part.toLowerCase().includes("voicemail")) {
+        type = "call"
+      } else if (part.toLowerCase().includes("email") || part.toLowerCase().includes("sent")) {
+        type = "email"
+      }
     
     // Extract dates from the note - use 2024 as base year for older dates
     const dateMatch = part.match(/(\w+\s+\d{1,2},?\s+\d{4})|(\d{1,2}\/\d{1,2})|(\w+\s+\d{1,2})/)
@@ -218,192 +222,181 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
   return notes
 }
 
-// New robust CSV parsing that handles multi-line entries
+// New intelligent CSV parsing that handles multi-line data
 const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
   const lines = content.split("\n").filter((line) => line.trim())
-  
-  // Skip header row
-  const dataLines = lines.slice(1)
-  const leads: Omit<Lead, "id">[] = []
-  
-  let currentEntry: any = {}
-  let entryLines: string[] = []
-  
-  for (let i = 0; i < dataLines.length; i++) {
-    const line = dataLines[i]
-    
-    // Check if this line starts a new entry (has a name pattern)
-    const namePattern = /^[A-Z][a-z]+ [A-Z][a-z]+/
-    const isNewEntry = namePattern.test(line) && line.includes(',')
-    
-    if (isNewEntry && entryLines.length > 0) {
-      // Process the previous entry
-      const processedEntry = processEntry(entryLines)
-      if (processedEntry) {
-        leads.push(processedEntry)
-      }
-      entryLines = []
-    }
-    
-    entryLines.push(line)
-  }
-  
-  // Process the last entry
-  if (entryLines.length > 0) {
-    const processedEntry = processEntry(entryLines)
-    if (processedEntry) {
-      leads.push(processedEntry)
-    }
-  }
-  
-  return leads
-}
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
 
-const processEntry = (lines: string[]): Omit<Lead, "id"> | null => {
-  // Join all lines for this entry
-  const fullEntry = lines.join('\n')
-  
-  // Split by tabs first, then by commas if needed
-  const parts = fullEntry.split('\t').filter(part => part.trim())
-  
-  if (parts.length === 0) return null
-  
-  // Extract basic fields
-  let name = parts[0] || ""
-  let phone = parts[1] || ""
-  let email = parts[2] || ""
-  let address = parts[3] || ""
-  let notesText = parts[4] || ""
-  let followUp = parts[5] || ""
-  
-  // If we have fewer parts than expected, try comma splitting the first part
-  if (parts.length < 4 && parts[0]) {
-    const firstPart = parts[0]
-    const commaParts = firstPart.split(',').map(p => p.trim())
+  const leads: Omit<Lead, "id">[] = []
+  let currentLead: any = null
+
+  // Process each line after headers
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
     
-    // Try to intelligently parse the first part
-    if (commaParts.length >= 2) {
-      // Check if second part looks like a company
-      const secondPart = commaParts[1]
-      const companyKeywords = ["Real Estate", "Realty", "Properties", "Group", "Team", "Associates", "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc", "Partners", "Sotheby's", "Compass", "Keller Williams", "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", "Upside", "Premier", "Edina", "Real Broker", "Keller Williams Realty", "Berkshire Hathaway HomeServices", "Toll Brothers", "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", "Compass Real Estate", "McCann", "The Big Sky Real Estate Co", "Big Sky Sotheby's", "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", "Real Broker Alaska", "The Dow Group", "Upside", "Premier Commercial Realty", "Edina Realty", "Corcoran", "Houlihan Lawrence"]
-      
-      const isCompany = companyKeywords.some(keyword => 
-        secondPart.toLowerCase().includes(keyword.toLowerCase())
-      )
-      
-      if (isCompany) {
-        // This is likely a name + company format
-        const parsed = parseContactInfo(commaParts[0])
-        name = parsed.name || commaParts[0]
-        phone = phone || parsed.phone
-        email = email || parsed.email
-        
-        // Extract company from the second part
-        const companyParsed = parseContactInfo(commaParts[1])
-        const company = companyParsed.company || commaParts[1]
-        
-        // If we have more parts, they might be address and notes
-        if (commaParts.length >= 3) {
-          address = address || commaParts[2]
-        }
-        if (commaParts.length >= 4) {
-          notesText = notesText || commaParts.slice(3).join(', ')
-        }
-      } else {
-        // This might be a name + phone format
-        const parsed = parseContactInfo(commaParts[0])
-        name = parsed.name || commaParts[0]
-        phone = phone || parsed.phone || commaParts[1]
-        email = email || parsed.email
+         // Check if this line has a name (starts with a letter and has contact info)
+     const hasName = /^[A-Za-z]/.test(line.trim()) && 
+                    (line.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(line)) &&
+                    line.trim().length > 3 // Ensure it's not just a single word
+    
+    if (hasName) {
+      // This is a new lead - save the previous one if it exists
+      if (currentLead && currentLead.name && currentLead.name !== "Unknown Contact") {
+        leads.push(currentLead)
       }
+      
+      // Start parsing a new lead
+      currentLead = {
+        name: "",
+        phone: "",
+        email: "",
+        company: "",
+        address: "",
+        status: "contacted" as const,
+        lastInteraction: new Date().toISOString().split("T")[0],
+        priority: "medium" as const,
+        nextActionDate: new Date().toISOString(),
+        notes: [],
+      }
+      
+      // Parse the contact info from this line
+      const contactInfo = parseContactInfo(line)
+      currentLead.name = contactInfo.name || "Unknown Contact"
+      currentLead.phone = contactInfo.phone || "Not provided"
+      currentLead.email = contactInfo.email || "Not provided"
+      currentLead.company = contactInfo.company || ""
+      currentLead.address = contactInfo.address || ""
+      
+      // Look for additional info in subsequent lines that might belong to this contact
+      let j = i + 1
+      while (j < lines.length) {
+        const nextLine = lines[j].trim()
+        
+        // If next line starts with a name, it's a new contact
+        if (/^[A-Za-z]/.test(nextLine) && 
+            (nextLine.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(nextLine))) {
+          break
+        }
+        
+        // If next line is empty, skip it
+        if (!nextLine) {
+          j++
+          continue
+        }
+        
+                 // Check if this line contains additional contact info
+         const additionalInfo = parseContactInfo(nextLine)
+         if (additionalInfo.name && additionalInfo.name !== currentLead.name) {
+           // This might be company info or additional contact
+           if (!currentLead.company && additionalInfo.company) {
+             currentLead.company = additionalInfo.company
+           }
+           if (!currentLead.address && additionalInfo.address) {
+             currentLead.address = additionalInfo.address
+           }
+         }
+         
+         // Also check if this line contains an address (even without a name)
+         if (!currentLead.address && (
+           nextLine.includes("Rd") || 
+           nextLine.includes("St") || 
+           nextLine.includes("Ave") || 
+           nextLine.includes("Dr") ||
+           nextLine.includes("UT") ||
+           nextLine.includes("ID") ||
+           nextLine.includes("MT") ||
+           nextLine.includes("WY") ||
+           nextLine.includes("AK") ||
+           nextLine.includes("NY") ||
+           nextLine.includes("NH") ||
+           nextLine.includes("TX") ||
+           nextLine.includes("MN") ||
+           nextLine.includes("MA") ||
+           nextLine.includes("IL") ||
+           nextLine.includes("MO") ||
+           nextLine.includes("OK") ||
+           nextLine.includes("CO")
+         )) {
+           currentLead.address = nextLine.trim()
+         }
+        
+        // Check if this line contains notes/interactions
+        if (nextLine.toLowerCase().includes("call") || 
+            nextLine.toLowerCase().includes("email") || 
+            nextLine.toLowerCase().includes("voicemail") ||
+            nextLine.toLowerCase().includes("sent") ||
+            /\d{1,2}\/\d{1,2}/.test(nextLine) ||
+            /\w+\s+\d{1,2}/.test(nextLine)) {
+          
+          // Parse notes from this line
+          const notes = parseNotes(nextLine)
+          currentLead.notes.push(...notes)
+        }
+        
+        j++
+      }
+      
+             // Determine status based on all collected notes
+       const allNotes = currentLead.notes.map((n: any) => n.text).join(" ").toLowerCase()
+       if (allNotes.includes("interested") || allNotes.includes("wants to see")) {
+         currentLead.status = "interested"
+       } else if (allNotes.includes("not interested") || allNotes.includes("said no")) {
+         currentLead.status = "cold"
+       } else if (allNotes.includes("closed") || allNotes.includes("sold")) {
+         currentLead.status = "closed"
+       } else if (allNotes.includes("voicemail") && !allNotes.includes("talked") && !allNotes.includes("picked up")) {
+         currentLead.status = "left voicemail"
+       }
+
+      // Determine priority based on notes and status
+      if (currentLead.status === "interested") {
+        currentLead.priority = "high"
+      } else if (currentLead.status === "cold") {
+        currentLead.priority = "low"
+      } else if (allNotes.includes("dormant") || allNotes.includes("spring")) {
+        currentLead.priority = "dormant"
+      } else if (currentLead.status === "left voicemail") {
+        // Check if they should be high priority (recent contact but no response)
+        const recentNotes = currentLead.notes.filter((note: any) => {
+          const noteDate = new Date(note.timestamp)
+          const now = new Date()
+          const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
+          return daysDiff <= 14 // Within last 2 weeks
+        })
+        if (recentNotes.length > 0) {
+          currentLead.priority = "high"
+        }
+      }
+
+      // Find the earliest date from notes for lastInteraction
+               if (currentLead.notes.length > 0) {
+           const dates = currentLead.notes.map((note: any) => new Date(note.timestamp)).filter((date: Date) => !isNaN(date.getTime()))
+           if (dates.length > 0) {
+             const earliestDate = new Date(Math.min(...dates.map((d: Date) => d.getTime())))
+             currentLead.lastInteraction = earliestDate.toISOString().split("T")[0]
+           }
+         }
+
+      // Add default note if no notes were found
+      if (currentLead.notes.length === 0) {
+        currentLead.notes = [{
+          id: Date.now().toString(),
+          text: "Imported from CSV - no interaction history",
+          timestamp: new Date().toISOString(),
+          type: "note" as const,
+        }]
+      }
+      
+      i = j - 1 // Skip the lines we've already processed
     }
   }
   
-  // Parse contact info from name field if it contains complex data
-  if (name && (name.includes("@") || name.includes("(") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(name))) {
-    const parsed = parseContactInfo(name)
-    name = parsed.name || name
-    phone = phone || parsed.phone
-    email = email || parsed.email
+  // Don't forget the last lead
+  if (currentLead && currentLead.name && currentLead.name !== "Unknown Contact") {
+    leads.push(currentLead)
   }
-  
-  // Parse any field that might contain contact info
-  ;[phone, email, address].forEach((field) => {
-    if (field && (field.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(field))) {
-      const parsed = parseContactInfo(field)
-      email = email || parsed.email
-      phone = phone || parsed.phone
-    }
-  })
-  
-  // Parse notes and extract interaction history
-  const notes = parseNotes(notesText)
-  
-  // Determine status based on notes content
-  let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
-  if (notesText.toLowerCase().includes("interested") || notesText.toLowerCase().includes("wants to see")) {
-    status = "interested"
-  } else if (notesText.toLowerCase().includes("not interested") || notesText.toLowerCase().includes("said no")) {
-    status = "cold"
-  } else if (notesText.toLowerCase().includes("closed") || notesText.toLowerCase().includes("sold")) {
-    status = "closed"
-  } else if (notesText.toLowerCase().includes("voicemail") && !notesText.toLowerCase().includes("talked")) {
-    status = "left voicemail"
-  }
-  
-  // Determine priority based on notes and status
-  let priority: "high" | "medium" | "low" | "dormant" = "medium"
-  if (status === "interested") {
-    priority = "high"
-  } else if (status === "cold") {
-    priority = "low"
-  } else if (notesText.toLowerCase().includes("dormant") || notesText.toLowerCase().includes("spring")) {
-    priority = "dormant"
-  } else if (status === "left voicemail") {
-    // Check if they should be high priority (recent contact but no response)
-    const recentNotes = notes.filter(note => {
-      const noteDate = new Date(note.timestamp)
-      const now = new Date()
-      const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
-      return daysDiff <= 14 // Within last 2 weeks
-    })
-    if (recentNotes.length > 0) {
-      priority = "high"
-    }
-  }
-  
-  // Find the most recent date from notes for lastInteraction
-  let lastInteraction = new Date().toISOString().split("T")[0]
-  if (notes.length > 0) {
-    const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
-    if (dates.length > 0) {
-      const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
-      lastInteraction = mostRecentDate.toISOString().split("T")[0]
-    }
-  }
-  
-  // Validate that we have at least a name
-  if (!name || name.trim() === "") {
-    return null // Skip entries without names
-  }
-  
-  return {
-    name: name || "Unknown Contact",
-    phone: phone || "Not provided",
-    email: email || "Not provided",
-    company: "", // Will be extracted from notes if present
-    address: address || "Address not provided",
-    status: status,
-    lastInteraction: lastInteraction,
-    priority: priority,
-    nextActionDate: new Date().toISOString(),
-    notes: notes.length > 0 ? notes : [{
-      id: Date.now().toString(),
-      text: "Imported from CSV - no interaction history",
-      timestamp: new Date().toISOString(),
-      type: "note" as const,
-    }],
-  }
+
+  return leads
 }
 
 export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
@@ -411,8 +404,6 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
   const [csvData, setCsvData] = useState<Omit<Lead, "id">[] | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [parsingErrors, setParsingErrors] = useState<Array<{ line: string; error: string; suggestedFix?: any }>>([])
-  const [showErrorResolution, setShowErrorResolution] = useState(false)
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -444,17 +435,9 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string
-        const { leads, errors } = parseCSVContentWithValidation(content)
-        
-        if (errors.length > 0) {
-          setParsingErrors(errors)
-          setShowErrorResolution(true)
-          setCsvData(leads)
-          setMessage({ type: "error", text: `Found ${errors.length} parsing issues. Please review and fix.` })
-        } else {
-          setCsvData(leads)
-          setMessage(null)
-        }
+        const parsed = parseCSVContent(content)
+        setCsvData(parsed)
+        setMessage(null)
       } catch (error) {
         setMessage({ type: "error", text: "Error parsing CSV file" })
       }
@@ -474,8 +457,6 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
           onClose()
           setCsvData(null)
           setMessage(null)
-          setParsingErrors([])
-          setShowErrorResolution(false)
         }, 2000)
       } else {
         setMessage({ type: "error", text: result.message })
@@ -490,240 +471,6 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
   const resetImport = () => {
     setCsvData(null)
     setMessage(null)
-    setParsingErrors([])
-    setShowErrorResolution(false)
-  }
-
-  const handleManualOverride = (index: number, override: Partial<Omit<Lead, "id">>) => {
-    if (!csvData) return
-    
-    const updatedData = [...csvData]
-    updatedData[index] = { ...updatedData[index], ...override }
-    setCsvData(updatedData)
-    
-    // Remove the error from the list
-    const updatedErrors = parsingErrors.filter((_, i) => i !== index)
-    setParsingErrors(updatedErrors)
-    
-    if (updatedErrors.length === 0) {
-      setShowErrorResolution(false)
-      setMessage({ type: "success", text: "All parsing issues resolved!" })
-    }
-  }
-
-  const parseCSVContentWithValidation = (content: string): { leads: Omit<Lead, "id">[], errors: Array<{ line: string; error: string; suggestedFix?: any }> } => {
-    const lines = content.split("\n").filter((line) => line.trim())
-    const dataLines = lines.slice(1)
-    const leads: Omit<Lead, "id">[] = []
-    const errors: Array<{ line: string; error: string; suggestedFix?: any }> = []
-    
-    let entryLines: string[] = []
-    
-    for (let i = 0; i < dataLines.length; i++) {
-      const line = dataLines[i]
-      
-      // Check if this line starts a new entry (has a name pattern)
-      const namePattern = /^[A-Z][a-z]+ [A-Z][a-z]+/
-      const isNewEntry = namePattern.test(line) && line.includes(',')
-      
-      if (isNewEntry && entryLines.length > 0) {
-        // Process the previous entry
-        const { entry, error } = processEntryWithValidation(entryLines)
-        if (entry) {
-          leads.push(entry)
-        }
-        if (error) {
-          errors.push({ line: entryLines.join('\n'), error: error.error, suggestedFix: error.suggestedFix })
-        }
-        entryLines = []
-      }
-      
-      entryLines.push(line)
-    }
-    
-    // Process the last entry
-    if (entryLines.length > 0) {
-      const { entry, error } = processEntryWithValidation(entryLines)
-      if (entry) {
-        leads.push(entry)
-      }
-      if (error) {
-        errors.push({ line: entryLines.join('\n'), error: error.error, suggestedFix: error.suggestedFix })
-      }
-    }
-    
-    return { leads, errors }
-  }
-
-  const processEntryWithValidation = (lines: string[]): { entry: Omit<Lead, "id"> | null, error: { error: string; suggestedFix?: any } | null } => {
-    // Join all lines for this entry
-    const fullEntry = lines.join('\n')
-    
-    // Split by tabs first, then by commas if needed
-    const parts = fullEntry.split('\t').filter(part => part.trim())
-    
-    if (parts.length === 0) {
-      return { 
-        entry: null, 
-        error: { error: "Empty entry - no data found" }
-      }
-    }
-    
-    // Extract basic fields
-    let name = parts[0] || ""
-    let phone = parts[1] || ""
-    let email = parts[2] || ""
-    let address = parts[3] || ""
-    let notesText = parts[4] || ""
-    let followUp = parts[5] || ""
-    
-    // If we have fewer parts than expected, try comma splitting the first part
-    if (parts.length < 4 && parts[0]) {
-      const firstPart = parts[0]
-      const commaParts = firstPart.split(',').map(p => p.trim())
-      
-      // Try to intelligently parse the first part
-      if (commaParts.length >= 2) {
-        // Check if second part looks like a company
-        const secondPart = commaParts[1]
-        const companyKeywords = ["Real Estate", "Realty", "Properties", "Group", "Team", "Associates", "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc", "Partners", "Sotheby's", "Compass", "Keller Williams", "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", "Upside", "Premier", "Edina", "Real Broker", "Keller Williams Realty", "Berkshire Hathaway HomeServices", "Toll Brothers", "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", "Compass Real Estate", "McCann", "The Big Sky Real Estate Co", "Big Sky Sotheby's", "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", "Real Broker Alaska", "The Dow Group", "Upside", "Premier Commercial Realty", "Edina Realty", "Corcoran", "Houlihan Lawrence"]
-        
-        const isCompany = companyKeywords.some(keyword => 
-          secondPart.toLowerCase().includes(keyword.toLowerCase())
-        )
-        
-        if (isCompany) {
-          // This is likely a name + company format
-          const parsed = parseContactInfo(commaParts[0])
-          name = parsed.name || commaParts[0]
-          phone = phone || parsed.phone
-          email = email || parsed.email
-          
-          // Extract company from the second part
-          const companyParsed = parseContactInfo(commaParts[1])
-          const company = companyParsed.company || commaParts[1]
-          
-          // If we have more parts, they might be address and notes
-          if (commaParts.length >= 3) {
-            address = address || commaParts[2]
-          }
-          if (commaParts.length >= 4) {
-            notesText = notesText || commaParts.slice(3).join(', ')
-          }
-        } else {
-          // This might be a name + phone format
-          const parsed = parseContactInfo(commaParts[0])
-          name = parsed.name || commaParts[0]
-          phone = phone || parsed.phone || commaParts[1]
-          email = email || parsed.email
-        }
-      }
-    }
-    
-    // Parse contact info from name field if it contains complex data
-    if (name && (name.includes("@") || name.includes("(") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(name))) {
-      const parsed = parseContactInfo(name)
-      name = parsed.name || name
-      phone = phone || parsed.phone
-      email = email || parsed.email
-    }
-    
-    // Parse any field that might contain contact info
-    ;[phone, email, address].forEach((field) => {
-      if (field && (field.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(field))) {
-        const parsed = parseContactInfo(field)
-        email = email || parsed.email
-        phone = phone || parsed.phone
-      }
-    })
-    
-    // Parse notes and extract interaction history
-    const notes = parseNotes(notesText)
-    
-    // Determine status based on notes content
-    let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
-    if (notesText.toLowerCase().includes("interested") || notesText.toLowerCase().includes("wants to see")) {
-      status = "interested"
-    } else if (notesText.toLowerCase().includes("not interested") || notesText.toLowerCase().includes("said no")) {
-      status = "cold"
-    } else if (notesText.toLowerCase().includes("closed") || notesText.toLowerCase().includes("sold")) {
-      status = "closed"
-    } else if (notesText.toLowerCase().includes("voicemail") && !notesText.toLowerCase().includes("talked")) {
-      status = "left voicemail"
-    }
-    
-    // Determine priority based on notes and status
-    let priority: "high" | "medium" | "low" | "dormant" = "medium"
-    if (status === "interested") {
-      priority = "high"
-    } else if (status === "cold") {
-      priority = "low"
-    } else if (notesText.toLowerCase().includes("dormant") || notesText.toLowerCase().includes("spring")) {
-      priority = "dormant"
-    } else if (status === "left voicemail") {
-      // Check if they should be high priority (recent contact but no response)
-      const recentNotes = notes.filter(note => {
-        const noteDate = new Date(note.timestamp)
-        const now = new Date()
-        const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
-        return daysDiff <= 14 // Within last 2 weeks
-      })
-      if (recentNotes.length > 0) {
-        priority = "high"
-      }
-    }
-    
-    // Find the most recent date from notes for lastInteraction
-    let lastInteraction = new Date().toISOString().split("T")[0]
-    if (notes.length > 0) {
-      const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
-      if (dates.length > 0) {
-        const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
-        lastInteraction = mostRecentDate.toISOString().split("T")[0]
-      }
-    }
-    
-    // Validate that we have at least a name
-    if (!name || name.trim() === "") {
-      return { 
-        entry: null, 
-        error: { 
-          error: "Missing contact name",
-          suggestedFix: { name: "Unknown Contact" }
-        }
-      }
-    }
-    
-    // Validate that we have at least an address
-    if (!address || address.trim() === "") {
-      return { 
-        entry: null, 
-        error: { 
-          error: "Missing property address",
-          suggestedFix: { address: "Address not provided" }
-        }
-      }
-    }
-    
-    const entry = {
-      name: name || "Unknown Contact",
-      phone: phone || "Not provided",
-      email: email || "Not provided",
-      company: "", // Will be extracted from notes if present
-      address: address || "Address not provided",
-      status: status,
-      lastInteraction: lastInteraction,
-      priority: priority,
-      nextActionDate: new Date().toISOString(),
-      notes: notes.length > 0 ? notes : [{
-        id: Date.now().toString(),
-        text: "Imported from CSV - no interaction history",
-        timestamp: new Date().toISOString(),
-        type: "note" as const,
-      }],
-    }
-    
-    return { entry, error: null }
   }
 
   return (
@@ -751,7 +498,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill"
+                                          className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -759,9 +506,9 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
               <CardContent className="overflow-y-auto">
                 {!csvData ? (
                   <div
-                    className={`border-2 border-dashed rounded-brand p-8 text-center transition-colors ${
-                      dragActive ? "border-[#CD70E4] bg-[#CD70E4]/5" : "border-white/20 hover:border-white/40"
-                    }`}
+                                  className={`border-2 border-dashed rounded-brand p-8 text-center transition-colors ${
+                dragActive ? "border-[#CD70E4] bg-[#CD70E4]/5" : "border-white/20 hover:border-white/40"
+              }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
@@ -791,8 +538,8 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                     </label>
                     <div className="mt-4 text-xs text-gray-500">
                       <p>Supports complex name formats like:</p>
-                      <p>"Christopher Corroon 435-901-0444, Axis Realty Group"</p>
-                      <p>"Steve Johns (husband), Toll Brothers"</p>
+                      <p>"Mary Wheeler 406-539-1745,PureWest Real Estate"</p>
+                      <p>"Larry (aka Lawrence) Havens 845-453-5679"</p>
                     </div>
                   </div>
                 ) : (
@@ -801,11 +548,6 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-5 w-5 text-green-400" />
                         <span className="text-white font-title">{csvData.length} contacts ready to import</span>
-                        {parsingErrors.length > 0 && (
-                          <Badge className="bg-red-500/20 text-red-300 rounded-pill">
-                            {parsingErrors.length} issues
-                          </Badge>
-                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -817,30 +559,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                       </Button>
                     </div>
 
-                    {showErrorResolution && parsingErrors.length > 0 && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-brand p-4">
-                        <h4 className="text-red-300 font-title mb-3">Parsing Issues Found</h4>
-                        <div className="space-y-3 max-h-60 overflow-y-auto">
-                          {parsingErrors.map((error, index) => (
-                            <div key={index} className="bg-black/20 rounded-brand p-3">
-                              <p className="text-red-300 text-sm mb-2">{error.error}</p>
-                              <p className="text-gray-400 text-xs mb-2">Raw data: {error.line.substring(0, 100)}...</p>
-                              {error.suggestedFix && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleManualOverride(index, error.suggestedFix)}
-                                  className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-pill text-xs"
-                                >
-                                  Apply Suggested Fix
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="bg-black/40 rounded-brand p-4 max-h-96 overflow-y-auto">
+                    <div className="bg-black/40 rounded-xl p-4 max-h-96 overflow-y-auto">
                       <div className="grid gap-3">
                         {csvData.slice(0, 10).map((lead, index) => (
                           <div key={index} className="bg-white/5 rounded-brand p-3">
@@ -849,7 +568,6 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                                 <div className="text-white font-title">{lead.name}</div>
                                 <div className="text-gray-400 text-sm">{lead.email}</div>
                                 <div className="text-gray-400 text-sm">{lead.phone}</div>
-                                <div className="text-gray-400 text-sm">{lead.address}</div>
                                 {lead.company && (
                                   <Badge className="bg-blue-500/20 text-blue-300 text-xs rounded-pill">{lead.company}</Badge>
                                 )}
@@ -869,7 +587,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                     <div className="flex gap-3">
                       <Button
                         onClick={handleImport}
-                        disabled={isImporting || parsingErrors.length > 0}
+                        disabled={isImporting}
                         className="flex-1 bg-white text-black hover:bg-gray-100 rounded-pill font-body"
                       >
                         {isImporting ? (
