@@ -249,9 +249,9 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
               <CardContent className="overflow-y-auto">
                 {!csvData ? (
                   <div
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-                      dragActive ? "border-[#CD70E4] bg-[#CD70E4]/5" : "border-white/20 hover:border-white/40"
-                    }`}
+                                  className={`border-2 border-dashed rounded-brand p-8 text-center transition-colors ${
+                dragActive ? "border-[#CD70E4] bg-[#CD70E4]/5" : "border-white/20 hover:border-white/40"
+              }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}

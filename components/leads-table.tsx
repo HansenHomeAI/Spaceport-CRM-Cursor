@@ -463,7 +463,7 @@ export function LeadsTable({
             variant="ghost"
             size="sm"
             onClick={() => onLeadSelect(row.original)}
-            className="text-white hover:text-white hover:bg-white/10 rounded-lg px-4 py-2 transition-all duration-200 font-body border border-white/20"
+                          className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
           >
             View Details
           </Button>

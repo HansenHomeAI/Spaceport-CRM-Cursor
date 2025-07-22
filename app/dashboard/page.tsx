@@ -157,7 +157,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={40} height={40} className="w-10 h-10" />
             <div>
-              <h1 className="text-3xl font-title text-white mb-2">Welcome back, {user?.name}</h1>
+              <h1 className="text-3xl font-title text-primary-hierarchy mb-2">Welcome back, {user?.name}</h1>
               <p className="text-gray-400 font-body">
                 {leads.length === 0
                   ? "Get started by importing your CSV file or adding your first lead."
@@ -197,7 +197,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 font-body text-sm">Total Leads</p>
-                  <p className="text-3xl font-bold text-white">{leads.length}</p>
+                  <p className="text-3xl font-title text-primary-hierarchy">{leads.length}</p>
                 </div>
                 <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center">
                   <Search className="h-6 w-6 text-white" />
@@ -211,7 +211,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 font-body text-sm">High Priority</p>
-                  <p className="text-3xl font-bold text-white">{highPriorityLeads}</p>
+                  <p className="text-3xl font-title text-primary-hierarchy">{highPriorityLeads}</p>
                 </div>
                 <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
                   <Clock className="h-6 w-6 text-red-400" />
@@ -225,7 +225,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 font-body text-sm">My Leads</p>
-                  <p className="text-3xl font-bold text-white">{myLeads}</p>
+                  <p className="text-3xl font-title text-primary-hierarchy">{myLeads}</p>
                 </div>
                 <div className="h-12 w-12 bg-blue-500/20 rounded-full flex items-center justify-center">
                   <Plus className="h-6 w-6 text-blue-400" />
@@ -239,7 +239,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 font-body text-sm">Unclaimed</p>
-                  <p className="text-3xl font-bold text-white">{unclaimedLeads}</p>
+                  <p className="text-3xl font-title text-primary-hierarchy">{unclaimedLeads}</p>
                 </div>
                 <div className="h-12 w-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
                   <Clock className="h-6 w-6 text-yellow-400" />
@@ -253,7 +253,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 font-body text-sm">Dormant</p>
-                  <p className="text-3xl font-bold text-white">{dormantLeads}</p>
+                  <p className="text-3xl font-title text-primary-hierarchy">{dormantLeads}</p>
                 </div>
                 <div className="h-12 w-12 bg-gray-500/20 rounded-full flex items-center justify-center">
                   <Clock className="h-6 w-6 text-gray-400" />

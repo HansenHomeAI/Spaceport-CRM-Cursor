@@ -7,19 +7,18 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    @apply bg-background text-foreground font-sans;
   }
 }
 
 @layer utilities {
   .text-primary-hierarchy {
-    @apply text-white;
+    @apply text-white font-title;
     opacity: 1;
   }
 
   .text-medium-hierarchy {
-    @apply text-white;
+    @apply text-white font-body;
     opacity: 0.5;
   }
 
@@ -34,5 +33,13 @@
   .border-system {
     border-width: 2.5px;
     @apply border-white/10;
+  }
+
+  .rounded-brand {
+    border-radius: 25px;
+  }
+
+  .rounded-pill {
+    border-radius: 9999px;
   }
 }

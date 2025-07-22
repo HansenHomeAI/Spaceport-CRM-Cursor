@@ -126,7 +126,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center">
             <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={64} height={64} className="w-full h-full" />
           </div>
-          <CardTitle className="text-white text-2xl">Welcome</CardTitle>
+                      <CardTitle className="text-primary-hierarchy text-2xl font-title">Welcome</CardTitle>
           <CardDescription className="text-gray-400">Sign in to your account or create a new one</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -170,7 +170,7 @@ export default function LoginPage() {
                     placeholder="Enter your email"
                     value={signInForm.email}
                     onChange={(e) => setSignInForm({ ...signInForm, email: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
                     required
                   />
                 </div>
@@ -184,14 +184,14 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     value={signInForm.password}
                     onChange={(e) => setSignInForm({ ...signInForm, password: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
                     required
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-pill border-system"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -221,7 +221,7 @@ export default function LoginPage() {
                     placeholder="Enter your full name"
                     value={signUpForm.name}
                     onChange={(e) => setSignUpForm({ ...signUpForm, name: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
                     required
                   />
                 </div>
@@ -235,7 +235,7 @@ export default function LoginPage() {
                     placeholder="Enter your email"
                     value={signUpForm.email}
                     onChange={(e) => setSignUpForm({ ...signUpForm, email: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
                     required
                   />
                 </div>
@@ -249,7 +249,7 @@ export default function LoginPage() {
                     placeholder="Enter your password (min 6 characters)"
                     value={signUpForm.password}
                     onChange={(e) => setSignUpForm({ ...signUpForm, password: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
                     required
                     minLength={6}
                   />
@@ -264,14 +264,14 @@ export default function LoginPage() {
                     placeholder="Confirm your password"
                     value={signUpForm.confirmPassword}
                     onChange={(e) => setSignUpForm({ ...signUpForm, confirmPassword: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
                     required
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-pill border-system"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
