@@ -35,14 +35,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for existing session on mount
   useEffect(() => {
+    console.log("🔍 AuthProvider: Checking for existing session...")
     const savedUser = localStorage.getItem("spaceport_user")
+    console.log("🔍 AuthProvider: savedUser from localStorage:", savedUser)
+    
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const parsedUser = JSON.parse(savedUser)
+        console.log("🔍 AuthProvider: Setting user from localStorage:", parsedUser)
+        setUser(parsedUser)
       } catch (error) {
+        console.error("🔍 AuthProvider: Error parsing saved user:", error)
         localStorage.removeItem("spaceport_user")
       }
+    } else {
+      console.log("🔍 AuthProvider: No saved user found")
     }
+    
+    console.log("🔍 AuthProvider: Setting loading to false")
     setLoading(false)
   }, [])
 
@@ -120,14 +130,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInDemo = () => {
+    console.log("🔍 signInDemo: Starting demo sign in...")
     const demoUser: User = {
       id: "demo-1",
       name: "Demo User",
       email: "demo@spaceport.com",
       isDemo: true,
     }
+    console.log("🔍 signInDemo: Setting user:", demoUser)
     setUser(demoUser)
     localStorage.setItem("spaceport_user", JSON.stringify(demoUser))
+    console.log("🔍 signInDemo: User saved to localStorage")
   }
 
   const signOut = () => {

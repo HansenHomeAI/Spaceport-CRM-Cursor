@@ -32,13 +32,20 @@ export default function DashboardPage() {
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
+    console.log("🔍 Dashboard: Auth check - loading:", loading, "user:", user)
+    
     if (!loading && !user) {
+      console.log("🔍 Dashboard: No user found, redirecting to login...")
       // Use window.location for static export compatibility
       if (process.env.NODE_ENV === 'production') {
+        console.log("🔍 Dashboard: Redirecting to production login...")
         window.location.href = '/Spaceport-CRM-Cursor/login/'
       } else {
+        console.log("🔍 Dashboard: Redirecting to development login...")
         router.push("/login")
       }
+    } else if (!loading && user) {
+      console.log("🔍 Dashboard: User authenticated:", user)
     }
   }, [user, loading, router])
 
@@ -124,6 +131,7 @@ export default function DashboardPage() {
   }
 
   if (loading) {
+    console.log("🔍 Dashboard: Still loading, showing spinner...")
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
@@ -132,6 +140,7 @@ export default function DashboardPage() {
   }
 
   if (!user) {
+    console.log("🔍 Dashboard: No user, returning null (will redirect)...")
     return null // Will redirect via useEffect
   }
 

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,13 @@ import Image from "next/image"
 export default function LoginPage() {
   const router = useRouter()
   const { signIn, signUp, signInDemo } = useAuth()
+
+  // Debug: Check localStorage on component mount
+  useEffect(() => {
+    console.log("🔍 LoginPage: Component mounted")
+    console.log("🔍 LoginPage: localStorage spaceport_user:", localStorage.getItem("spaceport_user"))
+    console.log("🔍 LoginPage: NODE_ENV:", process.env.NODE_ENV)
+  }, [])
 
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
@@ -98,11 +105,16 @@ export default function LoginPage() {
   }
 
   const handleDemoSignIn = () => {
+    console.log("🔍 handleDemoSignIn: Starting demo sign in...")
     signInDemo()
+    console.log("🔍 handleDemoSignIn: signInDemo completed, about to navigate...")
+    
     // Use window.location for static export compatibility
     if (process.env.NODE_ENV === 'production') {
+      console.log("🔍 handleDemoSignIn: Navigating to production dashboard...")
       window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
     } else {
+      console.log("🔍 handleDemoSignIn: Navigating to development dashboard...")
       router.push("/dashboard")
     }
   }
