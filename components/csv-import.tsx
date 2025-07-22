@@ -35,7 +35,7 @@ const parseContactInfo = (text: string) => {
   }
 
   // Phone regex - multiple formats
-  const phoneMatch = text.match(/(?:\+?1[-.\s]?)?$$?([0-9]{3})$$?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/)
+  const phoneMatch = text.match(/(?:\+?1[-.\s]?)?\$?([0-9]{3})\$?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/)
   if (phoneMatch) {
     result.phone = phoneMatch[0]
     text = text.replace(phoneMatch[0], "").trim()
@@ -70,7 +70,7 @@ const parseContactInfo = (text: string) => {
   }
 
   // Clean up name - remove parenthetical aliases and extra info
-  text = text.replace(/$$[^)]*$$/g, "") // Remove (aka Lawrence) type content
+  text = text.replace(/\$[^)]*\$/g, "") // Remove (aka Lawrence) type content
   text = text.replace(/,.*$/, "") // Remove everything after first comma
   text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
 
