@@ -215,19 +215,19 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
+            <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-white/10 rounded-xl max-h-[90vh] overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-white font-title text-xl">Add New Lead</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="text-gray-400 hover:text-white hover:bg-white/10 rounded-lg"
+                  className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-y-auto max-h-[calc(90vh-120px)]">
                 {/* Smart Parse Section */}
                 {!showSmartParse ? (
                   <div className="mb-4">
@@ -235,7 +235,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       type="button"
                       variant="outline"
                       onClick={() => setShowSmartParse(true)}
-                      className="w-full border-[#CD70E4]/30 text-[#CD70E4] hover:bg-[#CD70E4]/10 rounded-lg font-body"
+                      className="w-full border-[#CD70E4]/30 text-[#CD70E4] hover:bg-[#CD70E4]/10 rounded-pill font-body"
                     >
                       <Sparkles className="h-4 w-4 mr-2" />
                       Smart Parse Contact Info
@@ -248,7 +248,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       value={smartParseText}
                       onChange={(e) => setSmartParseText(e.target.value)}
                       placeholder="Paste: Mary Wheeler 406-539-1745, PureWest Real Estate, 123 Main St..."
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-lg"
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
                       rows={3}
                     />
                     <div className="flex gap-2">
@@ -256,7 +256,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                         type="button"
                         onClick={handleSmartParse}
                         size="sm"
-                        className="bg-[#CD70E4] hover:bg-[#CD70E4]/80 text-white rounded-lg font-body"
+                        className="bg-[#CD70E4] hover:bg-[#CD70E4]/80 text-white rounded-pill font-body"
                       >
                         <Sparkles className="h-3 w-3 mr-1" />
                         Parse
@@ -266,7 +266,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                         variant="ghost"
                         onClick={() => setShowSmartParse(false)}
                         size="sm"
-                        className="text-gray-400 hover:text-white hover:bg-white/10 rounded-lg font-body"
+                        className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill font-body"
                       >
                         Cancel
                       </Button>
@@ -283,7 +283,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="name"
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-lg"
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
                       placeholder="Enter contact name"
                       required
                     />
@@ -298,7 +298,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-lg"
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
                       placeholder="Enter email address"
                     />
                   </div>
@@ -311,7 +311,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-lg"
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
                       placeholder="Enter phone number"
                     />
                   </div>
@@ -324,7 +324,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="company"
                       value={formData.company}
                       onChange={(e) => handleInputChange("company", e.target.value)}
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-lg"
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
                       placeholder="Enter company name"
                     />
                   </div>
@@ -337,7 +337,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="address"
                       value={formData.address}
                       onChange={(e) => handleInputChange("address", e.target.value)}
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-lg"
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
                       placeholder="Enter property address"
                     />
                   </div>
@@ -347,7 +347,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       Initial Status
                     </Label>
                     <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
-                      <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-lg">
+                      <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
@@ -372,14 +372,14 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       type="button"
                       variant="outline"
                       onClick={onClose}
-                      className="flex-1 border-white/20 text-gray-400 bg-transparent hover:bg-white/10 rounded-lg font-body"
+                      className="flex-1 border-white/20 text-gray-400 bg-transparent hover:bg-white/10 rounded-pill font-body"
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
                       disabled={!formData.name.trim()}
-                      className="flex-1 bg-white text-black hover:bg-gray-100 rounded-lg transition-all duration-200 font-body disabled:opacity-50"
+                      className="flex-1 bg-white text-black hover:bg-gray-100 rounded-pill transition-all duration-200 font-body disabled:opacity-50"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Lead

@@ -17,7 +17,7 @@ interface CSVImportProps {
   onImport: (leads: Omit<Lead, "id">[]) => Promise<{ success: boolean; message: string }>
 }
 
-// Enhanced parsing functions
+// Enhanced parsing functions for complex data
 const parseContactInfo = (text: string) => {
   const result = {
     name: "",
@@ -34,8 +34,8 @@ const parseContactInfo = (text: string) => {
     text = text.replace(emailMatch[0], "").trim()
   }
 
-  // Phone regex - multiple formats
-  const phoneMatch = text.match(/(?:\+?1[-.\s]?)?\$?([0-9]{3})\$?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/)
+  // Phone regex - multiple formats including parentheses
+  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
   if (phoneMatch) {
     result.phone = phoneMatch[0]
     text = text.replace(phoneMatch[0], "").trim()
@@ -56,21 +56,63 @@ const parseContactInfo = (text: string) => {
     "Investment",
     "LLC",
     "Inc",
+    "Partners",
+    "Sotheby's",
+    "Compass",
+    "Keller Williams",
+    "Berkshire Hathaway",
+    "Hall & Hall",
+    "Best Choice",
+    "McCann",
+    "Summit",
+    "PureWest",
+    "ERA",
+    "Corcoran",
+    "Houlihan Lawrence",
+    "The Dow Group",
+    "Upside",
+    "Premier",
+    "Edina",
+    "Real Broker",
+    "Keller Williams Realty",
+    "Berkshire Hathaway HomeServices",
   ]
 
-  const companyMatch = companyKeywords.find((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
+  // Look for company names in the text
+  for (const keyword of companyKeywords) {
+    if (text.toLowerCase().includes(keyword.toLowerCase())) {
+      // Find the full company name (including variations)
+      const companyRegex = new RegExp(`[^,\\n]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,\\n]*`, "i")
+      const match = text.match(companyRegex)
+      if (match) {
+        result.company = match[0].trim()
+        text = text.replace(match[0], "").trim()
+        break
+      }
+    }
+  }
 
-  if (companyMatch) {
-    const companyRegex = new RegExp(`[^,]*${companyMatch}[^,]*`, "i")
-    const match = text.match(companyRegex)
-    if (match) {
-      result.company = match[0].trim()
-      text = text.replace(match[0], "").trim()
+  // Address detection (contains numbers and common address words)
+  const addressKeywords = [
+    "Street", "St", "Avenue", "Ave", "Road", "Rd", "Drive", "Dr", "Lane", "Ln",
+    "Boulevard", "Blvd", "Way", "Circle", "Cir", "Loop", "Trail", "Trl", "Court", "Ct",
+    "Place", "Pl", "Terrace", "Ter", "Heights", "Hts", "Ridge", "Rdg", "Point", "Pt"
+  ]
+  
+  for (const keyword of addressKeywords) {
+    if (text.toLowerCase().includes(keyword.toLowerCase())) {
+      const addressRegex = new RegExp(`[^,\\n]*\\d+[^,\\n]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,\\n]*`, "i")
+      const match = text.match(addressRegex)
+      if (match) {
+        result.address = match[0].trim()
+        text = text.replace(match[0], "").trim()
+        break
+      }
     }
   }
 
   // Clean up name - remove parenthetical aliases and extra info
-  text = text.replace(/\$[^)]*\$/g, "") // Remove (aka Lawrence) type content
+  text = text.replace(/\([^)]*\)/g, "") // Remove (aka Lawrence) type content
   text = text.replace(/,.*$/, "") // Remove everything after first comma
   text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
 
@@ -83,11 +125,64 @@ const parseContactInfo = (text: string) => {
   return result
 }
 
+const parseNotes = (notesText: string): Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> => {
+  const notes: Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> = []
+  
+  if (!notesText) return notes
+
+  // Split by common separators
+  const noteParts = notesText.split(/[,;]|\band\b/).map(part => part.trim()).filter(part => part.length > 0)
+  
+  noteParts.forEach((part, index) => {
+    if (part.length < 5) return // Skip very short parts
+    
+    let type: "call" | "email" | "note" = "note"
+    let text = part
+    
+    // Determine type based on keywords
+    if (part.toLowerCase().includes("call") || part.toLowerCase().includes("voicemail")) {
+      type = "call"
+    } else if (part.toLowerCase().includes("email") || part.toLowerCase().includes("sent")) {
+      type = "email"
+    }
+    
+    // Extract dates from the note
+    const dateMatch = part.match(/(\w+\s+\d{1,2},?\s+\d{4})|(\d{1,2}\/\d{1,2})|(\w+\s+\d{1,2})/)
+    let timestamp = new Date().toISOString()
+    
+    if (dateMatch) {
+      try {
+        const dateStr = dateMatch[0]
+        // Try to parse various date formats
+        let parsedDate = new Date(dateStr)
+        if (isNaN(parsedDate.getTime())) {
+          // Try alternative formats
+          parsedDate = new Date(dateStr + ", 2025")
+        }
+        if (!isNaN(parsedDate.getTime())) {
+          timestamp = parsedDate.toISOString()
+        }
+      } catch (e) {
+        // Keep current date if parsing fails
+      }
+    }
+    
+    notes.push({
+      id: Date.now().toString() + index,
+      text: text,
+      timestamp: timestamp,
+      type: type
+    })
+  })
+  
+  return notes
+}
+
 const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
   const lines = content.split("\n").filter((line) => line.trim())
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
 
-  return lines.slice(1).map((line) => {
+  return lines.slice(1).map((line, lineIndex) => {
     const values = line.split(",").map((v) => v.trim().replace(/"/g, ""))
     const row: any = {}
 
@@ -100,7 +195,8 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
     let phone = row.phone || row.telephone || row.mobile || ""
     let email = row.email || row["email address"] || ""
     let company = row.company || row.business || row.organization || ""
-    const address = row.address || row.location || row.property || ""
+    let address = row.address || row.location || row.property || ""
+    const notesText = row.notes || row.comments || row.interactions || ""
 
     // If name field contains complex data, parse it
     if (name && (name.includes("@") || name.includes("(") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(name))) {
@@ -109,16 +205,52 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       phone = phone || parsed.phone
       email = email || parsed.email
       company = company || parsed.company
+      address = address || parsed.address
     }
+
     // Parse any field that might contain contact info
     ;[phone, email, company, address].forEach((field) => {
-      if (field && field.includes("@")) {
+      if (field && (field.includes("@") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(field))) {
         const parsed = parseContactInfo(field)
         email = email || parsed.email
         phone = phone || parsed.phone
         company = company || parsed.company
+        address = address || parsed.address
       }
     })
+
+    // Parse notes and extract interaction history
+    const notes = parseNotes(notesText)
+    
+    // Determine status based on notes content
+    let status: "cold" | "contacted" | "interested" | "closed" | "dormant" = "contacted"
+    if (notesText.toLowerCase().includes("interested") || notesText.toLowerCase().includes("wants to see")) {
+      status = "interested"
+    } else if (notesText.toLowerCase().includes("not interested") || notesText.toLowerCase().includes("said no")) {
+      status = "cold"
+    } else if (notesText.toLowerCase().includes("closed") || notesText.toLowerCase().includes("sold")) {
+      status = "closed"
+    }
+
+    // Determine priority based on notes and status
+    let priority: "high" | "medium" | "low" | "dormant" = "medium"
+    if (status === "interested") {
+      priority = "high"
+    } else if (status === "cold") {
+      priority = "low"
+    } else if (notesText.toLowerCase().includes("dormant") || notesText.toLowerCase().includes("spring")) {
+      priority = "dormant"
+    }
+
+    // Find the earliest date from notes for lastInteraction
+    let lastInteraction = new Date().toISOString().split("T")[0]
+    if (notes.length > 0) {
+      const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
+      if (dates.length > 0) {
+        const earliestDate = new Date(Math.min(...dates.map(d => d.getTime())))
+        lastInteraction = earliestDate.toISOString().split("T")[0]
+      }
+    }
 
     return {
       name: name || "Unknown Contact",
@@ -126,18 +258,16 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       email: email || "Not provided",
       company: company || "",
       address: address || "Address not provided",
-      status: "contacted" as const, // Default status since they've been called
-      lastInteraction: new Date().toISOString().split("T")[0],
-      priority: "medium" as const,
+      status: status,
+      lastInteraction: lastInteraction,
+      priority: priority,
       nextActionDate: new Date().toISOString(),
-      notes: [
-        {
-          id: Date.now().toString(),
-          text: "Initial contact made - imported from CSV",
-          timestamp: new Date().toISOString(),
-          type: "call" as const,
-        },
-      ],
+      notes: notes.length > 0 ? notes : [{
+        id: Date.now().toString(),
+        text: "Initial contact made - imported from CSV",
+        timestamp: new Date().toISOString(),
+        type: "call" as const,
+      }],
     }
   })
 }
@@ -241,7 +371,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="text-gray-400 hover:text-white hover:bg-white/10 rounded-lg"
+                                          className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -270,7 +400,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                     <label htmlFor="csv-upload">
                       <Button
                         variant="outline"
-                        className="border-white/20 text-white hover:bg-white/10 rounded-lg cursor-pointer bg-transparent"
+                        className="border-white/20 text-white hover:bg-white/10 rounded-pill cursor-pointer bg-transparent"
                         asChild
                       >
                         <span>
@@ -296,7 +426,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                         variant="ghost"
                         size="sm"
                         onClick={resetImport}
-                        className="text-gray-400 hover:text-white hover:bg-white/10 rounded-lg"
+                        className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill"
                       >
                         Choose Different File
                       </Button>
@@ -305,17 +435,17 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                     <div className="bg-black/40 rounded-xl p-4 max-h-96 overflow-y-auto">
                       <div className="grid gap-3">
                         {csvData.slice(0, 10).map((lead, index) => (
-                          <div key={index} className="bg-white/5 rounded-lg p-3">
+                          <div key={index} className="bg-white/5 rounded-brand p-3">
                             <div className="flex items-start justify-between">
                               <div className="space-y-1">
                                 <div className="text-white font-title">{lead.name}</div>
                                 <div className="text-gray-400 text-sm">{lead.email}</div>
                                 <div className="text-gray-400 text-sm">{lead.phone}</div>
                                 {lead.company && (
-                                  <Badge className="bg-blue-500/20 text-blue-300 text-xs">{lead.company}</Badge>
+                                  <Badge className="bg-blue-500/20 text-blue-300 text-xs rounded-pill">{lead.company}</Badge>
                                 )}
                               </div>
-                              <Badge className="bg-green-500/20 text-green-300">{lead.status}</Badge>
+                              <Badge className="bg-green-500/20 text-green-300 rounded-pill">{lead.status}</Badge>
                             </div>
                           </div>
                         ))}
@@ -331,7 +461,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                       <Button
                         onClick={handleImport}
                         disabled={isImporting}
-                        className="flex-1 bg-white text-black hover:bg-gray-100 rounded-lg font-body"
+                        className="flex-1 bg-white text-black hover:bg-gray-100 rounded-pill font-body"
                       >
                         {isImporting ? (
                           <>
@@ -354,7 +484,7 @@ export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
                       <Button
                         variant="outline"
                         onClick={onClose}
-                        className="border-white/20 text-white hover:bg-white/10 rounded-lg font-body bg-transparent"
+                        className="border-white/20 text-white hover:bg-white/10 rounded-pill font-body bg-transparent"
                       >
                         Cancel
                       </Button>

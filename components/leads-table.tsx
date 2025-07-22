@@ -358,7 +358,7 @@ export function LeadsTable({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge className={`${getPriorityColor(priority)} rounded-lg px-3 py-1 font-body cursor-help`}>
+                  <Badge className={`${getPriorityColor(priority)} rounded-pill px-3 py-1 font-body cursor-help`}>
                     {priority.charAt(0).toUpperCase() + priority.slice(1)}
                   </Badge>
                 </TooltipTrigger>
@@ -391,13 +391,13 @@ export function LeadsTable({
           }
 
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1">
               <Badge
                 className={`${
                   isOwnedByCurrentUser
                     ? "bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30"
                     : "bg-blue-500/20 text-blue-300 border-blue-500/30"
-                } rounded-lg px-3 py-1 font-body`}
+                } rounded-pill px-2 py-1 font-body text-xs`}
               >
                 <User className="h-3 w-3 mr-1" />
                 {ownerName}
@@ -407,7 +407,7 @@ export function LeadsTable({
                   variant="ghost"
                   size="sm"
                   onClick={() => handleUnclaimLead(row.original.id)}
-                  className="text-gray-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg px-2 py-1 transition-all duration-200"
+                  className="text-gray-400 hover:text-red-300 hover:bg-red-500/10 rounded-pill px-2 py-1 transition-all duration-200 text-xs"
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -497,7 +497,7 @@ export function LeadsTable({
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-white/5">
                 {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="text-left p-6 text-sm font-body text-gray-400">
+                  <th key={header.id} className="text-left p-3 text-sm font-body text-gray-400 whitespace-nowrap">
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
@@ -512,7 +512,7 @@ export function LeadsTable({
                 whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.02)" }}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="p-6">
+                  <td key={cell.id} className="p-3">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
