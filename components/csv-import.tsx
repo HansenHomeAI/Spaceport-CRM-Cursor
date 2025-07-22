@@ -193,7 +193,14 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
   const lines = content.split("\n").filter((line) => line.trim())
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
 
-  return lines.slice(1).map((line, lineIndex) => {
+  const results: Omit<Lead, "id">[] = []
+  let currentContact: any = null
+  let currentNotes = ""
+
+  // Process each line to group related contact information
+  for (let lineIndex = 1; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex]
+    
     // Split by comma but respect quotes
     const values: string[] = []
     let current = ""
@@ -217,12 +224,85 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       row[header] = (values[index] || "").replace(/"/g, "")
     })
 
-    // Extract fields based on CSV structure
+    // Extract fields
     let name = row.name || row.contact || row.client || ""
     let phone = row.phone || row.telephone || row.mobile || ""
     let email = row.email || row["email address"] || ""
     let address = row.address || row.location || row.property || ""
     const notesText = row.notes || row.comments || row.interactions || ""
+
+    // Check if this row contains notes (interaction history)
+    const hasNotes = notesText && notesText.length > 10 && (
+      notesText.toLowerCase().includes("called") ||
+      notesText.toLowerCase().includes("emailed") ||
+      notesText.toLowerCase().includes("voicemail") ||
+      notesText.toLowerCase().includes("talked") ||
+      notesText.toLowerCase().includes("sent") ||
+      notesText.toLowerCase().includes("left") ||
+      notesText.toLowerCase().includes("picked up") ||
+      /\d{1,2}\/\d{1,2}/.test(notesText) || // Date patterns
+      /\w+\s+\d{1,2}/.test(notesText) // "Jun 9th" patterns
+    )
+
+    // If this row has notes, it's the end of a contact's information
+    if (hasNotes) {
+      // If we have a current contact, finalize it
+      if (currentContact) {
+        currentContact.notes = currentNotes + " " + notesText
+        results.push(currentContact)
+      }
+      
+      // Start a new contact
+      currentContact = {
+        name: "",
+        phone: "",
+        email: "",
+        company: "",
+        address: "",
+        notes: notesText
+      }
+      currentNotes = notesText
+    } else {
+      // This row contains additional contact information (company, phone, email, etc.)
+      if (currentContact) {
+        // Add to existing contact
+        if (name && !currentContact.name) {
+          currentContact.name = name
+        }
+        if (phone && !currentContact.phone) {
+          currentContact.phone = phone
+        }
+        if (email && !currentContact.email) {
+          currentContact.email = email
+        }
+        if (address && !currentContact.address) {
+          currentContact.address = address
+        }
+        if (row.company && !currentContact.company) {
+          currentContact.company = row.company
+        }
+      } else {
+        // Start a new contact without notes
+        currentContact = {
+          name: name,
+          phone: phone,
+          email: email,
+          company: row.company || "",
+          address: address,
+          notes: ""
+        }
+      }
+    }
+  }
+
+  // Don't forget the last contact if it has no notes
+  if (currentContact && !results.some(r => r.name === currentContact.name)) {
+    results.push(currentContact)
+  }
+
+  // Now process each contact to parse their information properly
+  return results.map((contact, index) => {
+    let { name, phone, email, company, address, notes: notesText } = contact
 
     // Parse complex name field that might contain phone/company
     if (name) {
@@ -230,10 +310,7 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       name = parsed.name || name
       phone = phone || parsed.phone
       email = email || parsed.email
-      // Don't override company if it's already in a separate column
-      if (!row.company && !row.business && !row.organization) {
-        row.company = parsed.company
-      }
+      company = company || parsed.company
     }
 
     // Parse any field that might contain contact info
@@ -246,7 +323,7 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
     })
 
     // Parse notes and extract interaction history
-    const notes = parseNotes(notesText)
+    const parsedNotes = parseNotes(notesText)
     
     // Determine status based on notes content
     let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
@@ -272,7 +349,7 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
       priority = "dormant"
     } else if (status === "left voicemail") {
       // Check if they should be high priority (recent contact but no response)
-      const recentNotes = notes.filter(note => {
+      const recentNotes = parsedNotes.filter(note => {
         const noteDate = new Date(note.timestamp)
         const now = new Date()
         const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -285,8 +362,8 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
 
     // Find the most recent date from notes for lastInteraction (NOT import date!)
     let lastInteraction = new Date().toISOString().split("T")[0]
-    if (notes.length > 0) {
-      const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
+    if (parsedNotes.length > 0) {
+      const dates = parsedNotes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
       if (dates.length > 0) {
         const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
         lastInteraction = mostRecentDate.toISOString().split("T")[0]
@@ -298,21 +375,21 @@ const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
                           !address.trim() || address === "Address not provided"
     
     if (needsAttention) {
-      console.warn(`Row ${lineIndex + 1}: Missing required fields - Name: "${name}", Address: "${address}"`)
+      console.warn(`Contact ${index + 1}: Missing required fields - Name: "${name}", Address: "${address}"`)
     }
 
     return {
       name: name || "Unknown Contact",
       phone: phone || "Not provided",
       email: email || "Not provided",
-      company: row.company || row.business || row.organization || "",
+      company: company || "",
       address: address || "Address not provided",
       status: status,
       lastInteraction: lastInteraction,
       priority: priority,
       nextActionDate: new Date().toISOString(),
       needsAttention: needsAttention,
-      notes: notes.length > 0 ? notes : [{
+      notes: parsedNotes.length > 0 ? parsedNotes : [{
         id: Date.now().toString(),
         text: "Imported from CSV - no interaction history",
         timestamp: new Date().toISOString(),
