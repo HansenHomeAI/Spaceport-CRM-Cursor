@@ -89,6 +89,9 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                   {isFuture && (
                     <div className="text-xs text-gray-600 mt-1">Not yet due</div>
                   )}
+                  {isCurrent && !isCompleted && (
+                    <div className="text-xs text-yellow-400 mt-1">In progress</div>
+                  )}
                 </div>
               </TooltipContent>
             </Tooltip>

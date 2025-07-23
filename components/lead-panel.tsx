@@ -29,6 +29,9 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editingNoteText, setEditingNoteText] = useState("")
   const [editingNoteDate, setEditingNoteDate] = useState("")
+  const [showCustomReminder, setShowCustomReminder] = useState(false)
+  const [customReminderDate, setCustomReminderDate] = useState("")
+  const [reminderFeedback, setReminderFeedback] = useState<string | null>(null)
 
   const progress = useMemo(() => {
     if (!lead) return null
@@ -47,6 +50,44 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
       text: `${currentStep.action}: ${description}`,
       type: type === "social" ? "note" : type,
     })
+  }
+
+  const handleSetReminder = (timeframe: string) => {
+    if (!lead) return
+
+    let reminderDate: Date
+    let reminderText: string
+
+    switch (timeframe) {
+      case "2weeks":
+        reminderDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        reminderText = "Set reminder: Follow up in 2 weeks"
+        break
+      case "1month":
+        reminderDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        reminderText = "Set reminder: Follow up in 1 month"
+        break
+      case "custom":
+        if (!customReminderDate) return
+        reminderDate = new Date(customReminderDate)
+        reminderText = `Set reminder: Follow up on ${new Date(customReminderDate).toLocaleDateString()}`
+        break
+      default:
+        return
+    }
+
+    onAddNote(lead.id, {
+      text: reminderText,
+      type: "note",
+    })
+
+    // Show feedback
+    setReminderFeedback(`Reminder set for ${reminderDate.toLocaleDateString()}`)
+    setTimeout(() => setReminderFeedback(null), 3000)
+
+    // Reset custom reminder form
+    setShowCustomReminder(false)
+    setCustomReminderDate("")
   }
 
   const handleAddNote = () => {
@@ -207,10 +248,21 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                   <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {reminderFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="bg-green-500/20 text-green-300 border border-green-500/30 rounded-xl p-3 text-sm"
+                    >
+                      ✓ {reminderFeedback}
+                    </motion.div>
+                  )}
+                  
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => handleQuickAction("note", "Set reminder: Follow up in 2 weeks")}
+                      onClick={() => handleSetReminder("2weeks")}
                       className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
                     >
                       <Calendar className="h-3 w-3 mr-1" />
@@ -218,7 +270,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => handleQuickAction("note", "Set reminder: Follow up in 1 month")}
+                      onClick={() => handleSetReminder("1month")}
                       className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
                     >
                       <Calendar className="h-3 w-3 mr-1" />
@@ -226,13 +278,40 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => handleQuickAction("note", "Set reminder: Follow up in spring")}
+                      onClick={() => setShowCustomReminder(!showCustomReminder)}
                       className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
                     >
                       <Calendar className="h-3 w-3 mr-1" />
-                      Spring
+                      Custom
                     </Button>
                   </div>
+
+                  {showCustomReminder && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-3 pt-3 border-t border-white/10"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={customReminderDate}
+                          onChange={(e) => setCustomReminderDate(e.target.value)}
+                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleSetReminder("custom")}
+                          disabled={!customReminderDate}
+                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
+                        >
+                          Set
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
                 </CardContent>
               </Card>
 

@@ -76,7 +76,7 @@ export interface CadenceProgress {
   isDormant: boolean
 }
 
-export function calculateCadenceProgress(notes: Array<{ type: string; timestamp: string }>): CadenceProgress {
+export function calculateCadenceProgress(notes: Array<{ type: string; timestamp: string; text: string }>): CadenceProgress {
   const now = new Date()
   const sortedNotes = notes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   const lastNote = sortedNotes[0]
@@ -106,47 +106,102 @@ export function calculateCadenceProgress(notes: Array<{ type: string; timestamp:
     }
   }
 
-  // Calculate completed steps based on notes and timing
+  // Calculate completed steps based on actual completion
   const completedSteps: number[] = []
   let currentStep = 1
 
-  // Check if we have any interactions that would indicate progress
+  // Check if we have any interactions
   if (sortedNotes.length > 0) {
     const firstNoteDate = new Date(sortedNotes[sortedNotes.length - 1].timestamp)
     
-    // For each step, check if we have interactions around the expected time
-    SALES_CADENCE.forEach((step, index) => {
-      const expectedDate = new Date(firstNoteDate.getTime() + step.day * 24 * 60 * 60 * 1000)
-      const daysDiff = Math.abs((now.getTime() - expectedDate.getTime()) / (1000 * 60 * 60 * 24))
-      
-      // If we have notes within 2 days of the expected step date, mark as completed
-      if (daysDiff <= 2) {
-        completedSteps.push(step.id)
-        currentStep = step.id + 1
-      }
-    })
+    // Step 1: Initial Contact (Call + Email)
+    const hasCall = sortedNotes.some(note => note.type === "call" && !note.text.includes("Left voicemail"))
+    const hasEmail = sortedNotes.some(note => note.type === "email")
+    const hasVoicemail = sortedNotes.some(note => note.text.includes("Left voicemail"))
+    
+    // Step 1 is only complete if we have both a successful call AND an email
+    if (hasCall && hasEmail) {
+      completedSteps.push(1)
+      currentStep = 2
+    } else if (hasVoicemail) {
+      // If we only left voicemail, stay on step 1 but don't mark it complete
+      currentStep = 1
+    }
 
-    // If we have interactions but they don't match the cadence, mark current step as completed
-    if (completedSteps.length === 0 && sortedNotes.length > 0) {
-      // Find the last step that should be completed based on time elapsed
-      const daysSinceStart = Math.floor((now.getTime() - firstNoteDate.getTime()) / (1000 * 60 * 60 * 24))
-      const expectedSteps = SALES_CADENCE.filter(step => step.day <= daysSinceStart)
-      completedSteps.push(...expectedSteps.map(step => step.id))
-      
-      // Mark the current step as completed even if it's not the "right" step
-      const nextExpectedStep = SALES_CADENCE.find(step => step.day > daysSinceStart)
-      if (nextExpectedStep) {
-        currentStep = nextExpectedStep.id
-        completedSteps.push(currentStep) // Mark current step as completed
-      } else {
-        currentStep = SALES_CADENCE.length
-        completedSteps.push(currentStep) // Mark final step as completed
+    // Step 2: Spam Check Email (only if step 1 is complete)
+    if (completedSteps.includes(1)) {
+      const spamCheckEmail = sortedNotes.find(note => 
+        note.type === "email" && 
+        (note.text.includes("spam check") || note.text.includes("Spam Check"))
+      )
+      if (spamCheckEmail) {
+        completedSteps.push(2)
+        currentStep = 3
+      }
+    }
+
+    // Step 3: Second Call (only if step 2 is complete)
+    if (completedSteps.includes(2)) {
+      const secondCall = sortedNotes.find(note => 
+        note.type === "call" && 
+        (note.text.includes("second") || note.text.includes("Second") || note.text.includes("tour reference"))
+      )
+      if (secondCall) {
+        completedSteps.push(3)
+        currentStep = 4
+      }
+    }
+
+    // Step 4: Case Study Email (only if step 3 is complete)
+    if (completedSteps.includes(3)) {
+      const caseStudyEmail = sortedNotes.find(note => 
+        note.type === "email" && 
+        (note.text.includes("case study") || note.text.includes("Case Study"))
+      )
+      if (caseStudyEmail) {
+        completedSteps.push(4)
+        currentStep = 5
+      }
+    }
+
+    // Step 5: Video (only if step 4 is complete)
+    if (completedSteps.includes(4)) {
+      const videoSent = sortedNotes.find(note => 
+        note.type === "video" || note.text.includes("video")
+      )
+      if (videoSent) {
+        completedSteps.push(5)
+        currentStep = 6
+      }
+    }
+
+    // Step 6: ROI Email (only if step 5 is complete)
+    if (completedSteps.includes(5)) {
+      const roiEmail = sortedNotes.find(note => 
+        note.type === "email" && 
+        (note.text.includes("ROI") || note.text.includes("roi") || note.text.includes("performance data"))
+      )
+      if (roiEmail) {
+        completedSteps.push(6)
+        currentStep = 7
+      }
+    }
+
+    // Step 7: Re-engagement (only if step 6 is complete)
+    if (completedSteps.includes(6)) {
+      const reengagementEmail = sortedNotes.find(note => 
+        note.type === "email" && 
+        (note.text.includes("re-engagement") || note.text.includes("success story"))
+      )
+      if (reengagementEmail) {
+        completedSteps.push(7)
+        currentStep = 7 // Final step
       }
     }
   }
 
   // Find next step
-  const nextStep = SALES_CADENCE.find(step => step.id === currentStep + 1)
+  const nextStep = SALES_CADENCE.find(step => step.id === currentStep)
 
   return {
     currentStep,
