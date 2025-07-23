@@ -40,6 +40,12 @@ export interface Lead {
     timestamp: string
     type: "call" | "email" | "note" | "video" | "social"
   }>
+  createdAt: string
+  updatedAt: string
+  createdBy?: string
+  createdByName?: string
+  lastUpdatedBy?: string
+  lastUpdatedByName?: string
 }
 
 interface LeadsTableProps {

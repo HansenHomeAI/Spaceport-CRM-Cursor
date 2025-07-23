@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, Trash2, Database } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -163,14 +163,21 @@ export default function DashboardPage() {
   }, [leads, sortConfig])
 
   const handleLeadUpdate = async (leadId: string, updates: Partial<Lead>) => {
-    const updatedLead = { ...leads.find(lead => lead.id === leadId)!, ...updates }
+    const existingLead = leads.find(lead => lead.id === leadId)
+    if (!existingLead) return
+    
+    const updatedLead = { 
+      ...existingLead, 
+      ...updates,
+      updatedAt: new Date().toISOString()
+    }
     
     // Update local state immediately for UI responsiveness
-    setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
+    setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)))
 
     // Update selected lead if it's the same one
     if (selectedLead?.id === leadId) {
-      setSelectedLead((prev) => (prev ? { ...prev, ...updates } : null))
+      setSelectedLead(updatedLead)
     }
 
     // Save to API in production mode
@@ -180,7 +187,10 @@ export default function DashboardPage() {
         if (error) {
           console.error("Error updating lead:", error)
           // Revert local state on error
-          setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
+          setLeads((prev) => prev.map((lead) => (lead.id === leadId ? existingLead : lead)))
+          if (selectedLead?.id === leadId) {
+            setSelectedLead(existingLead)
+          }
         }
       } catch (error) {
         console.error("Error updating lead:", error)
@@ -301,13 +311,17 @@ export default function DashboardPage() {
     return { success: true, message: `Successfully imported ${leadsWithIds.length} leads!` }
   }
 
-  const handleAddLead = async (leadData: Omit<Lead, "id" | "notes">) => {
+  const handleAddLead = async (leadData: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName">) => {
     const newLead: Lead = {
       ...leadData,
       id: Date.now().toString(),
       ownerId: user?.id, // Assign new leads to current user
       ownerName: user?.name,
       notes: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: user?.id,
+      createdByName: user?.name,
     }
     
     // Update local state immediately
@@ -316,7 +330,11 @@ export default function DashboardPage() {
     // Save to API in production mode
     if (isProductionMode) {
       try {
-        const { error } = await apiClient.createLead(leadData)
+        const apiLeadData = {
+          ...leadData,
+          notes: [],
+        }
+        const { error } = await apiClient.createLead(apiLeadData)
         if (error) {
           console.error("Error creating lead:", error)
           // Remove from local state on error
@@ -331,11 +349,7 @@ export default function DashboardPage() {
   }
 
   const handleResetDatabase = async () => {
-    if (!confirm("⚠️ WARNING: This will permanently delete ALL contacts and activities from the database. This action cannot be undone. Are you sure you want to continue?")) {
-      return
-    }
-
-    if (!confirm("🚨 FINAL WARNING: This will delete ALL data for ALL users. Type 'YES' to confirm:")) {
+    if (!confirm("⚠️ WARNING: This will delete ALL contacts from the database. This action cannot be undone. Are you sure you want to reset the database?")) {
       return
     }
 
@@ -352,32 +366,12 @@ export default function DashboardPage() {
       // Clear local state
       setLeads([])
       setSelectedLead(null)
+      setIsPanelOpen(false)
       
-      alert("✅ Database reset successfully! All contacts and activities have been removed.")
+      alert("Database reset successfully!")
     } catch (error) {
       console.error("Error resetting database:", error)
       alert("Failed to reset database")
-    }
-  }
-
-  const handleGetDatabaseStats = async () => {
-    try {
-      if (isProductionMode) {
-        const { data, error } = await apiClient.getDatabaseStats()
-        if (error) {
-          console.error("Error getting database stats:", error)
-          alert("Failed to get database stats: " + error)
-          return
-        }
-        if (data) {
-          alert(`📊 Database Statistics:\n\nLeads: ${data.leadCount}\nActivities: ${data.activityCount}`)
-        }
-      } else {
-        alert(`📊 Local Database Statistics:\n\nLeads: ${leads.length}\nActivities: ${leads.reduce((acc, lead) => acc + lead.notes.length, 0)}`)
-      }
-    } catch (error) {
-      console.error("Error getting database stats:", error)
-      alert("Failed to get database stats")
     }
   }
 
@@ -454,64 +448,26 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-                          <div className="flex items-start gap-4">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleGetDatabaseStats}
-                        className="border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-pill"
-                      >
-                        <Database className="h-4 w-4 mr-2" />
-                        Stats
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>View database statistics</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleResetDatabase}
-                        className="border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-pill"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Reset DB
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Reset database (delete all data)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
-                        <AvatarFallback className="bg-white/10 text-white">
-                          {user.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
-                    <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Sign out</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+            <div className="flex items-start gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
+                      <AvatarFallback className="bg-white/10 text-white">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
+                  <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </motion.div>
 
           {/* Enhanced Metrics - removed unclaimed card */}
@@ -628,6 +584,18 @@ export default function DashboardPage() {
                     Add Lead
                   </Button>
                 </div>
+                <Button
+                  onClick={() => {
+                    if (confirm("⚠️ WARNING: This will delete ALL contacts from the database. This action cannot be undone. Are you sure you want to reset the database?")) {
+                      handleResetDatabase()
+                    }
+                  }}
+                  variant="outline"
+                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Reset Database
+                </Button>
               </div>
 
               <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />

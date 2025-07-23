@@ -177,6 +177,12 @@ class ApiClient {
     })
   }
 
+  async resetDatabase(): Promise<{ data: { message: string } | null; error: string | null }> {
+    return this.request<{ message: string }>("/leads/reset", {
+      method: "DELETE",
+    })
+  }
+
   // Activities API
   async getActivities(leadId?: string): Promise<{ data: Activity[] | null; error: string | null }> {
     const endpoint = leadId ? `/activities?leadId=${leadId}` : "/activities"
@@ -216,17 +222,6 @@ class ApiClient {
     }
 
     return { data: results, error: null }
-  }
-
-  // Database reset operations
-  async resetDatabase(): Promise<{ data: null; error: string | null }> {
-    return this.request<null>("/reset", {
-      method: "POST",
-    })
-  }
-
-  async getDatabaseStats(): Promise<{ data: { leadCount: number; activityCount: number } | null; error: string | null }> {
-    return this.request<{ leadCount: number; activityCount: number }>("/stats")
   }
 }
 
