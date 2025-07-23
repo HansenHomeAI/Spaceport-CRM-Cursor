@@ -1,150 +1,197 @@
 # Spaceport CRM
 
-A luxury, high-end CRM application built with Next.js, featuring intelligent follow-up tracking, beautiful data visualization, and a sophisticated Apple-inspired design system.
+A modern, cloud-native CRM system built with Next.js, AWS CDK, DynamoDB, and Cognito authentication.
 
-## Features
+## 🚀 Features
 
-- **Intelligent Follow-up System**: Automated cadence tracking with priority indicators
-- **Enhanced Data Visualization**: Beautiful mini-charts showing weekly performance trends
-- **Luxury Design System**: Apple-inspired glassmorphism with Helvetica Neue typography
-- **Semantic Color System**: Distinct, meaningful colors for different statuses and interactions
-- **Real-time Editing**: Inline editing with smooth animations and micro-interactions
-- **CSV Import/Export**: Easy data management and migration
-- **Responsive Design**: Optimized for all devices with consistent 25px border radius
+- **Real-time Data Persistence**: All data is stored in AWS DynamoDB with automatic synchronization
+- **Multi-user Support**: Shared database accessible by all company employees
+- **CSV Import**: Bulk import of leads with intelligent parsing
+- **Activity Tracking**: Track calls, emails, notes, and interactions
+- **Priority Management**: Automated priority calculation based on sales cadence
+- **Responsive Design**: Modern UI that works on all devices
+- **Authentication**: Secure user authentication with AWS Cognito
 
-## Tech Stack
+## 🏗️ Architecture
 
-### Frontend
-- **Next.js 14** with App Router
-- **TypeScript** for type safety
-- **Tailwind CSS** for styling
-- **Framer Motion** for animations
-- **TanStack React Table** for data management
-- **Lucide React** for icons
+- **Frontend**: Next.js 14 with TypeScript and Tailwind CSS
+- **Backend**: AWS Lambda functions with API Gateway
+- **Database**: Amazon DynamoDB with point-in-time recovery
+- **Authentication**: AWS Cognito User Pool
+- **Infrastructure**: AWS CDK for infrastructure as code
 
-### Backend (AWS CDK)
-- **AWS Lambda** for serverless functions
-- **DynamoDB** for data storage
-- **API Gateway** for REST API
-- **AWS Cognito** for authentication
-- **CloudFormation** for infrastructure as code
+## 📋 Prerequisites
 
-## Color System
+- Node.js 18+ and npm/pnpm
+- AWS CLI configured with appropriate permissions
+- AWS CDK CLI installed globally: `npm install -g aws-cdk`
 
-### Status Colors
-- **Cold**: Slate (neutral, inactive)
-- **Contacted**: Blue (communication initiated)
-- **Interested**: Emerald (positive engagement)
-- **Closed**: Amber (successful completion)
+## 🚀 Quick Start
 
-### Interaction Colors
-- **Call**: Green (direct communication)
-- **Email**: Orange (digital communication)
-- **Note**: Gray (internal documentation)
+### 1. Clone and Install
 
-### Priority Colors
-- **High**: Red (urgent attention needed)
-- **Medium**: Yellow (moderate priority)
-- **Low**: Green (routine follow-up)
+```bash
+git clone <your-repo-url>
+cd spaceport-crm
+pnpm install
+```
 
-## Getting Started
+### 2. Deploy Infrastructure
 
-### Prerequisites
-- Node.js 18+
-- AWS CLI configured
-- AWS CDK CLI installed
+```bash
+# Run the deployment script
+./deploy.sh
+```
 
-### Frontend Development
+This script will:
+- Deploy the CDK infrastructure to AWS
+- Create DynamoDB tables, Lambda functions, API Gateway, and Cognito User Pool
+- Generate environment variables in `.env.local`
 
-1. **Install dependencies**
-   \`\`\`bash
-   npm install
-   \`\`\`
+### 3. Start Development Server
 
-2. **Start development server**
-   \`\`\`bash
-   npm run dev
-   \`\`\`
+```bash
+pnpm run dev
+```
 
-3. **Build for production**
-   \`\`\`bash
-   npm run build
-   \`\`\`
+Visit `http://localhost:3001` to access the application.
 
-### Backend Deployment
+## 🔧 Configuration
 
-1. **Navigate to CDK directory**
-   \`\`\`bash
-   cd cdk
-   \`\`\`
+### Environment Variables
 
-2. **Install CDK dependencies**
-   \`\`\`bash
-   npm install
-   \`\`\`
+The deployment script creates a `.env.local` file with the following variables:
 
-3. **Bootstrap CDK (first time only)**
-   \`\`\`bash
-   cdk bootstrap
-   \`\`\`
+```env
+NEXT_PUBLIC_AWS_REGION=us-west-2
+NEXT_PUBLIC_USER_POOL_ID=us-west-2_xxxxxxxxx
+NEXT_PUBLIC_USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_API_URL=https://xxxxxxxxxx.execute-api.us-west-2.amazonaws.com/prod
+NEXT_PUBLIC_DEV_MODE=false
+```
 
-4. **Deploy infrastructure**
-   \`\`\`bash
-   cdk deploy
-   \`\`\`
+### Production Deployment
 
-### GitHub Pages Deployment
+1. **Set Environment Variables**: Add the environment variables to your hosting platform (Vercel, Netlify, etc.)
 
-The application is configured for automatic deployment to GitHub Pages:
+2. **Build and Deploy**:
+   ```bash
+   pnpm run build
+   # Deploy the 'out' directory to your hosting platform
+   ```
 
-1. **Push to main branch** - triggers GitHub Actions
-2. **Automatic build** - Next.js static export
-3. **Deploy to GitHub Pages** - serves static files
+3. **Verify Deployment**: Check that the application loads and can authenticate users.
 
-## Project Structure
+## 📊 Database Schema
 
-\`\`\`
-spaceport-crm/
-├── app/                    # Next.js app directory
-├── components/             # React components
-├── lib/                   # Utility functions and configs
-├── cdk/                   # AWS CDK infrastructure
-├── .github/workflows/     # GitHub Actions
-└── public/               # Static assets
-\`\`\`
+### Leads Table
+- `id` (String, Primary Key): Unique lead identifier
+- `name` (String): Contact name
+- `email` (String): Email address
+- `phone` (String): Phone number
+- `address` (String): Property address
+- `company` (String): Company name
+- `status` (String): Lead status (cold, contacted, interested, closed, dormant, left voicemail)
+- `priority` (String): Priority level (high, medium, low, dormant)
+- `notes` (Array): Array of interaction notes
+- `createdAt` (String): Creation timestamp
+- `updatedAt` (String): Last update timestamp
+- `createdBy` (String): User who created the lead
+- `lastUpdatedBy` (String): User who last updated the lead
 
-## Environment Variables
+### Activities Table
+- `id` (String, Primary Key): Unique activity identifier
+- `timestamp` (Number, Sort Key): Activity timestamp
+- `leadId` (String): Associated lead ID
+- `type` (String): Activity type (note, call, email, meeting, task)
+- `description` (String): Activity description
+- `createdBy` (String): User who created the activity
 
-### Frontend (.env.local)
-\`\`\`
-NEXT_PUBLIC_API_URL=your-api-gateway-url
-NEXT_PUBLIC_USER_POOL_ID=your-cognito-user-pool-id
-NEXT_PUBLIC_USER_POOL_CLIENT_ID=your-cognito-client-id
-\`\`\`
+## 🔐 Authentication
 
-### CDK Deployment
-\`\`\`
-CDK_DEFAULT_ACCOUNT=your-aws-account-id
-CDK_DEFAULT_REGION=your-preferred-region
-\`\`\`
+The application supports two authentication modes:
 
-## Design System
+### Development Mode
+- Uses localStorage for user management
+- Demo accounts available for testing
+- No external dependencies
 
-### Typography
-- **Font Family**: Helvetica Neue
-- **Title Weight**: 500 (medium)
-- **Body Weight**: 400 (regular)
+### Production Mode
+- Uses AWS Cognito for authentication
+- Secure JWT tokens with automatic refresh
+- Email verification required for new accounts
 
-### Opacity Hierarchy
-- **Primary Text**: 100% opacity (white)
-- **Secondary Text**: 50% opacity (white)
+## 📈 Data Persistence
 
-### Border System
-- **Thickness**: 2.5px consistently
-- **Color**: White at 10% opacity
-- **Radius**: 25px (rounded-3xl) for luxury pill shape
+### Real-time Synchronization
+- All lead updates are immediately saved to DynamoDB
+- Activities are tracked separately for better performance
+- Automatic conflict resolution and error handling
 
-## Contributing
+### Backup and Recovery
+- DynamoDB point-in-time recovery enabled
+- Data retention policy configured
+- Cross-region backup available
+
+## 🛠️ Development
+
+### Local Development
+```bash
+# Start development server
+pnpm run dev
+
+# Run in development mode (localStorage)
+# The app will automatically detect missing AWS config and use development mode
+```
+
+### Testing
+```bash
+# Run linting
+pnpm run lint
+
+# Build for production
+pnpm run build
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **Authentication Errors**
+   - Check that environment variables are set correctly
+   - Verify Cognito User Pool is configured properly
+   - Ensure API Gateway CORS settings are correct
+
+2. **Data Not Loading**
+   - Check DynamoDB table permissions
+   - Verify Lambda function execution role
+   - Check API Gateway logs for errors
+
+3. **CSV Import Issues**
+   - Ensure CSV format matches expected schema
+   - Check file size limits
+   - Verify DynamoDB write capacity
+
+### Debug Mode
+Enable debug logging by setting `NEXT_PUBLIC_DEV_MODE=true` in your environment variables.
+
+## 📝 API Endpoints
+
+### Leads
+- `GET /leads` - Get all leads
+- `GET /leads/{id}` - Get specific lead
+- `POST /leads` - Create new lead
+- `PUT /leads/{id}` - Update lead
+- `DELETE /leads/{id}` - Delete lead
+
+### Activities
+- `GET /activities` - Get all activities
+- `GET /activities?leadId={id}` - Get activities for specific lead
+- `POST /activities` - Create new activity
+
+All endpoints require authentication via Cognito JWT tokens.
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -152,11 +199,10 @@ CDK_DEFAULT_REGION=your-preferred-region
 4. Test thoroughly
 5. Submit a pull request
 
-## License
+## 📄 License
 
-This project is proprietary and confidential.
+This project is proprietary software for internal company use.
 
-## Support
+## 🆘 Support
 
-For support and questions, please open an issue in the GitHub repository.
-# Spaceport CRM - Live Demo
+For support or questions, contact your system administrator or create an issue in the repository.

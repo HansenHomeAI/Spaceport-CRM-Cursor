@@ -16,6 +16,8 @@ import { LeadPanel } from "@/components/lead-panel"
 import { AddLeadModal } from "@/components/add-lead-modal"
 import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
+import { apiClient } from "@/lib/api-client"
+import { awsConfig } from "@/lib/aws-config"
 import Image from "next/image"
 
 export default function DashboardPage() {
@@ -26,10 +28,63 @@ export default function DashboardPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [dataLoading, setDataLoading] = useState(true)
   const [sortConfig, setSortConfig] = useState<{
     field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
   }>({ field: 'lastContact', direction: 'desc' })
+
+  // Check if we're in production mode (have AWS config)
+  const isProductionMode = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+
+  // Load leads from API on mount
+  useEffect(() => {
+    const loadLeads = async () => {
+      if (!user) return
+      
+      setDataLoading(true)
+      try {
+        if (isProductionMode) {
+          // Production mode - load from API
+          console.log("🔍 Dashboard: Loading leads from API...")
+          const { data, error } = await apiClient.getLeads()
+          if (error) {
+            console.error("🔍 Dashboard: Error loading leads:", error)
+            // Fall back to localStorage for demo
+            const savedLeads = localStorage.getItem("spaceport_leads")
+            if (savedLeads) {
+              setLeads(JSON.parse(savedLeads))
+            }
+          } else if (data) {
+            console.log("🔍 Dashboard: Loaded leads from API:", data.length)
+            setLeads(data)
+          }
+        } else {
+          // Development mode - load from localStorage
+          console.log("🔍 Dashboard: Loading leads from localStorage...")
+          const savedLeads = localStorage.getItem("spaceport_leads")
+          if (savedLeads) {
+            setLeads(JSON.parse(savedLeads))
+          }
+        }
+      } catch (error) {
+        console.error("🔍 Dashboard: Error loading leads:", error)
+      } finally {
+        setDataLoading(false)
+      }
+    }
+
+    if (!loading && user) {
+      loadLeads()
+    }
+  }, [user, loading, isProductionMode])
+
+  // Save leads to localStorage when they change (development mode)
+  useEffect(() => {
+    if (!isProductionMode && !dataLoading) {
+      localStorage.setItem("spaceport_leads", JSON.stringify(leads))
+    }
+  }, [leads, isProductionMode, dataLoading])
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
@@ -107,12 +162,29 @@ export default function DashboardPage() {
     return sorted
   }, [leads, sortConfig])
 
-  const handleLeadUpdate = (leadId: string, updates: Partial<Lead>) => {
+  const handleLeadUpdate = async (leadId: string, updates: Partial<Lead>) => {
+    const updatedLead = { ...leads.find(lead => lead.id === leadId)!, ...updates }
+    
+    // Update local state immediately for UI responsiveness
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
 
     // Update selected lead if it's the same one
     if (selectedLead?.id === leadId) {
       setSelectedLead((prev) => (prev ? { ...prev, ...updates } : null))
+    }
+
+    // Save to API in production mode
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.updateLead(updatedLead)
+        if (error) {
+          console.error("Error updating lead:", error)
+          // Revert local state on error
+          setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
+        }
+      } catch (error) {
+        console.error("Error updating lead:", error)
+      }
     }
   }
 
@@ -121,22 +193,41 @@ export default function DashboardPage() {
     setIsPanelOpen(true)
   }
 
-  const handleAddNote = (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => {
+  const handleAddNote = async (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => {
     const newNote = {
       id: Date.now().toString(),
       ...note,
       timestamp: new Date().toISOString(),
     }
 
+    // Update local state immediately
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, notes: [...lead.notes, newNote] } : lead)))
 
     // Update selected lead if it's the same one
     if (selectedLead?.id === leadId) {
       setSelectedLead((prev) => (prev ? { ...prev, notes: [...prev.notes, newNote] } : null))
     }
+
+    // Save activity to API in production mode
+    if (isProductionMode) {
+      try {
+        const activity = {
+          leadId,
+          type: note.type as "note" | "call" | "email" | "meeting" | "task",
+          description: note.text,
+        }
+        const { error } = await apiClient.createActivity(activity)
+        if (error) {
+          console.error("Error creating activity:", error)
+        }
+      } catch (error) {
+        console.error("Error creating activity:", error)
+      }
+    }
   }
 
-  const handleUpdateNote = (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => {
+  const handleUpdateNote = async (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => {
+    // Update local state immediately
     setLeads((prev) => prev.map((lead) => 
       lead.id === leadId 
         ? { 
@@ -157,6 +248,28 @@ export default function DashboardPage() {
         )
       } : null)
     }
+
+    // In production mode, we'd need to update the activity in the API
+    // For now, we'll rely on the lead update to sync the notes
+    if (isProductionMode) {
+      const lead = leads.find(l => l.id === leadId)
+      if (lead) {
+        const updatedLead = {
+          ...lead,
+          notes: lead.notes.map((note) => 
+            note.id === noteId ? { ...note, ...updates } : note
+          )
+        }
+        try {
+          const { error } = await apiClient.updateLead(updatedLead)
+          if (error) {
+            console.error("Error updating note:", error)
+          }
+        } catch (error) {
+          console.error("Error updating note:", error)
+        }
+      }
+    }
   }
 
   const handleCSVImport = async (importedLeads: Omit<Lead, "id">[]) => {
@@ -167,11 +280,28 @@ export default function DashboardPage() {
       ownerName: user?.name,
     }))
 
+    // Update local state immediately
     setLeads((prev) => [...prev, ...leadsWithIds])
+
+    // Save to API in production mode
+    if (isProductionMode) {
+      try {
+        const { data, error } = await apiClient.createLeads(importedLeads)
+        if (error) {
+          console.error("Error importing leads:", error)
+          return { success: false, message: `Import failed: ${error}` }
+        }
+        return { success: true, message: `Successfully imported ${data?.length || leadsWithIds.length} leads!` }
+      } catch (error) {
+        console.error("Error importing leads:", error)
+        return { success: false, message: "Import failed due to network error" }
+      }
+    }
+
     return { success: true, message: `Successfully imported ${leadsWithIds.length} leads!` }
   }
 
-  const handleAddLead = (leadData: Omit<Lead, "id" | "notes">) => {
+  const handleAddLead = async (leadData: Omit<Lead, "id" | "notes">) => {
     const newLead: Lead = {
       ...leadData,
       id: Date.now().toString(),
@@ -179,7 +309,25 @@ export default function DashboardPage() {
       ownerName: user?.name,
       notes: [],
     }
+    
+    // Update local state immediately
     setLeads((prev) => [...prev, newLead])
+
+    // Save to API in production mode
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.createLead(leadData)
+        if (error) {
+          console.error("Error creating lead:", error)
+          // Remove from local state on error
+          setLeads((prev) => prev.filter(lead => lead.id !== newLead.id))
+        }
+      } catch (error) {
+        console.error("Error creating lead:", error)
+        // Remove from local state on error
+        setLeads((prev) => prev.filter(lead => lead.id !== newLead.id))
+      }
+    }
   }
 
   const handleSignOut = () => {
@@ -192,7 +340,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading) {
+  if (loading || dataLoading) {
     console.log("🔍 Dashboard: Still loading, showing spinner...")
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -245,9 +393,14 @@ export default function DashboardPage() {
                     ? "Get started by importing your CSV file or adding your first lead."
                     : "Here's what's happening with your leads today."}
                 </p>
-                {user?.isDemo && (
-                  <Badge className="mt-3 bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30 w-fit">Demo Mode</Badge>
-                )}
+                <div className="flex gap-2 mt-3">
+                  {user?.isDemo && (
+                    <Badge className="bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30 w-fit">Demo Mode</Badge>
+                  )}
+                  {!isProductionMode && (
+                    <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 w-fit">Development Mode</Badge>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-4">

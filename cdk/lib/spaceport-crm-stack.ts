@@ -163,6 +163,11 @@ export class SpaceportCrmStack extends cdk.Stack {
                 newLead.createdAt = new Date().toISOString();
                 newLead.updatedAt = new Date().toISOString();
                 newLead.notes = newLead.notes || [];
+                newLead.lastInteraction = newLead.lastInteraction || new Date().toISOString();
+                newLead.nextActionDate = newLead.nextActionDate || new Date().toISOString();
+                newLead.priority = newLead.priority || 'medium';
+                newLead.status = newLead.status || 'contacted';
+                newLead.needsAttention = newLead.needsAttention || false;
                 
                 // Add user attribution
                 if (user) {

@@ -1,15 +1,26 @@
 import { awsConfig } from "./aws-config"
+import { cognitoAuth } from "./cognito-auth"
 
 export interface Lead {
   id: string
   name: string
+  phone: string
   email: string
-  phone?: string
+  address: string
   company?: string
-  status: "new" | "contacted" | "qualified" | "proposal" | "won" | "lost"
-  source?: string
-  value?: number
-  notes?: string[]
+  status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail"
+  lastInteraction: string
+  ownerId?: string
+  ownerName?: string
+  priority: "high" | "medium" | "low" | "dormant"
+  nextActionDate: string
+  needsAttention?: boolean
+  notes: Array<{
+    id: string
+    text: string
+    timestamp: string
+    type: "call" | "email" | "note" | "video" | "social"
+  }>
   createdAt: string
   updatedAt: string
   createdBy?: string
@@ -31,14 +42,21 @@ export interface Activity {
 
 class ApiClient {
   private baseUrl: string
-  private accessToken: string | null = null
 
   constructor() {
     this.baseUrl = awsConfig.apiUrl || ""
   }
 
-  setAccessToken(token: string | null) {
-    this.accessToken = token
+  private async getAuthToken(): Promise<string | null> {
+    // Get token from Cognito auth
+    const token = cognitoAuth.getAccessToken()
+    
+    // If no token or demo mode, return null (will use demo mode)
+    if (!token || token === 'demo-token' || token === 'dev-token') {
+      return null
+    }
+    
+    return token
   }
 
   private async request<T>(
@@ -47,19 +65,57 @@ class ApiClient {
   ): Promise<{ data: T | null; error: string | null }> {
     try {
       const url = `${this.baseUrl}${endpoint}`
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        ...options.headers,
+        ...(options.headers as Record<string, string> || {}),
       }
 
-      if (this.accessToken) {
-        headers.Authorization = `Bearer ${this.accessToken}`
+      // Get authentication token
+      const token = await this.getAuthToken()
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
       }
 
       const response = await fetch(url, {
         ...options,
-        headers,
+        headers: headers as HeadersInit,
       })
+
+      // Handle token refresh if needed
+      if (response.status === 401 && token) {
+        console.log("Token expired, attempting refresh...")
+        const currentUser = cognitoAuth.getCurrentUser()
+        if (currentUser?.refreshToken) {
+          const refreshResult = await cognitoAuth.refreshToken(currentUser.refreshToken)
+          if (refreshResult.success && refreshResult.user) {
+            // Retry the request with new token
+            headers.Authorization = `Bearer ${refreshResult.user.accessToken}`
+            const retryResponse = await fetch(url, {
+              ...options,
+              headers: headers as HeadersInit,
+            })
+            
+            if (!retryResponse.ok) {
+              const errorText = await retryResponse.text()
+              let errorMessage = `HTTP ${retryResponse.status}`
+              try {
+                const errorJson = JSON.parse(errorText)
+                errorMessage = errorJson.message || errorJson.error || errorMessage
+              } catch {
+                errorMessage = errorText || errorMessage
+              }
+              return { data: null, error: errorMessage }
+            }
+            
+            if (retryResponse.status === 204) {
+              return { data: null, error: null }
+            }
+            
+            const data = await retryResponse.json()
+            return { data, error: null }
+          }
+        }
+      }
 
       if (!response.ok) {
         const errorText = await response.text()

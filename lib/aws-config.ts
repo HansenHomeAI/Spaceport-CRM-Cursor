@@ -19,3 +19,16 @@ export const validateConfig = () => {
   }
   return true
 }
+
+// Development fallback configuration
+export const getDevelopmentConfig = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      region: "us-west-2",
+      userPoolId: "us-west-2_placeholder",
+      userPoolClientId: "placeholder",
+      apiUrl: "http://localhost:3000/api",
+    }
+  }
+  return awsConfig
+}
