@@ -152,15 +152,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Single wide semi-circular gradient at top - more circular */}
+      {/* Individual gradient splotches */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-[140%] h-96 bg-gradient-to-b from-purple-600/25 via-blue-500/20 via-orange-500/15 via-pink-500/10 to-transparent rounded-b-[60%] blur-3xl"></div>
-        
-        {/* Subtle color splotches */}
-        <div className="absolute top-32 left-1/4 w-32 h-32 bg-gradient-to-br from-blue-500/8 to-purple-500/6 rounded-full blur-2xl"></div>
-        <div className="absolute top-40 right-1/3 w-24 h-24 bg-gradient-to-bl from-orange-500/10 to-pink-500/8 rounded-full blur-xl"></div>
-        <div className="absolute top-20 right-1/4 w-20 h-20 bg-gradient-to-tr from-purple-500/12 to-blue-500/8 rounded-full blur-xl"></div>
-        <div className="absolute top-60 left-1/3 w-16 h-16 bg-gradient-to-br from-orange-500/8 to-yellow-500/6 rounded-full blur-lg"></div>
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-purple-600/30 via-blue-500/20 to-orange-500/15 rounded-full blur-3xl"></div>
+        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-bl from-purple-500/25 via-blue-400/15 to-orange-400/12 rounded-full blur-2xl"></div>
+        <div className="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-tr from-purple-500/20 via-blue-400/10 to-orange-400/8 rounded-full blur-2xl"></div>
+        <div className="absolute top-40 right-1/3 w-48 h-48 bg-gradient-to-br from-orange-500/18 via-pink-500/12 to-purple-500/8 rounded-full blur-xl"></div>
+        <div className="absolute top-60 left-1/3 w-32 h-32 bg-gradient-to-bl from-blue-500/15 to-purple-500/10 rounded-full blur-lg"></div>
       </div>
       
       {/* Noise texture overlay */}
