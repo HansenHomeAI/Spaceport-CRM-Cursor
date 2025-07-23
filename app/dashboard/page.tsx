@@ -152,27 +152,25 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Subtle gradient background - made more visible */}
+      {/* Single wide semi-circular gradient at top */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-purple-600/30 via-blue-500/20 to-orange-500/15 rounded-full blur-3xl"></div>
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-bl from-purple-500/25 via-blue-400/15 to-orange-400/12 rounded-full blur-2xl"></div>
-        <div className="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-tr from-purple-500/20 via-blue-400/10 to-orange-400/8 rounded-full blur-2xl"></div>
+        <div className="absolute -top-32 left-1/2 transform -translate-x-1/2 w-[120%] h-64 bg-gradient-to-b from-purple-600/25 via-blue-500/15 to-orange-500/10 rounded-b-[50%] blur-3xl"></div>
       </div>
       
       <div className="relative z-10 p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header with aligned vertical margins */}
+          {/* Header with consistent vertical alignment */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center justify-between mb-16 pt-12"
+            className="flex items-start justify-between mb-16 pt-12"
           >
-            <div className="flex items-center gap-6">
-              <div className="pt-2">
+            <div className="flex items-start gap-6">
+              <div className="flex-shrink-0">
                 <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
               </div>
-              <div className="pt-2">
+              <div className="flex flex-col">
                 <h1 className="text-4xl font-title text-primary-hierarchy mb-3">Welcome back, {user?.name}</h1>
                 <p className="text-gray-400 font-body text-lg">
                   {leads.length === 0
@@ -180,11 +178,11 @@ export default function DashboardPage() {
                     : "Here's what's happening with your leads today."}
                 </p>
                 {user?.isDemo && (
-                  <Badge className="mt-3 bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30">Demo Mode</Badge>
+                  <Badge className="mt-3 bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30 w-fit">Demo Mode</Badge>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-4 pt-2">
+            <div className="flex items-start gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
