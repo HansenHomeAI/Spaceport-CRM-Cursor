@@ -39,6 +39,7 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
         const StepIcon = stepIcons[step.type]
         const isCompleted = progress.completedSteps.includes(step.id)
         const isCurrent = progress.currentStep === step.id
+        const isFuture = step.id > progress.currentStep
         const position = `${index * stepWidth}%`
 
         return (
@@ -62,13 +63,15 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                         ? `bg-white shadow-lg`
                         : isCurrent
                         ? `border-2 border-white`
+                        : isFuture
+                        ? `border-2 border-white/20`
                         : `border-2 border-white/50`
                     }`}
                   >
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                       <StepIcon
                         className={`w-4 h-4 ${
-                          isCompleted || isCurrent ? "text-white" : "text-white/50"
+                          isCompleted || isCurrent ? "text-white" : isFuture ? "text-white/20" : "text-white/50"
                         }`}
                       />
                     </div>
@@ -83,6 +86,9 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                   <div className="font-semibold mb-1">{step.action}</div>
                   <div className="text-gray-400">{step.description}</div>
                   <div className="text-xs text-gray-500 mt-1">Day {step.day}</div>
+                  {isFuture && (
+                    <div className="text-xs text-gray-600 mt-1">Not yet due</div>
+                  )}
                 </div>
               </TooltipContent>
             </Tooltip>

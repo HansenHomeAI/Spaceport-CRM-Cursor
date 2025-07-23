@@ -278,9 +278,9 @@ export function LeadsTable({
                 <ArrowUpDown className="ml-2 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="start" forceMount>
-              <div className="p-2">
-                <div className="text-xs text-gray-400 font-body mb-3 px-2">Sort by</div>
+            <DropdownMenuContent className="w-72 bg-black/95 backdrop-blur-xl border-system rounded-2xl shadow-2xl" align="start" forceMount sideOffset={8}>
+              <div className="p-4">
+                <div className="text-xs text-gray-400 font-body mb-4 px-1">Sort by</div>
                 <div className="space-y-1">
                   {[
                     { value: 'name', label: 'Name', icon: '👤' },
@@ -296,22 +296,22 @@ export function LeadsTable({
                         field: option.value as any,
                         direction: sortConfig?.direction || 'desc'
                       })}
-                      className={`text-white hover:bg-white/10 rounded-lg px-3 py-2 cursor-pointer ${
-                        sortConfig?.field === option.value ? 'bg-white/10' : ''
+                      className={`text-white hover:bg-white/10 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-200 ${
+                        sortConfig?.field === option.value ? 'bg-white/10 ring-1 ring-white/20' : ''
                       }`}
                     >
-                      <span className="mr-2">{option.icon}</span>
-                      <span className="font-body">{option.label}</span>
+                      <span className="mr-3 text-lg">{option.icon}</span>
+                      <span className="font-body flex-1">{option.label}</span>
                       {sortConfig?.field === option.value && (
-                        <span className="ml-auto text-xs opacity-60">
+                        <span className="text-xs opacity-60 ml-2">
                           {sortConfig.direction === 'desc' ? '↓' : '↑'}
                         </span>
                       )}
                     </DropdownMenuItem>
                   ))}
                 </div>
-                <div className="border-t border-white/10 mt-3 pt-3">
-                  <div className="text-xs text-gray-400 font-body mb-2 px-2">Direction</div>
+                <div className="border-t border-white/10 mt-4 pt-4">
+                  <div className="text-xs text-gray-400 font-body mb-3 px-1">Direction</div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -320,9 +320,9 @@ export function LeadsTable({
                         field: sortConfig?.field || 'name',
                         direction: 'asc'
                       })}
-                      className={`text-xs rounded-full ${
+                      className={`text-xs rounded-full transition-all duration-200 ${
                         sortConfig?.direction === 'asc' 
-                          ? 'bg-white text-black' 
+                          ? 'bg-white text-black shadow-lg' 
                           : 'border-white/20 text-white hover:bg-white/10'
                       }`}
                     >
@@ -335,9 +335,9 @@ export function LeadsTable({
                         field: sortConfig?.field || 'name',
                         direction: 'desc'
                       })}
-                      className={`text-xs rounded-full ${
+                      className={`text-xs rounded-full transition-all duration-200 ${
                         sortConfig?.direction === 'desc' 
-                          ? 'bg-white text-black' 
+                          ? 'bg-white text-black shadow-lg' 
                           : 'border-white/20 text-white hover:bg-white/10'
                       }`}
                     >

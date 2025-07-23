@@ -106,21 +106,47 @@ export function calculateCadenceProgress(notes: Array<{ type: string; timestamp:
     }
   }
 
-  // Calculate completed steps based on notes
-  const completedSteps = SALES_CADENCE.filter(step => {
-    const stepNotes = sortedNotes.filter(note => {
-      const noteDate = new Date(note.timestamp)
-      const daysSinceStart = Math.floor(
-        (noteDate.getTime() - new Date(notes[notes.length - 1].timestamp).getTime()) / (1000 * 60 * 60 * 24)
-      )
-      return Math.abs(daysSinceStart - step.day) <= 1 // Allow 1 day flexibility
+  // Calculate completed steps based on notes and timing
+  const completedSteps: number[] = []
+  let currentStep = 1
+
+  // Check if we have any interactions that would indicate progress
+  if (sortedNotes.length > 0) {
+    const firstNoteDate = new Date(sortedNotes[sortedNotes.length - 1].timestamp)
+    
+    // For each step, check if we have interactions around the expected time
+    SALES_CADENCE.forEach((step, index) => {
+      const expectedDate = new Date(firstNoteDate.getTime() + step.day * 24 * 60 * 60 * 1000)
+      const daysDiff = Math.abs((now.getTime() - expectedDate.getTime()) / (1000 * 60 * 60 * 24))
+      
+      // If we have notes within 2 days of the expected step date, mark as completed
+      if (daysDiff <= 2) {
+        completedSteps.push(step.id)
+        currentStep = step.id + 1
+      }
     })
-    return stepNotes.length > 0
-  }).map(step => step.id)
+
+    // If we have interactions but they don't match the cadence, mark current step as completed
+    if (completedSteps.length === 0 && sortedNotes.length > 0) {
+      // Find the last step that should be completed based on time elapsed
+      const daysSinceStart = Math.floor((now.getTime() - firstNoteDate.getTime()) / (1000 * 60 * 60 * 24))
+      const expectedSteps = SALES_CADENCE.filter(step => step.day <= daysSinceStart)
+      completedSteps.push(...expectedSteps.map(step => step.id))
+      
+      // Mark the current step as completed even if it's not the "right" step
+      const nextExpectedStep = SALES_CADENCE.find(step => step.day > daysSinceStart)
+      if (nextExpectedStep) {
+        currentStep = nextExpectedStep.id
+        completedSteps.push(currentStep) // Mark current step as completed
+      } else {
+        currentStep = SALES_CADENCE.length
+        completedSteps.push(currentStep) // Mark final step as completed
+      }
+    }
+  }
 
   // Find next step
-  const currentStep = completedSteps.length + 1
-  const nextStep = SALES_CADENCE.find(step => step.id === currentStep)
+  const nextStep = SALES_CADENCE.find(step => step.id === currentStep + 1)
 
   return {
     currentStep,

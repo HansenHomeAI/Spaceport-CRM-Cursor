@@ -40,7 +40,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     return SALES_CADENCE.find(step => step.id === progress.currentStep)
   }, [progress])
 
-  const handleQuickAction = (type: "call" | "email" | "video" | "social", description: string) => {
+  const handleQuickAction = (type: "call" | "email" | "video" | "social" | "note", description: string) => {
     if (!lead || !currentStep) return
 
     onAddNote(lead.id, {
@@ -128,7 +128,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
               {/* Sales Progress */}
               {progress && (
                 <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 pt-8">
                     <SalesProgress
                       progress={progress}
                       statusColor={getProgressColor(progress, lead.status)}
@@ -200,6 +200,41 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                   </CardContent>
                 </Card>
               )}
+
+              {/* Contact Reminder */}
+              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleQuickAction("note", "Set reminder: Follow up in 2 weeks")}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      2 Weeks
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleQuickAction("note", "Set reminder: Follow up in 1 month")}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      1 Month
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleQuickAction("note", "Set reminder: Follow up in spring")}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      Spring
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Existing lead details card */}
               <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
@@ -343,10 +378,43 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {lead.notes.length === 0 ? (
+                    {/* Upcoming Reminders */}
+                    {lead.notes.filter(note => note.text.includes("Set reminder:")).length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-primary-hierarchy font-title text-sm mb-3">Upcoming Reminders</h4>
+                        <div className="space-y-2">
+                          {lead.notes
+                            .filter(note => note.text.includes("Set reminder:"))
+                            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                            .map((note) => (
+                              <motion.div
+                                key={note.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
+                                style={{ borderLeftColor: colors.interaction.note.icon }}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
+                                    Reminder
+                                  </Badge>
+                                  <span className="text-xs text-medium-hierarchy font-body">
+                                    {new Date(note.timestamp).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                              </motion.div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Past Interactions */}
+                    {lead.notes.filter(note => !note.text.includes("Set reminder:")).length === 0 ? (
                       <p className="text-medium-hierarchy font-body text-sm">No interactions yet</p>
                     ) : (
                       lead.notes
+                        .filter(note => !note.text.includes("Set reminder:"))
                         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                         .map((note) => {
                           const noteColor = colors.interaction[note.type]
