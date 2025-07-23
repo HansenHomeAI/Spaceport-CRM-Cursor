@@ -152,9 +152,23 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Single wide semi-circular gradient at top */}
+      {/* Single wide semi-circular gradient at top - more circular */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 left-1/2 transform -translate-x-1/2 w-[120%] h-64 bg-gradient-to-b from-purple-600/25 via-blue-500/15 to-orange-500/10 rounded-b-[50%] blur-3xl"></div>
+        <div className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-[140%] h-96 bg-gradient-to-b from-purple-600/25 via-blue-500/20 via-orange-500/15 via-pink-500/10 to-transparent rounded-b-[60%] blur-3xl"></div>
+        
+        {/* Subtle color splotches */}
+        <div className="absolute top-32 left-1/4 w-32 h-32 bg-gradient-to-br from-blue-500/8 to-purple-500/6 rounded-full blur-2xl"></div>
+        <div className="absolute top-40 right-1/3 w-24 h-24 bg-gradient-to-bl from-orange-500/10 to-pink-500/8 rounded-full blur-xl"></div>
+        <div className="absolute top-20 right-1/4 w-20 h-20 bg-gradient-to-tr from-purple-500/12 to-blue-500/8 rounded-full blur-xl"></div>
+        <div className="absolute top-60 left-1/3 w-16 h-16 bg-gradient-to-br from-orange-500/8 to-yellow-500/6 rounded-full blur-lg"></div>
+      </div>
+      
+      {/* Noise texture overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.02]">
+        <div className="w-full h-full" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat'
+        }}></div>
       </div>
       
       <div className="relative z-10 p-8">
