@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Clock, AlertTriangle, Phone, Mail } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Lead } from "./leads-table"
@@ -18,7 +18,7 @@ interface FollowUpItem {
 
 interface FollowUpPriorityProps {
   leads: Lead[]
-  onLeadClick: (lead: Lead) => void
+  onLeadSelect: (lead: Lead) => void
 }
 
 const urgencyColors = {
@@ -33,160 +33,195 @@ const urgencyIcons = {
   low: Clock,
 }
 
-export function FollowUpPriority({ leads, onLeadClick }: FollowUpPriorityProps) {
-  const priorityLeads = useMemo(() => {
+export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
+  // Calculate follow-up priorities based on your cadence
+  const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const followUps: FollowUpItem[] = []
 
-    return leads
-      .filter((lead) => {
-        // Only show leads that need follow-up within the last month
-        const lastNote = lead.notes[0]
-        if (!lastNote) return false
+    leads.forEach((lead) => {
+      if (lead.status === "closed") return
 
-        const lastContactDate = new Date(lastNote.timestamp)
-        return lastContactDate >= thirtyDaysAgo
-      })
-      .map((lead) => {
-        const lastNote = lead.notes[0]
-        const lastContactDate = new Date(lastNote.timestamp)
-        const daysSinceContact = Math.floor((now.getTime() - lastContactDate.getTime()) / (1000 * 60 * 60 * 24))
+      const lastInteraction = lead.notes.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )[0]
 
-        // Determine priority based on status and recency
-        let priority: "high" | "medium" | "low" = "low"
-        let priorityReason = ""
+      if (!lastInteraction) {
+        // No interaction yet - high priority
+        followUps.push({
+          lead,
+          urgency: "high",
+          nextAction: "call",
+          daysOverdue: 0,
+          reason: "No initial contact made",
+        })
+        return
+      }
 
-        if (lead.status === "interested") {
-          priority = "high"
-          priorityReason = "Interested lead"
-        } else if (lead.status === "contacted" || lead.status === "left voicemail") {
-          if (daysSinceContact <= 7) {
-            priority = "medium"
-            priorityReason = "Recently contacted"
-          } else {
-            priority = "high"
-            priorityReason = "Needs follow-up"
-          }
-        } else if (lead.status === "cold") {
-          if (daysSinceContact <= 14) {
-            priority = "medium"
-            priorityReason = "Cold lead - recent contact"
-          } else {
-            priority = "low"
-            priorityReason = "Cold lead - dormant"
-          }
-        } else if (lead.status === "dormant") {
-          priority = "low"
-          priorityReason = "Dormant lead"
-        }
+      const daysSinceLastContact = Math.floor(
+        (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
+      )
 
-        return {
-          ...lead,
-          priority,
-          priorityReason,
-          daysSinceContact,
-        }
-      })
-      .filter((lead) => lead.priority !== "low") // Only show medium and high priority
-      .sort((a, b) => {
-        // Sort by priority first, then by recency
-        const priorityOrder = { high: 0, medium: 1, low: 2 }
-        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
-        if (priorityDiff !== 0) return priorityDiff
-        return a.daysSinceContact - b.daysSinceContact
-      })
-  }, [leads])
+      // High priority: Interested leads (green) - even if dormant
+      if (lead.status === "interested") {
+        followUps.push({
+          lead,
+          urgency: daysSinceLastContact > 30 ? "dormant-interested" : "high",
+          nextAction: "call",
+          daysOverdue: 0,
+          reason: daysSinceLastContact > 30 ? "Interested lead - dormant" : "Interested lead - high priority",
+        })
+        return
+      }
 
-  const groupedLeads = useMemo(() => {
-    const groups = {
-      high: priorityLeads.filter(lead => lead.priority === "high"),
-      medium: priorityLeads.filter(lead => lead.priority === "medium"),
+      // Only include leads with interactions in the last month (except interested leads)
+      if (daysSinceLastContact > 30) {
+        return
+      }
+
+      // Yellow priority: Past due or needs follow-up
+      if (daysSinceLastContact > 7) {
+        followUps.push({
+          lead,
+          urgency: "medium",
+          nextAction: lastInteraction.type === "call" ? "email" : "call",
+          daysOverdue: daysSinceLastContact - 7,
+          reason: "Past due follow-up",
+        })
+        return
+      }
+
+      // Check if they're on cadence and need immediate action
+      if (lastInteraction.type === "call" && daysSinceLastContact >= 2) {
+        followUps.push({
+          lead,
+          urgency: "medium",
+          nextAction: "email",
+          daysOverdue: daysSinceLastContact - 2,
+          reason: "Email follow-up after call",
+        })
+      } else if (lastInteraction.type === "email" && daysSinceLastContact >= 4) {
+        followUps.push({
+          lead,
+          urgency: "medium",
+          nextAction: "call",
+          daysOverdue: daysSinceLastContact - 4,
+          reason: "Call follow-up after email",
+        })
+      }
+    })
+
+    return followUps.sort((a, b) => {
+      const urgencyOrder = { high: 4, "dormant-interested": 3, medium: 2, low: 1 }
+      return urgencyOrder[b.urgency] - urgencyOrder[a.urgency] || b.daysOverdue - a.daysOverdue
+    })
+  }
+
+  const followUps = calculateFollowUps()
+
+  if (followUps.length === 0) return null
+
+  // Group follow-ups by priority type
+  const groupedFollowUps = followUps.reduce((groups, item) => {
+    const group = item.urgency
+    if (!groups[group]) {
+      groups[group] = []
     }
+    groups[group].push(item)
     return groups
-  }, [priorityLeads])
+  }, {} as Record<string, FollowUpItem[]>)
 
-  if (priorityLeads.length === 0) {
-    return (
-      <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
-        <CardHeader>
-          <CardTitle className="text-primary-hierarchy font-title text-2xl">Priority Follow-ups</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <div className="text-white/60 text-sm">No priority follow-ups needed</div>
-            <div className="text-white/40 text-xs mt-1">All leads are up to date</div>
-          </div>
-        </CardContent>
-      </Card>
-    )
+  const getGroupColor = (urgency: string) => {
+    switch (urgency) {
+      case "high":
+        return "bg-green-500/20 text-green-300 border-green-500/30"
+      case "dormant-interested":
+        return "bg-green-700/20 text-green-400 border-green-700/30"
+      case "medium":
+        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      default:
+        return "bg-red-500/20 text-red-300 border-red-500/30"
+    }
+  }
+
+  const getGroupTitle = (urgency: string) => {
+    switch (urgency) {
+      case "high":
+        return "High Priority"
+      case "dormant-interested":
+        return "Dormant Interested"
+      case "medium":
+        return "Needs Follow-up"
+      default:
+        return "Low Priority"
+    }
   }
 
   return (
-    <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
-      <CardHeader>
-        <CardTitle className="text-primary-hierarchy font-title text-xl">Priority Follow-ups</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* High Priority Group */}
-        {groupedLeads.high.length > 0 && (
-          <div className="space-y-2">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      className="mb-8"
+    >
+      <h2 className="text-primary-hierarchy font-title text-lg mb-4">Priority Follow-ups</h2>
+      <div className="space-y-4">
+        {Object.entries(groupedFollowUps).map(([urgency, items]) => (
+          <div key={urgency} className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-              <span className="text-red-300 text-sm font-medium">High Priority ({groupedLeads.high.length})</span>
+              <Badge className={`${getGroupColor(urgency)} rounded-full px-3 py-1`}>
+                {getGroupTitle(urgency)} ({items.length})
+              </Badge>
             </div>
-            <div className="space-y-2 pl-4">
-              {groupedLeads.high.map((lead) => (
-                <motion.div
-                  key={lead.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-xl cursor-pointer"
-                  onClick={() => onLeadClick(lead)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium truncate">{lead.name}</div>
-                    <div className="text-red-300 text-xs">{lead.priorityReason}</div>
-                  </div>
-                  <div className="text-red-300 text-xs">
-                    {lead.daysSinceContact === 0 ? "Today" : `${lead.daysSinceContact}d ago`}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+              {items.slice(0, 6).map((item) => {
+                const UrgencyIcon = urgencyIcons[item.urgency === "dormant-interested" ? "high" : item.urgency]
 
-        {/* Medium Priority Group */}
-        {groupedLeads.medium.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-              <span className="text-yellow-300 text-sm font-medium">Medium Priority ({groupedLeads.medium.length})</span>
-            </div>
-            <div className="space-y-2 pl-4">
-              {groupedLeads.medium.map((lead) => (
-                <motion.div
-                  key={lead.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl cursor-pointer"
-                  onClick={() => onLeadClick(lead)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium truncate">{lead.name}</div>
-                    <div className="text-yellow-300 text-xs">{lead.priorityReason}</div>
-                  </div>
-                  <div className="text-yellow-300 text-xs">
-                    {lead.daysSinceContact === 0 ? "Today" : `${lead.daysSinceContact}d ago`}
-                  </div>
-                </motion.div>
-              ))}
+                return (
+                  <motion.div
+                    key={item.lead.id}
+                    layout
+                    className="relative"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card
+                      className="bg-black/20 backdrop-blur-xl border-system hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
+                      onClick={() => onLeadSelect(item.lead)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
+                          </div>
+                          <div className="flex items-center gap-1 ml-2">
+                            <UrgencyIcon className="h-3 w-3 text-purple-400" />
+                            <Badge className={`${getGroupColor(urgency)} text-xs rounded-full px-2 py-0.5`}>
+                              {item.urgency === "dormant-interested" ? "Dormant" : item.urgency}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {item.nextAction === "call" ? (
+                            <Phone className="h-3 w-3 text-purple-400" />
+                          ) : (
+                            <Mail className="h-3 w-3 text-purple-400" />
+                          )}
+                          <span className="text-medium-hierarchy font-body text-xs">
+                            {item.nextAction === "call" ? "Call" : "Email"}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })}
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+    </motion.div>
   )
 }

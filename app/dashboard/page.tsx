@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -369,13 +369,17 @@ export default function DashboardPage() {
           ) : (
             <>
               {/* Priority Follow-ups */}
-              <FollowUpPriority leads={leads} onLeadClick={handleLeadSelect} />
+              <div className="mb-8">
+                <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Priority Follow-ups</h2>
+                <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
+              </div>
 
-              {/* Leads Table Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-primary-hierarchy font-title text-2xl">Leads Table</h2>
-                <div className="flex gap-3">
-                                      <Button
+              {/* Leads Table Section */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-title text-primary-hierarchy">Leads Table</h2>
+                  <div className="flex gap-3">
+                    <Button
                       onClick={() => setIsImportOpen(true)}
                       className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
                     >
@@ -384,22 +388,21 @@ export default function DashboardPage() {
                     </Button>
                     <Button
                       onClick={() => setIsAddModalOpen(true)}
-                      className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Lead
                     </Button>
+                  </div>
                 </div>
+                <LeadsTable
+                  leads={sortedLeads}
+                  onLeadUpdate={handleLeadUpdate}
+                  onLeadSelect={handleLeadSelect}
+                  sortConfig={sortConfig}
+                  onSortChange={setSortConfig}
+                />
               </div>
-
-              {/* Leads Table */}
-                      <LeadsTable
-          leads={leads}
-          onLeadUpdate={handleLeadUpdate}
-          onLeadSelect={handleLeadSelect}
-          sortConfig={sortConfig}
-          onSortChange={setSortConfig}
-        />
             </>
           )}
 

@@ -23,7 +23,7 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
   const stepWidth = 100 / (totalSteps - 1) // percentage width between steps
 
   const handleStepClick = (stepId: number) => {
-    if (onStepClick) {
+    if (onStepClick && progress.completedSteps.includes(stepId)) {
       onStepClick(stepId)
     }
   }
@@ -48,13 +48,14 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
         const isCurrent = progress.currentStep === step.id
         const isFuture = step.id > progress.currentStep
         const position = `${index * stepWidth}%`
+        const isClickable = isCompleted && onStepClick
 
         return (
           <TooltipProvider key={step.id}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 cursor-pointer"
+                  className={`absolute top-1/2 -translate-y-1/2 ${isClickable ? 'cursor-pointer' : ''}`}
                   style={{ left: position }}
                   onClick={() => handleStepClick(step.id)}
                 >
@@ -66,10 +67,10 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                         ? `0 0 0 4px ${statusColor}20, 0 0 20px ${statusColor}40`
                         : "none"
                     }}
-                    whileHover={{ scale: 1.1 }}
+                    whileHover={isClickable ? { scale: 1.1 } : {}}
                     className={`relative w-4 h-4 rounded-full transition-colors duration-200 ${
                       isCompleted
-                        ? `bg-white shadow-lg`
+                        ? `bg-white shadow-lg ${isClickable ? 'hover:bg-gray-100' : ''}`
                         : isCurrent
                         ? `border-2 border-white`
                         : isFuture
@@ -83,12 +84,6 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                           isCompleted || isCurrent ? "text-white" : isFuture ? "text-white/20" : "text-white/50"
                         }`}
                       />
-                    </div>
-                    {/* Date display underneath */}
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <div className="text-xs text-white/60 font-medium">
-                        {step.day === 0 ? "Start" : `Day ${step.day}`}
-                      </div>
                     </div>
                   </motion.div>
                 </div>
@@ -107,11 +102,8 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                   {isCurrent && !isCompleted && (
                     <div className="text-xs text-yellow-400 mt-1">In progress</div>
                   )}
-                  {isCompleted && (
-                    <div className="text-xs text-green-400 mt-1">Completed</div>
-                  )}
-                  {onStepClick && (
-                    <div className="text-xs text-blue-400 mt-1">Click to mark complete</div>
+                  {isClickable && (
+                    <div className="text-xs text-blue-400 mt-1">Click to advance</div>
                   )}
                 </div>
               </TooltipContent>
