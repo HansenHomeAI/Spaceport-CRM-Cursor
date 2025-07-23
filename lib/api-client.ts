@@ -51,7 +51,19 @@ class ApiClient {
     // Get token from Cognito auth
     const token = cognitoAuth.getAccessToken()
     
-    // If no token or demo mode, return null (will use demo mode)
+    // Check if we're in production mode
+    const isProductionMode = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+    
+    // If we're in production mode, we need a real token
+    if (isProductionMode) {
+      if (!token || token === 'demo-token' || token === 'dev-token') {
+        console.warn('Production mode requires real authentication token')
+        return null
+      }
+      return token
+    }
+    
+    // In development mode, allow demo tokens
     if (!token || token === 'demo-token' || token === 'dev-token') {
       return null
     }

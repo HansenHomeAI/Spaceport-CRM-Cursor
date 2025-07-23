@@ -100,25 +100,45 @@ Your application had a **critical flaw**: it wasn't actually using the `NEXT_PUB
 - Users couldn't reliably control the production/development behavior
 
 ### The Solution
-I updated the production mode detection logic in two key files:
+I updated the production mode detection logic in **three key files**:
 
 1. **`app/dashboard/page.tsx`** - Updated the `isProductionMode` logic
-2. **`lib/auth-context.tsx`** - Updated all `hasAwsConfig` checks
+2. **`lib/auth-context.tsx`** - Updated all `hasAwsConfig` checks and blocked demo accounts in production
+3. **`lib/api-client.ts`** - Fixed token validation to reject demo tokens in production
 
-**Before:**
+**Before (Broken):**
 ```typescript
 const isProductionMode = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
 ```
 
-**After:**
+**After (Fixed):**
 ```typescript
 const isProductionMode = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+```
+
+**Critical Fix - API Client:**
+```typescript
+// Before: Always rejected demo tokens
+if (!token || token === 'demo-token' || token === 'dev-token') {
+  return null
+}
+
+// After: Only reject demo tokens in production mode
+if (isProductionMode) {
+  if (!token || token === 'demo-token' || token === 'dev-token') {
+    console.warn('Production mode requires real authentication token')
+    return null
+  }
+  return token
+}
 ```
 
 ### What This Means
 Now your application will:
 - ✅ **Respect the `NEXT_PUBLIC_DEV_MODE` environment variable**
 - ✅ **Force production mode when set to `false`**
+- ✅ **Block demo accounts in production mode**
+- ✅ **Reject demo tokens in production mode**
 - ✅ **Use AWS DynamoDB for data persistence in production**
 - ✅ **Use AWS Cognito for authentication in production**
 - ✅ **Share data across multiple users in real-time**

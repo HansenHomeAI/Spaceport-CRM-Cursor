@@ -71,8 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
     
     if (hasAwsConfig) {
-      // Production mode - use Cognito
-      console.log("🔍 AuthProvider: Using Cognito sign in")
+      // Production mode - use Cognito ONLY
+      console.log("🔍 AuthProvider: Using Cognito sign in (Production Mode)")
+      
+      // In production mode, demo accounts are not allowed
+      const demoAccount = demoAccounts.find((acc) => acc.email === email && acc.password === password)
+      if (demoAccount) {
+        return { success: false, message: "Demo accounts are not available in production mode. Please use a real account." }
+      }
+      
       const result = await cognitoAuth.signIn(email, password)
       if (result.success && result.user) {
         setUser(result.user)
@@ -174,6 +181,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInDemo = () => {
+    // Check if we're in production mode
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+    
+    if (hasAwsConfig) {
+      console.log("🔍 signInDemo: Demo sign in not available in production mode")
+      alert("Demo accounts are not available in production mode. Please use a real account.")
+      return
+    }
+    
     console.log("🔍 signInDemo: Starting demo sign in...")
     const demoUser: AuthUser = {
       id: "demo-1",
