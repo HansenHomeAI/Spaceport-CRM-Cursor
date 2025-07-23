@@ -60,6 +60,18 @@ export const colors = {
       border: "border-gray-500/20",
       icon: "#6b7280", // Gray-500
     },
+    video: {
+      bg: "bg-purple-500/10",
+      text: "text-purple-300",
+      border: "border-purple-500/20",
+      icon: "#a855f7", // Purple-500
+    },
+    social: {
+      bg: "bg-blue-500/10",
+      text: "text-blue-300",
+      border: "border-blue-500/20",
+      icon: "#3b82f6", // Blue-500
+    },
   },
 
   // Priority colors

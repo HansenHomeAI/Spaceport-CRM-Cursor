@@ -1,32 +1,53 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3 } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
+import { SALES_CADENCE, calculateCadenceProgress, getProgressColor } from "@/lib/sales-cadence"
+import { SalesProgress } from "./sales-progress"
 import type { Lead } from "./leads-table"
 
 interface LeadPanelProps {
   lead: Lead | null
   isOpen: boolean
   onClose: () => void
-  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" }) => void
+  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => void
   onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
 }
 
 export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead }: LeadPanelProps) {
   const [newNote, setNewNote] = useState("")
-  const [noteType, setNoteType] = useState<"call" | "email" | "note">("note")
+  const [noteType, setNoteType] = useState<"call" | "email" | "note" | "video" | "social">("note")
   const [isEditingStatus, setIsEditingStatus] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editingNoteText, setEditingNoteText] = useState("")
   const [editingNoteDate, setEditingNoteDate] = useState("")
+
+  const progress = useMemo(() => {
+    if (!lead) return null
+    return calculateCadenceProgress(lead.notes)
+  }, [lead?.notes])
+
+  const currentStep = useMemo(() => {
+    if (!progress || progress.isDormant) return null
+    return SALES_CADENCE.find(step => step.id === progress.currentStep)
+  }, [progress])
+
+  const handleQuickAction = (type: "call" | "email" | "video" | "social", description: string) => {
+    if (!lead || !currentStep) return
+
+    onAddNote(lead.id, {
+      text: `${currentStep.action}: ${description}`,
+      type: type === "social" ? "note" : type,
+    })
+  }
 
   const handleAddNote = () => {
     if (!lead || !newNote.trim()) return
@@ -104,6 +125,83 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </Button>
               </div>
 
+              {/* Sales Progress */}
+              {progress && (
+                <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
+                  <CardContent className="p-6">
+                    <SalesProgress
+                      progress={progress}
+                      statusColor={getProgressColor(progress, lead.status)}
+                    />
+                    
+                    {currentStep && (
+                      <div className="mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
+                          <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
+                            Day {currentStep.day}
+                          </Badge>
+                        </div>
+                        <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {currentStep.type === "call" && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleQuickAction("call", "Made call")}
+                                className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
+                              >
+                                <Phone className="h-3 w-3 mr-1" />
+                                Made Call
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleQuickAction("call", "Left voicemail")}
+                                className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                Left Voicemail
+                              </Button>
+                            </>
+                          )}
+                          {currentStep.type === "email" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("email", "Sent follow-up email")}
+                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                            >
+                              <Mail className="h-3 w-3 mr-1" />
+                              Sent Email
+                            </Button>
+                          )}
+                          {currentStep.type === "video" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("video", "Sent video message")}
+                              className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
+                            >
+                              <Video className="h-3 w-3 mr-1" />
+                              Sent Video
+                            </Button>
+                          )}
+                          {currentStep.type === "social" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
+                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                            >
+                              <Users className="h-3 w-3 mr-1" />
+                              Connected
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Existing lead details card */}
               <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
                 <CardHeader>
                   <div className="flex items-center justify-between">

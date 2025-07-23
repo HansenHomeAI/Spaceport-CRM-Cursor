@@ -38,7 +38,7 @@ export interface Lead {
     id: string
     text: string
     timestamp: string
-    type: "call" | "email" | "note"
+    type: "call" | "email" | "note" | "video" | "social"
   }>
 }
 
