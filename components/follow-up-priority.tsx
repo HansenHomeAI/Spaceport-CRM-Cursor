@@ -79,11 +79,24 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             })
             return
           }
-          // If there's been action since the reminder, treat it as a normal lead
+          // If there's been action since the reminder, continue to normal priority logic
         } else {
           // Reminder is in the future - don't include in follow-ups (lowest priority)
           return
         }
+      }
+
+      // Check for any future reminders that would override normal priority
+      const futureReminders = lead.notes.filter(note => {
+        if (!note.text.includes("Set reminder:")) return false
+        const reminderDate = new Date(note.timestamp)
+        const reminderDay = new Date(reminderDate.getFullYear(), reminderDate.getMonth(), reminderDate.getDate())
+        return reminderDay > today
+      })
+      
+      if (futureReminders.length > 0) {
+        // Has future reminders - exclude from follow-ups (lowest priority)
+        return
       }
 
       if (!lastInteraction) {

@@ -279,7 +279,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-white font-body flex items-center gap-2">
-                      <User className="h-4 w-4 text-purple-400" />
+                      <User className="h-4 w-4" style={{ color: "#a855f7" }} />
                       Contact Name <span className="text-red-400">*</span>
                     </Label>
                     <Input
@@ -294,7 +294,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
 
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-white font-body flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-purple-400" />
+                      <Mail className="h-4 w-4" style={{ color: "#f97316" }} />
                       Email <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
@@ -309,7 +309,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
 
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="text-white font-body flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-purple-400" />
+                      <Phone className="h-4 w-4" style={{ color: "#22c55e" }} />
                       Phone <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
@@ -323,7 +323,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
 
                   <div className="space-y-2">
                     <Label htmlFor="company" className="text-white font-body flex items-center gap-2">
-                      <Building className="h-4 w-4 text-purple-400" />
+                      <Building className="h-4 w-4" style={{ color: "#3b82f6" }} />
                       Company <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
@@ -337,7 +337,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
 
                   <div className="space-y-2">
                     <Label htmlFor="address" className="text-white font-body flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-purple-400" />
+                      <MapPin className="h-4 w-4" style={{ color: "#a855f7" }} />
                       Property Address <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
