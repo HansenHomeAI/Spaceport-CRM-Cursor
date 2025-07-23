@@ -388,26 +388,15 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Priority Follow-ups */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-title text-primary-hierarchy mb-4">Priority Follow-ups</h2>
-                <FollowUpPriority 
-                  leads={leads} 
-                  onLeadSelect={handleLeadSelect}
-                />
-              </div>
+              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
 
-              {/* Leads Table */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-title text-primary-hierarchy mb-4">Leads Table</h2>
-                <LeadsTable 
-                  leads={leads} 
-                  onLeadUpdate={handleLeadUpdate}
-                  onLeadSelect={handleLeadSelect}
-                  sortConfig={sortConfig}
-                  onSortChange={setSortConfig}
-                />
-              </div>
+              <LeadsTable
+                leads={sortedLeads}
+                onLeadUpdate={handleLeadUpdate}
+                onLeadSelect={handleLeadSelect}
+                sortConfig={sortConfig}
+                onSortChange={setSortConfig}
+              />
             </>
           )}
 

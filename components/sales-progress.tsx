@@ -8,7 +8,6 @@ import { SALES_CADENCE, type CadenceProgress } from "@/lib/sales-cadence"
 interface SalesProgressProps {
   progress: CadenceProgress
   statusColor: string
-  onStepClick?: (stepId: number) => void
 }
 
 const stepIcons = {
@@ -18,15 +17,9 @@ const stepIcons = {
   social: Users,
 }
 
-export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgressProps) {
+export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
   const totalSteps = SALES_CADENCE.length
   const stepWidth = 100 / (totalSteps - 1) // percentage width between steps
-
-  const handleStepClick = (stepId: number) => {
-    if (onStepClick) {
-      onStepClick(stepId)
-    }
-  }
 
   return (
     <div className="relative py-6 px-2">
@@ -53,9 +46,8 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
           <TooltipProvider key={step.id}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleStepClick(step.id)}
-                  className="absolute top-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-black"
+                <div
+                  className="absolute top-1/2 -translate-y-1/2"
                   style={{ left: position }}
                 >
                   <motion.div
@@ -84,7 +76,7 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                       />
                     </div>
                   </motion.div>
-                </button>
+                </div>
               </TooltipTrigger>
               <TooltipContent
                 side="top"
@@ -99,9 +91,6 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                   )}
                   {isCurrent && !isCompleted && (
                     <div className="text-xs text-yellow-400 mt-1">In progress</div>
-                  )}
-                  {onStepClick && (
-                    <div className="text-xs text-blue-400 mt-1">Click to mark complete</div>
                   )}
                 </div>
               </TooltipContent>
