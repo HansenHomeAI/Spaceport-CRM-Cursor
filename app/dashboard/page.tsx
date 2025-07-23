@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -26,6 +26,10 @@ export default function DashboardPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [sortConfig, setSortConfig] = useState<{
+    field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
+    direction: 'asc' | 'desc'
+  }>({ field: 'lastContact', direction: 'desc' })
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
@@ -54,6 +58,54 @@ export default function DashboardPage() {
   const dormantLeads = leads.filter((lead) => lead.priority === "dormant").length
   const highPriorityLeads = leads.filter((lead) => lead.priority === "high").length
   const needsAttentionLeads = leads.filter((lead) => lead.needsAttention).length
+
+  // Sort leads based on current configuration
+  const sortedLeads = useMemo(() => {
+    const sorted = [...leads].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortConfig.field) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'status':
+          aValue = a.status
+          bValue = b.status
+          break
+        case 'priority':
+          const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
+          aValue = priorityOrder[a.priority]
+          bValue = priorityOrder[b.priority]
+          break
+        case 'lastContact':
+          const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+          const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+          aValue = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
+          bValue = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
+          break
+        case 'dateAdded':
+          // Using id as proxy for date added since it's timestamp-based
+          aValue = parseInt(a.id)
+          bValue = parseInt(b.id)
+          break
+        case 'interestLevel':
+          const interestOrder = { interested: 4, contacted: 3, 'left voicemail': 2, cold: 1, dormant: 0, closed: 5 }
+          aValue = interestOrder[a.status]
+          bValue = interestOrder[b.status]
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return sorted
+  }, [leads, sortConfig])
 
   const handleLeadUpdate = (leadId: string, updates: Partial<Lead>) => {
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
@@ -166,7 +218,7 @@ export default function DashboardPage() {
       </div>
       
       {/* Noise texture overlay */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.08]">
+      <div className="absolute inset-0 pointer-events-none opacity-[0.035]">
         <div className="w-full h-full" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'repeat'
@@ -318,6 +370,89 @@ export default function DashboardPage() {
             <>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex gap-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                      >
+                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                        Sort by {sortConfig.field === 'lastContact' ? 'Last Contact' : 
+                                 sortConfig.field === 'dateAdded' ? 'Date Added' :
+                                 sortConfig.field === 'interestLevel' ? 'Interest Level' :
+                                 sortConfig.field.charAt(0).toUpperCase() + sortConfig.field.slice(1)}
+                        <span className="ml-2 text-xs opacity-60">
+                          {sortConfig.direction === 'desc' ? '↓' : '↑'}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-64 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="start" forceMount>
+                      <div className="p-2">
+                        <div className="text-xs text-gray-400 font-body mb-3 px-2">Sort by</div>
+                        <div className="space-y-1">
+                          {[
+                            { value: 'name', label: 'Name', icon: '👤' },
+                            { value: 'status', label: 'Status', icon: '📊' },
+                            { value: 'priority', label: 'Priority', icon: '⚡' },
+                            { value: 'lastContact', label: 'Last Contact', icon: '📞' },
+                            { value: 'dateAdded', label: 'Date Added', icon: '📅' },
+                            { value: 'interestLevel', label: 'Interest Level', icon: '🎯' }
+                          ].map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              onClick={() => setSortConfig(prev => ({ 
+                                ...prev, 
+                                field: option.value as any 
+                              }))}
+                              className={`text-white hover:bg-white/10 rounded-lg px-3 py-2 cursor-pointer ${
+                                sortConfig.field === option.value ? 'bg-white/10' : ''
+                              }`}
+                            >
+                              <span className="mr-2">{option.icon}</span>
+                              <span className="font-body">{option.label}</span>
+                              {sortConfig.field === option.value && (
+                                <span className="ml-auto text-xs opacity-60">
+                                  {sortConfig.direction === 'desc' ? '↓' : '↑'}
+                                </span>
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <div className="border-t border-white/10 mt-3 pt-3">
+                          <div className="text-xs text-gray-400 font-body mb-2 px-2">Direction</div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant={sortConfig.direction === 'asc' ? 'default' : 'outline'}
+                              onClick={() => setSortConfig(prev => ({ ...prev, direction: 'asc' }))}
+                              className={`text-xs rounded-full ${
+                                sortConfig.direction === 'asc' 
+                                  ? 'bg-white text-black' 
+                                  : 'border-white/20 text-white hover:bg-white/10'
+                              }`}
+                            >
+                              ↑ Ascending
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={sortConfig.direction === 'desc' ? 'default' : 'outline'}
+                              onClick={() => setSortConfig(prev => ({ ...prev, direction: 'desc' }))}
+                              className={`text-xs rounded-full ${
+                                sortConfig.direction === 'desc' 
+                                  ? 'bg-white text-black' 
+                                  : 'border-white/20 text-white hover:bg-white/10'
+                              }`}
+                            >
+                              ↓ Descending
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="flex gap-3">
                   <Button
                     onClick={() => setIsImportOpen(true)}
                     variant="outline"
@@ -336,10 +471,10 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
+              <FollowUpPriority leads={sortedLeads} onLeadSelect={handleLeadSelect} />
 
               <LeadsTable
-                leads={leads}
+                leads={sortedLeads}
                 onLeadUpdate={handleLeadUpdate}
                 onLeadSelect={handleLeadSelect}
               />
