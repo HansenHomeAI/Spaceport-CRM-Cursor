@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("🔍 AuthProvider: Checking for existing session...")
     
     // Check if we have AWS config (production mode)
-    const hasAwsConfig = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
     
     if (hasAwsConfig) {
       // Production mode - use Cognito
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     // Check if we have AWS config (production mode)
-    const hasAwsConfig = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
     
     if (hasAwsConfig) {
       // Production mode - use Cognito
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     name: string,
   ): Promise<{ success: boolean; message: string }> => {
     // Check if we have AWS config (production mode)
-    const hasAwsConfig = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
     
     if (hasAwsConfig) {
       // Production mode - use Cognito
@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = () => {
     // Check if we have AWS config (production mode)
-    const hasAwsConfig = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
     
     if (hasAwsConfig) {
       // Production mode - use Cognito

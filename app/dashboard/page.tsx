@@ -34,8 +34,8 @@ export default function DashboardPage() {
     direction: 'asc' | 'desc'
   }>({ field: 'lastContact', direction: 'desc' })
 
-  // Check if we're in production mode (have AWS config)
-  const isProductionMode = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+  // Check if we're in production mode (explicitly set or have AWS config)
+  const isProductionMode = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
 
   // Load leads from API on mount
   useEffect(() => {
