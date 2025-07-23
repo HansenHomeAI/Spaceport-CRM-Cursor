@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -368,6 +368,26 @@ export default function DashboardPage() {
             </motion.div>
           ) : (
             <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setIsImportOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import CSV
+                  </Button>
+                  <Button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Lead
+                  </Button>
+                </div>
+              </div>
+
               {/* Priority Follow-ups */}
               <div className="mb-8">
                 <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Priority Follow-ups</h2>
@@ -375,24 +395,12 @@ export default function DashboardPage() {
               </div>
 
               {/* Leads Table Section */}
-              <div className="mb-8">
+              <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-title text-primary-hierarchy">Leads Table</h2>
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => setIsImportOpen(true)}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import CSV
-                    </Button>
-                    <Button
-                      onClick={() => setIsAddModalOpen(true)}
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Lead
-                    </Button>
+                  <div className="flex items-center gap-3">
+                    <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
+                    <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
                   </div>
                 </div>
                 <LeadsTable
@@ -414,8 +422,6 @@ export default function DashboardPage() {
             onUpdateNote={handleUpdateNote}
             onUpdateLead={handleLeadUpdate}
           />
-
-          <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
 
           <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
         </div>
