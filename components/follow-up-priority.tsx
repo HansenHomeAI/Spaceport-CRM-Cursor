@@ -34,8 +34,6 @@ const urgencyIcons = {
 }
 
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
-  const [expandedCard, setExpandedCard] = useState<string | null>(null)
-
   // Calculate follow-up priorities based on your cadence
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
@@ -110,10 +108,9 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       className="mb-8"
     >
       <h2 className="text-primary-hierarchy font-title text-lg mb-4">Priority Follow-ups</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {followUps.slice(0, 8).map((item) => {
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {followUps.slice(0, 12).map((item) => {
           const UrgencyIcon = urgencyIcons[item.urgency]
-          const isExpanded = expandedCard === item.lead.id
 
           return (
             <motion.div
@@ -125,16 +122,13 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
               transition={{ duration: 0.3 }}
             >
               <Card
-                className={`bg-black/20 backdrop-blur-xl border-system hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-3xl ${
-                  isExpanded ? "ring-2 ring-purple-500/30" : ""
-                }`}
-                onClick={() => setExpandedCard(isExpanded ? null : item.lead.id)}
+                className="bg-black/20 backdrop-blur-xl border-system hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
+                onClick={() => onLeadSelect(item.lead)}
               >
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
-                      <p className="text-medium-hierarchy font-body text-xs truncate">{item.lead.email}</p>
                     </div>
                     <div className="flex items-center gap-1 ml-2">
                       <UrgencyIcon className="h-3 w-3 text-purple-400" />
@@ -144,51 +138,16 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2">
                     {item.nextAction === "call" ? (
                       <Phone className="h-3 w-3 text-purple-400" />
                     ) : (
                       <Mail className="h-3 w-3 text-purple-400" />
                     )}
                     <span className="text-medium-hierarchy font-body text-xs">
-                      {item.nextAction === "call" ? "Call needed" : "Email needed"}
+                      {item.nextAction === "call" ? "Call" : "Email"}
                     </span>
                   </div>
-
-                  <p className="text-medium-hierarchy font-body text-xs leading-tight">{item.reason}</p>
-
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-3 pt-3 border-t border-white/10"
-                      >
-                        <div className="space-y-2">
-                          <div className="text-xs">
-                            <span className="text-medium-hierarchy font-body">Address: </span>
-                            <span className="text-primary-hierarchy font-body">{item.lead.address}</span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-medium-hierarchy font-body">Phone: </span>
-                            <span className="text-primary-hierarchy font-body">{item.lead.phone}</span>
-                          </div>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onLeadSelect(item.lead)
-                            }}
-                            size="sm"
-                            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-full text-xs mt-2"
-                          >
-                            View Full Profile
-                          </Button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </CardContent>
               </Card>
             </motion.div>

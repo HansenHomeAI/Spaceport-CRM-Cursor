@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { colors } from "@/lib/colors"
@@ -45,6 +46,14 @@ interface LeadsTableProps {
   leads: Lead[]
   onLeadUpdate: (leadId: string, updates: Partial<Lead>) => void
   onLeadSelect: (lead: Lead) => void
+  sortConfig?: {
+    field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
+    direction: 'asc' | 'desc'
+  }
+  onSortChange?: (config: {
+    field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
+    direction: 'asc' | 'desc'
+  }) => void
 }
 
 const columnHelper = createColumnHelper<Lead>()
@@ -121,10 +130,61 @@ export function LeadsTable({
   leads,
   onLeadUpdate,
   onLeadSelect,
+  sortConfig,
+  onSortChange,
 }: LeadsTableProps) {
   const { user } = useAuth()
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
+
+  // Sort leads based on current configuration
+  const sortedLeads = useMemo(() => {
+    if (!sortConfig) return leads
+
+    const sorted = [...leads].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortConfig.field) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'status':
+          aValue = a.status
+          bValue = b.status
+          break
+        case 'priority':
+          const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
+          aValue = priorityOrder[a.priority]
+          bValue = priorityOrder[b.priority]
+          break
+        case 'lastContact':
+          const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+          const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+          aValue = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
+          bValue = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
+          break
+        case 'dateAdded':
+          // Using id as proxy for date added since it's timestamp-based
+          aValue = parseInt(a.id)
+          bValue = parseInt(b.id)
+          break
+        case 'interestLevel':
+          const interestOrder = { interested: 4, contacted: 3, 'left voicemail': 2, cold: 1, dormant: 0, closed: 5 }
+          aValue = interestOrder[a.status]
+          bValue = interestOrder[b.status]
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return sorted
+  }, [leads, sortConfig])
 
   // Calculate priorities for all leads
   const leadsWithPriority = useMemo(() => {
@@ -136,7 +196,7 @@ export function LeadsTable({
 
   // Filter and sort leads
   const filteredAndSortedLeads = useMemo(() => {
-    let filtered = leadsWithPriority
+    let filtered = sortedLeads
 
     // Filter by dormant status
     // if (!showDormant) { // This line is removed as per the edit hint
@@ -161,7 +221,7 @@ export function LeadsTable({
     // }
 
     return filtered
-  }, [leadsWithPriority]) // Removed sortByRecent and showDormant from dependencies
+  }, [sortedLeads]) // Removed sortByRecent and showDormant from dependencies
 
   const handleClaimLead = (leadId: string) => {
     if (!user) return
@@ -208,24 +268,86 @@ export function LeadsTable({
     () => [
       columnHelper.accessor("name", {
         header: ({ column }) => (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                  className="text-gray-400 font-body hover:text-white p-0"
-                >
-                  Contact
-                  <ArrowUpDown className="ml-2 h-3 w-3" />
-                  <Info className="ml-1 h-3 w-3 opacity-50" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
-                <p className="font-body">Sort contacts alphabetically by name</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="text-gray-400 font-body hover:text-white p-0"
+              >
+                Contact
+                <ArrowUpDown className="ml-2 h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="start" forceMount>
+              <div className="p-2">
+                <div className="text-xs text-gray-400 font-body mb-3 px-2">Sort by</div>
+                <div className="space-y-1">
+                  {[
+                    { value: 'name', label: 'Name', icon: '👤' },
+                    { value: 'status', label: 'Status', icon: '📊' },
+                    { value: 'priority', label: 'Priority', icon: '⚡' },
+                    { value: 'lastContact', label: 'Last Contact', icon: '📞' },
+                    { value: 'dateAdded', label: 'Date Added', icon: '📅' },
+                    { value: 'interestLevel', label: 'Interest Level', icon: '🎯' }
+                  ].map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => onSortChange?.({ 
+                        field: option.value as any,
+                        direction: sortConfig?.direction || 'desc'
+                      })}
+                      className={`text-white hover:bg-white/10 rounded-lg px-3 py-2 cursor-pointer ${
+                        sortConfig?.field === option.value ? 'bg-white/10' : ''
+                      }`}
+                    >
+                      <span className="mr-2">{option.icon}</span>
+                      <span className="font-body">{option.label}</span>
+                      {sortConfig?.field === option.value && (
+                        <span className="ml-auto text-xs opacity-60">
+                          {sortConfig.direction === 'desc' ? '↓' : '↑'}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+                <div className="border-t border-white/10 mt-3 pt-3">
+                  <div className="text-xs text-gray-400 font-body mb-2 px-2">Direction</div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant={sortConfig?.direction === 'asc' ? 'default' : 'outline'}
+                      onClick={() => onSortChange?.({ 
+                        field: sortConfig?.field || 'name',
+                        direction: 'asc'
+                      })}
+                      className={`text-xs rounded-full ${
+                        sortConfig?.direction === 'asc' 
+                          ? 'bg-white text-black' 
+                          : 'border-white/20 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      ↑ Ascending
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={sortConfig?.direction === 'desc' ? 'default' : 'outline'}
+                      onClick={() => onSortChange?.({ 
+                        field: sortConfig?.field || 'name',
+                        direction: 'desc'
+                      })}
+                      className={`text-xs rounded-full ${
+                        sortConfig?.direction === 'desc' 
+                          ? 'bg-white text-black' 
+                          : 'border-white/20 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      ↓ Descending
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
         cell: ({ getValue, row, column }) => {
           const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
@@ -471,18 +593,13 @@ export function LeadsTable({
         ),
       }),
     ],
-    [editingCell, onLeadUpdate, onLeadSelect, user],
+    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange],
   )
 
   const table = useReactTable({
     data: filteredAndSortedLeads,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
   })
 
   return (

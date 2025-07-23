@@ -370,89 +370,6 @@ export default function DashboardPage() {
             <>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex gap-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
-                      >
-                        <ArrowUpDown className="h-4 w-4 mr-2" />
-                        Sort by {sortConfig.field === 'lastContact' ? 'Last Contact' : 
-                                 sortConfig.field === 'dateAdded' ? 'Date Added' :
-                                 sortConfig.field === 'interestLevel' ? 'Interest Level' :
-                                 sortConfig.field.charAt(0).toUpperCase() + sortConfig.field.slice(1)}
-                        <span className="ml-2 text-xs opacity-60">
-                          {sortConfig.direction === 'desc' ? '↓' : '↑'}
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="start" forceMount>
-                      <div className="p-2">
-                        <div className="text-xs text-gray-400 font-body mb-3 px-2">Sort by</div>
-                        <div className="space-y-1">
-                          {[
-                            { value: 'name', label: 'Name', icon: '👤' },
-                            { value: 'status', label: 'Status', icon: '📊' },
-                            { value: 'priority', label: 'Priority', icon: '⚡' },
-                            { value: 'lastContact', label: 'Last Contact', icon: '📞' },
-                            { value: 'dateAdded', label: 'Date Added', icon: '📅' },
-                            { value: 'interestLevel', label: 'Interest Level', icon: '🎯' }
-                          ].map((option) => (
-                            <DropdownMenuItem
-                              key={option.value}
-                              onClick={() => setSortConfig(prev => ({ 
-                                ...prev, 
-                                field: option.value as any 
-                              }))}
-                              className={`text-white hover:bg-white/10 rounded-lg px-3 py-2 cursor-pointer ${
-                                sortConfig.field === option.value ? 'bg-white/10' : ''
-                              }`}
-                            >
-                              <span className="mr-2">{option.icon}</span>
-                              <span className="font-body">{option.label}</span>
-                              {sortConfig.field === option.value && (
-                                <span className="ml-auto text-xs opacity-60">
-                                  {sortConfig.direction === 'desc' ? '↓' : '↑'}
-                                </span>
-                              )}
-                            </DropdownMenuItem>
-                          ))}
-                        </div>
-                        <div className="border-t border-white/10 mt-3 pt-3">
-                          <div className="text-xs text-gray-400 font-body mb-2 px-2">Direction</div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant={sortConfig.direction === 'asc' ? 'default' : 'outline'}
-                              onClick={() => setSortConfig(prev => ({ ...prev, direction: 'asc' }))}
-                              className={`text-xs rounded-full ${
-                                sortConfig.direction === 'asc' 
-                                  ? 'bg-white text-black' 
-                                  : 'border-white/20 text-white hover:bg-white/10'
-                              }`}
-                            >
-                              ↑ Ascending
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={sortConfig.direction === 'desc' ? 'default' : 'outline'}
-                              onClick={() => setSortConfig(prev => ({ ...prev, direction: 'desc' }))}
-                              className={`text-xs rounded-full ${
-                                sortConfig.direction === 'desc' 
-                                  ? 'bg-white text-black' 
-                                  : 'border-white/20 text-white hover:bg-white/10'
-                              }`}
-                            >
-                              ↓ Descending
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="flex gap-3">
                   <Button
                     onClick={() => setIsImportOpen(true)}
                     variant="outline"
@@ -471,12 +388,14 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <FollowUpPriority leads={sortedLeads} onLeadSelect={handleLeadSelect} />
+              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
 
               <LeadsTable
                 leads={sortedLeads}
                 onLeadUpdate={handleLeadUpdate}
                 onLeadSelect={handleLeadSelect}
+                sortConfig={sortConfig}
+                onSortChange={setSortConfig}
               />
             </>
           )}
