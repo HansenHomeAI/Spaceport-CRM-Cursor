@@ -584,6 +584,24 @@ export default function DashboardPage() {
                     Add Lead
                   </Button>
                 </div>
+              </div>
+
+              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
+
+              {/* Leads Table Section */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Leads Table</h2>
+                <LeadsTable
+                  leads={sortedLeads}
+                  onLeadUpdate={handleLeadUpdate}
+                  onLeadSelect={handleLeadSelect}
+                  sortConfig={sortConfig}
+                  onSortChange={setSortConfig}
+                />
+              </div>
+
+              {/* Reset Database Button - Bottom of page */}
+              <div className="flex justify-center mt-12 mb-8">
                 <Button
                   onClick={() => {
                     if (confirm("⚠️ WARNING: This will delete ALL contacts from the database. This action cannot be undone. Are you sure you want to reset the database?")) {
@@ -597,16 +615,6 @@ export default function DashboardPage() {
                   Reset Database
                 </Button>
               </div>
-
-              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
-
-              <LeadsTable
-                leads={sortedLeads}
-                onLeadUpdate={handleLeadUpdate}
-                onLeadSelect={handleLeadSelect}
-                sortConfig={sortConfig}
-                onSortChange={setSortConfig}
-              />
             </>
           )}
 
