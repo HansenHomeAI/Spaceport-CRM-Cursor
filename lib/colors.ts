@@ -105,3 +105,23 @@ export const colors = {
     gradient: "from-purple-600 to-purple-700",
   },
 }
+
+// Helper function to get status color
+export function getStatusColor(status: string): string {
+  switch (status) {
+    case "cold":
+      return "#94a3b8" // Slate-400
+    case "contacted":
+      return "#60a5fa" // Blue-400
+    case "interested":
+      return "#34d399" // Emerald-400
+    case "closed":
+      return "#fbbf24" // Amber-400
+    case "dormant":
+      return "#6b7280" // Gray-500
+    case "left voicemail":
+      return "#f97316" // Orange-500
+    default:
+      return "#6b7280" // Gray-500
+  }
+}

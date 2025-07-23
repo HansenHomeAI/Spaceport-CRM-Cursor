@@ -18,7 +18,7 @@ interface FollowUpItem {
 
 interface FollowUpPriorityProps {
   leads: Lead[]
-  onLeadSelect: (lead: Lead) => void
+  onLeadClick: (lead: Lead) => void
 }
 
 const urgencyColors = {
@@ -33,110 +33,89 @@ const urgencyIcons = {
   low: Clock,
 }
 
-export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
+export function FollowUpPriority({ leads, onLeadClick }: FollowUpPriorityProps) {
   const priorityLeads = useMemo(() => {
     const now = new Date()
-    
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
     return leads
-      .filter(lead => {
-        if (lead.notes.length === 0) return true
-        
-        const lastNote = lead.notes.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )[0]
-        
-        const daysSinceLastContact = Math.floor(
-          (now.getTime() - new Date(lastNote.timestamp).getTime()) / (1000 * 60 * 60 * 24)
-        )
-        
-        // Only show leads that need attention within the last month
-        return daysSinceLastContact <= 30
+      .filter((lead) => {
+        // Only show leads that need follow-up within the last month
+        const lastNote = lead.notes[0]
+        if (!lastNote) return false
+
+        const lastContactDate = new Date(lastNote.timestamp)
+        return lastContactDate >= thirtyDaysAgo
       })
-      .sort((a, b) => {
-        // Priority order: interested > contacted/voicemail > cold > dormant
-        const getPriorityScore = (lead: Lead) => {
-          if (lead.status === "interested") return 4
-          if (lead.status === "contacted" || lead.status === "left voicemail") return 3
-          if (lead.status === "cold") return 2
-          if (lead.status === "dormant") return 1
-          return 0
+      .map((lead) => {
+        const lastNote = lead.notes[0]
+        const lastContactDate = new Date(lastNote.timestamp)
+        const daysSinceContact = Math.floor((now.getTime() - lastContactDate.getTime()) / (1000 * 60 * 60 * 24))
+
+        // Determine priority based on status and recency
+        let priority: "high" | "medium" | "low" = "low"
+        let priorityReason = ""
+
+        if (lead.status === "interested") {
+          priority = "high"
+          priorityReason = "Interested lead"
+        } else if (lead.status === "contacted" || lead.status === "left voicemail") {
+          if (daysSinceContact <= 7) {
+            priority = "medium"
+            priorityReason = "Recently contacted"
+          } else {
+            priority = "high"
+            priorityReason = "Needs follow-up"
+          }
+        } else if (lead.status === "cold") {
+          if (daysSinceContact <= 14) {
+            priority = "medium"
+            priorityReason = "Cold lead - recent contact"
+          } else {
+            priority = "low"
+            priorityReason = "Cold lead - dormant"
+          }
+        } else if (lead.status === "dormant") {
+          priority = "low"
+          priorityReason = "Dormant lead"
         }
-        
-        const scoreA = getPriorityScore(a)
-        const scoreB = getPriorityScore(b)
-        
-        if (scoreA !== scoreB) return scoreB - scoreA
-        
-        // If same priority, sort by most recent contact
-        const lastNoteA = a.notes.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )[0]
-        const lastNoteB = b.notes.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )[0]
-        
-        if (!lastNoteA && !lastNoteB) return 0
-        if (!lastNoteA) return 1
-        if (!lastNoteB) return -1
-        
-        return new Date(lastNoteB.timestamp).getTime() - new Date(lastNoteA.timestamp).getTime()
+
+        return {
+          ...lead,
+          priority,
+          priorityReason,
+          daysSinceContact,
+        }
       })
-      .slice(0, 8) // Limit to top 8
+      .filter((lead) => lead.priority !== "low") // Only show medium and high priority
+      .sort((a, b) => {
+        // Sort by priority first, then by recency
+        const priorityOrder = { high: 0, medium: 1, low: 2 }
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+        if (priorityDiff !== 0) return priorityDiff
+        return a.daysSinceContact - b.daysSinceContact
+      })
   }, [leads])
 
   const groupedLeads = useMemo(() => {
     const groups = {
-      interested: priorityLeads.filter(lead => lead.status === "interested"),
-      contacted: priorityLeads.filter(lead => lead.status === "contacted" || lead.status === "left voicemail"),
-      cold: priorityLeads.filter(lead => lead.status === "cold"),
-      dormant: priorityLeads.filter(lead => lead.status === "dormant")
+      high: priorityLeads.filter(lead => lead.priority === "high"),
+      medium: priorityLeads.filter(lead => lead.priority === "medium"),
     }
-    
-    return Object.entries(groups).filter(([_, leads]) => leads.length > 0)
+    return groups
   }, [priorityLeads])
-
-  const getPriorityColor = (status: Lead["status"]) => {
-    switch (status) {
-      case "interested":
-        return "bg-green-500/20 text-green-300 border-green-500/30"
-      case "contacted":
-        return "bg-blue-500/20 text-blue-300 border-blue-500/30"
-      case "left voicemail":
-        return "bg-orange-500/20 text-orange-300 border-orange-500/30"
-      case "cold":
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
-      case "dormant":
-        return "bg-gray-600/20 text-gray-400 border-gray-600/30"
-      default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
-    }
-  }
-
-  const getPriorityLabel = (status: Lead["status"]) => {
-    switch (status) {
-      case "interested":
-        return "Interested"
-      case "contacted":
-        return "Contacted"
-      case "left voicemail":
-        return "Left Voicemail"
-      case "cold":
-        return "Cold"
-      case "dormant":
-        return "Dormant"
-      default:
-        return status
-    }
-  }
 
   if (priorityLeads.length === 0) {
     return (
       <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
         <CardHeader>
-          <CardTitle className="text-primary-hierarchy font-title text-xl">Priority Follow-ups</CardTitle>
+          <CardTitle className="text-primary-hierarchy font-title text-2xl">Priority Follow-ups</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-white/50 text-sm">No leads need immediate attention</p>
+          <div className="text-center py-8">
+            <div className="text-white/60 text-sm">No priority follow-ups needed</div>
+            <div className="text-white/40 text-xs mt-1">All leads are up to date</div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -147,62 +126,66 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       <CardHeader>
         <CardTitle className="text-primary-hierarchy font-title text-xl">Priority Follow-ups</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {groupedLeads.map(([groupKey, groupLeads]) => (
-            <div key={groupKey} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  groupKey === "interested" ? "bg-green-400" :
-                  groupKey === "contacted" ? "bg-blue-400" :
-                  groupKey === "cold" ? "bg-gray-400" :
-                  "bg-gray-500"
-                }`} />
-                <h4 className="text-sm font-medium text-white/80 capitalize">
-                  {groupKey === "contacted" ? "Recently Contacted" : groupKey}
-                </h4>
-                <span className="text-xs text-white/50">({groupLeads.length})</span>
-              </div>
-              
-              <div className="grid gap-2">
-                {groupLeads.map((lead) => {
-                  const lastNote = lead.notes.sort((a, b) => 
-                    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-                  )[0]
-                  
-                  return (
-                    <motion.div
-                      key={lead.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      whileHover={{ scale: 1.02 }}
-                      className={`p-3 rounded-xl border cursor-pointer transition-colors ${
-                        getPriorityColor(lead.status)
-                      }`}
-                      onClick={() => onLeadSelect(lead)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{lead.name}</div>
-                          <div className="text-xs opacity-70 truncate">
-                            {lastNote ? lastNote.text : "No interactions yet"}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-2">
-                          <Badge className={`text-xs rounded-full ${
-                            getPriorityColor(lead.status)
-                          }`}>
-                            {getPriorityLabel(lead.status)}
-                          </Badge>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </div>
+      <CardContent className="space-y-4">
+        {/* High Priority Group */}
+        {groupedLeads.high.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+              <span className="text-red-300 text-sm font-medium">High Priority ({groupedLeads.high.length})</span>
             </div>
-          ))}
-        </div>
+            <div className="space-y-2 pl-4">
+              {groupedLeads.high.map((lead) => (
+                <motion.div
+                  key={lead.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-xl cursor-pointer"
+                  onClick={() => onLeadClick(lead)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">{lead.name}</div>
+                    <div className="text-red-300 text-xs">{lead.priorityReason}</div>
+                  </div>
+                  <div className="text-red-300 text-xs">
+                    {lead.daysSinceContact === 0 ? "Today" : `${lead.daysSinceContact}d ago`}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Medium Priority Group */}
+        {groupedLeads.medium.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+              <span className="text-yellow-300 text-sm font-medium">Medium Priority ({groupedLeads.medium.length})</span>
+            </div>
+            <div className="space-y-2 pl-4">
+              {groupedLeads.medium.map((lead) => (
+                <motion.div
+                  key={lead.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl cursor-pointer"
+                  onClick={() => onLeadClick(lead)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">{lead.name}</div>
+                    <div className="text-yellow-300 text-xs">{lead.priorityReason}</div>
+                  </div>
+                  <div className="text-yellow-300 text-xs">
+                    {lead.daysSinceContact === 0 ? "Today" : `${lead.daysSinceContact}d ago`}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
