@@ -17,7 +17,7 @@ export default function HomePage() {
         // Use window.location for static export compatibility
         if (process.env.NODE_ENV === 'production') {
           console.log("🔍 HomePage: Redirecting to production dashboard...")
-          window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+          window.location.href = '/dashboard/'
         } else {
           console.log("🔍 HomePage: Redirecting to development dashboard...")
           router.push("/dashboard")
@@ -27,7 +27,7 @@ export default function HomePage() {
         // Use window.location for static export compatibility
         if (process.env.NODE_ENV === 'production') {
           console.log("🔍 HomePage: Redirecting to production login...")
-          window.location.href = '/Spaceport-CRM-Cursor/login/'
+          window.location.href = '/login/'
         } else {
           console.log("🔍 HomePage: Redirecting to development login...")
           router.push("/login")

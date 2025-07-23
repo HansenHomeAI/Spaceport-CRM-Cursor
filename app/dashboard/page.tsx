@@ -95,7 +95,7 @@ export default function DashboardPage() {
       // Use window.location for static export compatibility
       if (process.env.NODE_ENV === 'production') {
         console.log("🔍 Dashboard: Redirecting to production login...")
-        window.location.href = '/Spaceport-CRM-Cursor/login/'
+        window.location.href = '/login/'
       } else {
         console.log("🔍 Dashboard: Redirecting to development login...")
         router.push("/login")
@@ -379,7 +379,7 @@ export default function DashboardPage() {
     signOut()
     // Use window.location for static export compatibility
     if (process.env.NODE_ENV === 'production') {
-      window.location.href = '/Spaceport-CRM-Cursor/login/'
+      window.location.href = '/login/'
     } else {
       router.push("/login")
     }
@@ -429,7 +429,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-start gap-6">
               <div className="flex-shrink-0">
-                <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
+                <Image src={process.env.NODE_ENV === 'production' ? '/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
               </div>
               <div className="flex flex-col">
                 <h1 className="text-4xl font-title text-primary-hierarchy mb-3">Welcome back, {user?.name}</h1>

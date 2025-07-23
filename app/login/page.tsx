@@ -52,7 +52,8 @@ export default function LoginPage() {
         setMessage({ type: "success", text: result.message })
         // Use window.location for static export compatibility
         if (process.env.NODE_ENV === 'production') {
-          window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+          console.log("🔍 LoginPage: Redirecting to production dashboard...")
+          window.location.href = '/dashboard/'
         } else {
           router.push("/dashboard")
         }
@@ -90,7 +91,8 @@ export default function LoginPage() {
         setMessage({ type: "success", text: result.message })
         // Use window.location for static export compatibility
         if (process.env.NODE_ENV === 'production') {
-          window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+          console.log("🔍 LoginPage: Redirecting to production dashboard...")
+          window.location.href = '/dashboard/'
         } else {
           router.push("/dashboard")
         }
@@ -112,7 +114,7 @@ export default function LoginPage() {
     // Use window.location for static export compatibility
     if (process.env.NODE_ENV === 'production') {
       console.log("🔍 handleDemoSignIn: Navigating to production dashboard...")
-      window.location.href = '/Spaceport-CRM-Cursor/dashboard/'
+      window.location.href = '/dashboard/'
     } else {
       console.log("🔍 handleDemoSignIn: Navigating to development dashboard...")
       router.push("/dashboard")
@@ -124,7 +126,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center">
-            <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={64} height={64} className="w-full h-full" />
+            <Image src={process.env.NODE_ENV === 'production' ? '/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={64} height={64} className="w-full h-full" />
           </div>
                       <CardTitle className="text-primary-hierarchy text-2xl font-title">Welcome</CardTitle>
           <CardDescription className="text-gray-400">Sign in to your account or create a new one</CardDescription>
