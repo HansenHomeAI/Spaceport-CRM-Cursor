@@ -204,55 +204,55 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                       <h4 className="text-sm font-semibold mb-3">Suggested Actions</h4>
                       <div className="flex flex-wrap gap-2">
                         {currentStep.type === "call" && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAction("call", "Made call")}
-                                className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
-                              >
-                                <Phone className="h-3 w-3 mr-1" />
-                                Made Call
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAction("call", "Left voicemail")}
-                                className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Left Voicemail
-                              </Button>
-                            </>
-                          )}
-                          {currentStep.type === "email" && (
+                          <>
                             <Button
                               size="sm"
-                              onClick={() => handleQuickAction("email", "Sent follow-up email")}
-                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                              onClick={() => handleQuickAction("call", "Made call")}
+                              className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
                             >
-                              <Mail className="h-3 w-3 mr-1" />
-                              Sent Email
+                              <Phone className="h-3 w-3 mr-1" />
+                              Made Call
                             </Button>
-                          )}
-                          {currentStep.type === "video" && (
                             <Button
                               size="sm"
-                              onClick={() => handleQuickAction("video", "Sent video message")}
-                              className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
+                              onClick={() => handleQuickAction("call", "Left voicemail")}
+                              className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
                             >
-                              <Video className="h-3 w-3 mr-1" />
-                              Sent Video
+                              <Check className="h-3 w-3 mr-1" />
+                              Left Voicemail
                             </Button>
-                          )}
-                          {currentStep.type === "social" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
-                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                            >
-                              <Users className="h-3 w-3 mr-1" />
-                              Connected
-                            </Button>
-                          )}
+                          </>
+                        )}
+                        {currentStep.type === "email" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQuickAction("email", "Sent follow-up email")}
+                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                          >
+                            <Mail className="h-3 w-3 mr-1" />
+                            Sent Email
+                          </Button>
+                        )}
+                        {currentStep.type === "video" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQuickAction("video", "Sent video message")}
+                            className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
+                          >
+                            <Video className="h-3 w-3 mr-1" />
+                            Sent Video
+                          </Button>
+                        )}
+                        {currentStep.type === "social" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
+                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                          >
+                            <Users className="h-3 w-3 mr-1" />
+                            Connected
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -261,340 +261,343 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
             )}
 
             {/* Contact Reminder */}
-            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {reminderFeedback && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="bg-green-500/20 text-green-300 border border-green-500/30 rounded-xl p-3 text-sm"
-                    >
-                      ✓ {reminderFeedback}
-                    </motion.div>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleSetReminder("2weeks")}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                    >
-                      <Calendar className="h-3 w-3 mr-1" />
-                      2 Weeks
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleSetReminder("1month")}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                    >
-                      <Calendar className="h-3 w-3 mr-1" />
-                      1 Month
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setShowCustomReminder(!showCustomReminder)}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                    >
-                      <Calendar className="h-3 w-3 mr-1" />
-                      Custom
-                    </Button>
-                  </div>
-
-                  {showCustomReminder && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-3 pt-3 border-t border-white/10"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          value={customReminderDate}
-                          onChange={(e) => setCustomReminderDate(e.target.value)}
-                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
-                          min={new Date().toISOString().split('T')[0]}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleSetReminder("custom")}
-                          disabled={!customReminderDate}
-                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
-                        >
-                          Set
-                        </Button>
-                      </div>
-                    </motion.div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Existing lead details card */}
-              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-primary-hierarchy font-title">Property Address</CardTitle>
-                    <div className="flex items-center gap-2">
-                      {isEditingStatus ? (
-                        <Select value={lead.status} onValueChange={handleStatusChange}>
-                          <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black/90 backdrop-blur-xl border-system rounded-3xl">
-                            <SelectItem value="cold" className="rounded-full font-body">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-2 h-2 rounded-full ${statusColor.bg}`}
-                                  style={{ backgroundColor: colors.status.cold.icon }}
-                                />
-                                Cold
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="contacted" className="rounded-full font-body">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: colors.status.contacted.icon }}
-                                />
-                                Contacted
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="interested" className="rounded-full font-body">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: colors.status.interested.icon }}
-                                />
-                                Interested
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="closed" className="rounded-full font-body">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: colors.status.closed.icon }}
-                                />
-                                Closed
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-4 py-1.5 font-body`}
-                          >
-                            {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsEditingStatus(true)}
-                            className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
-                    <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
-                      <div className="text-primary-hierarchy font-body leading-tight">{lead.address}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                    <Phone className="h-4 w-4" style={{ color: colors.interaction.call.icon }} />
-                    <span>{lead.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                    <Mail className="h-4 w-4" style={{ color: colors.interaction.email.icon }} />
-                    <span>{lead.email}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                    <Calendar className="h-4 w-4 text-purple-400" />
-                    <span>Last interaction: {lead.lastInteraction}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="text-primary-hierarchy font-title text-lg">Add Note</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    {(["note", "call", "email"] as const).map((type) => {
-                      const typeColor = colors.interaction[type]
-                      return (
-                        <Button
-                          key={type}
-                          variant={noteType === type ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setNoteType(type)}
-                          className={
-                            noteType === type
-                              ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body`
-                              : `bg-black/20 ${typeColor.text} border-system hover:bg-white/10 rounded-full font-body`
-                          }
-                        >
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </Button>
-                      )
-                    })}
-                  </div>
-                  <Textarea
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    placeholder="Enter your note..."
-                    className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-2xl"
-                    rows={3}
-                  />
-                  <Button
-                    onClick={handleAddNote}
-                    className={`w-full bg-gradient-to-r ${colors.primary.gradient} hover:from-purple-700 hover:to-purple-800 text-white rounded-full font-body`}
-                    disabled={!newNote.trim()}
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
+              <CardHeader>
+                <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {reminderFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-green-500/20 text-green-300 border border-green-500/30 rounded-xl p-3 text-sm"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Note
+                    ✓ {reminderFeedback}
+                  </motion.div>
+                )}
+                
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleSetReminder("2weeks")}
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    2 Weeks
                   </Button>
-                </CardContent>
-              </Card>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSetReminder("1month")}
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    1 Month
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowCustomReminder(!showCustomReminder)}
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Custom
+                  </Button>
+                </div>
 
-              <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="text-primary-hierarchy font-title text-lg">Interaction History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Upcoming Reminders */}
-                    {lead.notes.filter(note => note.text.includes("Set reminder:")).length > 0 && (
-                      <div className="mb-6">
-                        <h4 className="text-primary-hierarchy font-title text-sm mb-3">Upcoming Reminders</h4>
-                        <div className="space-y-2">
-                          {lead.notes
-                            .filter(note => note.text.includes("Set reminder:"))
-                            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                            .map((note) => (
-                              <motion.div
-                                key={note.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
-                                style={{ borderLeftColor: colors.interaction.note.icon }}
-                              >
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
-                                    Reminder
-                                  </Badge>
-                                  <span className="text-xs text-medium-hierarchy font-body">
-                                    {new Date(note.timestamp).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
-                              </motion.div>
-                            ))}
-                        </div>
+                {showCustomReminder && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 pt-3 border-t border-white/10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={customReminderDate}
+                        onChange={(e) => setCustomReminderDate(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleSetReminder("custom")}
+                        disabled={!customReminderDate}
+                        className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
+                      >
+                        Set
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Property Address Card */}
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-primary-hierarchy font-title">Property Address</CardTitle>
+                  <div className="flex items-center gap-2">
+                    {isEditingStatus ? (
+                      <Select value={lead.status} onValueChange={handleStatusChange}>
+                        <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/90 backdrop-blur-xl border-system rounded-3xl">
+                          <SelectItem value="cold" className="rounded-full font-body">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full ${statusColor.bg}`}
+                                style={{ backgroundColor: colors.status.cold.icon }}
+                              />
+                              Cold
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="contacted" className="rounded-full font-body">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: colors.status.contacted.icon }}
+                              />
+                              Contacted
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="interested" className="rounded-full font-body">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: colors.status.interested.icon }}
+                              />
+                              Interested
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="closed" className="rounded-full font-body">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: colors.status.closed.icon }}
+                              />
+                              Closed
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-4 py-1.5 font-body`}
+                        >
+                          {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditingStatus(true)}
+                          className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
                       </div>
                     )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
+                  <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
+                    <div className="text-primary-hierarchy font-body leading-tight">{lead.address}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                  <Phone className="h-4 w-4" style={{ color: colors.interaction.call.icon }} />
+                  <span>{lead.phone}</span>
+                </div>
+                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                  <Mail className="h-4 w-4" style={{ color: colors.interaction.email.icon }} />
+                  <span>{lead.email}</span>
+                </div>
+                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                  <Calendar className="h-4 w-4 text-purple-400" />
+                  <span>Last interaction: {lead.lastInteraction}</span>
+                </div>
+              </CardContent>
+            </Card>
 
-                    {/* Past Interactions */}
-                    {lead.notes.filter(note => !note.text.includes("Set reminder:")).length === 0 ? (
-                      <p className="text-medium-hierarchy font-body text-sm">No interactions yet</p>
-                    ) : (
-                      lead.notes
-                        .filter(note => !note.text.includes("Set reminder:"))
-                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                        .map((note) => {
-                          const noteColor = colors.interaction[note.type]
-                          const isEditing = editingNoteId === note.id
-                          
-                          return (
+            {/* Add Note Card */}
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
+              <CardHeader>
+                <CardTitle className="text-primary-hierarchy font-title text-lg">Add Note</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  {(["note", "call", "email"] as const).map((type) => {
+                    const typeColor = colors.interaction[type]
+                    return (
+                      <Button
+                        key={type}
+                        variant={noteType === type ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setNoteType(type)}
+                        className={
+                          noteType === type
+                            ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body`
+                            : `bg-black/20 ${typeColor.text} border-system hover:bg-white/10 rounded-full font-body`
+                        }
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Enter your note..."
+                  className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-2xl"
+                  rows={3}
+                />
+                <Button
+                  onClick={handleAddNote}
+                  className={`w-full bg-gradient-to-r ${colors.primary.gradient} hover:from-purple-700 hover:to-purple-800 text-white rounded-full font-body`}
+                  disabled={!newNote.trim()}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Note
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Interaction History Card */}
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
+              <CardHeader>
+                <CardTitle className="text-primary-hierarchy font-title text-lg">Interaction History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Upcoming Reminders */}
+                  {lead.notes.filter(note => note.text.includes("Set reminder:")).length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-primary-hierarchy font-title text-sm mb-3">Upcoming Reminders</h4>
+                      <div className="space-y-2">
+                        {lead.notes
+                          .filter(note => note.text.includes("Set reminder:"))
+                          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                          .map((note) => (
                             <motion.div
                               key={note.id}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="border-l-2 pl-4 py-3 bg-white/5 rounded-r-2xl"
-                              style={{ borderLeftColor: noteColor.icon }}
+                              className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
+                              style={{ borderLeftColor: colors.interaction.note.icon }}
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <Badge
-                                    className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
-                                  >
-                                    {note.type}
-                                  </Badge>
-                                  {isEditing ? (
-                                    <input
-                                      type="date"
-                                      value={editingNoteDate}
-                                      onChange={(e) => setEditingNoteDate(e.target.value)}
-                                      className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
-                                    />
-                                  ) : (
-                                    <span className="text-xs text-medium-hierarchy font-body">
-                                      {new Date(note.timestamp).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {isEditing ? (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        onClick={handleSaveNoteEdit}
-                                        className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700 rounded-full"
-                                      >
-                                        Save
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={handleCancelNoteEdit}
-                                        className="h-6 px-2 text-xs border-white/20 text-white hover:bg-white/10 rounded-full"
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </>
-                                  ) : (
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
+                                  Reminder
+                                </Badge>
+                                <span className="text-xs text-medium-hierarchy font-body">
+                                  {new Date(note.timestamp).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                            </motion.div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Past Interactions */}
+                  {lead.notes.filter(note => !note.text.includes("Set reminder:")).length === 0 ? (
+                    <p className="text-medium-hierarchy font-body text-sm">No interactions yet</p>
+                  ) : (
+                    lead.notes
+                      .filter(note => !note.text.includes("Set reminder:"))
+                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                      .map((note) => {
+                        const noteColor = colors.interaction[note.type]
+                        const isEditing = editingNoteId === note.id
+                        
+                        return (
+                          <motion.div
+                            key={note.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="border-l-2 pl-4 py-3 bg-white/5 rounded-r-2xl"
+                            style={{ borderLeftColor: noteColor.icon }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
+                                >
+                                  {note.type}
+                                </Badge>
+                                {isEditing ? (
+                                  <input
+                                    type="date"
+                                    value={editingNoteDate}
+                                    onChange={(e) => setEditingNoteDate(e.target.value)}
+                                    className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
+                                  />
+                                ) : (
+                                  <span className="text-xs text-medium-hierarchy font-body">
+                                    {new Date(note.timestamp).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {isEditing ? (
+                                  <>
                                     <Button
                                       size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleStartEditNote(note)}
-                                      className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
+                                      onClick={handleSaveNoteEdit}
+                                      className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700 rounded-full"
                                     >
-                                      <Edit3 className="h-3 w-3" />
+                                      Save
                                     </Button>
-                                  )}
-                                </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={handleCancelNoteEdit}
+                                      className="h-6 px-2 text-xs border-white/20 text-white hover:bg-white/10 rounded-full"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleStartEditNote(note)}
+                                    className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
+                                  >
+                                    <Edit3 className="h-3 w-3" />
+                                  </Button>
+                                )}
                               </div>
-                              {isEditing ? (
-                                <Textarea
-                                  value={editingNoteText}
-                                  onChange={(e) => setEditingNoteText(e.target.value)}
-                                  className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
-                                  rows={2}
-                                />
-                              ) : (
-                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
-                              )}
-                            </motion.div>
-                          )
-                        })
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </SheetContent>
-        </Sheet>
+                            </div>
+                            {isEditing ? (
+                              <Textarea
+                                value={editingNoteText}
+                                onChange={(e) => setEditingNoteText(e.target.value)}
+                                className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
+                                rows={2}
+                              />
+                            ) : (
+                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                            )}
+                          </motion.div>
+                        )
+                      })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   )
 }
