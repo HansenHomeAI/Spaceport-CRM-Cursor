@@ -17,6 +17,8 @@ export class SpaceportCrmStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       pointInTimeRecovery: true,
+      // Enable versioning for data recovery
+      timeToLiveAttribute: "ttl",
     })
 
     const activitiesTable = new dynamodb.Table(this, "ActivitiesTable", {
@@ -26,6 +28,8 @@ export class SpaceportCrmStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       pointInTimeRecovery: true,
+      // Enable versioning for data recovery
+      timeToLiveAttribute: "ttl",
     })
 
     // Add GSI for querying activities by lead ID

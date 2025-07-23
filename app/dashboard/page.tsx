@@ -16,6 +16,7 @@ import { LeadPanel } from "@/components/lead-panel"
 import { AddLeadModal } from "@/components/add-lead-modal"
 import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
+import { DatabaseReset } from "@/components/database-reset"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
 import Image from "next/image"
@@ -35,7 +36,7 @@ export default function DashboardPage() {
   }>({ field: 'lastContact', direction: 'desc' })
 
   // Check if we're in production mode (have AWS config)
-  const isProductionMode = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
+  const isProductionMode = Boolean(awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
 
   // Load leads from API on mount
   useEffect(() => {
@@ -330,6 +331,76 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDeleteLead = async (leadId: string) => {
+    // Remove from local state immediately
+    setLeads((prev) => prev.filter(lead => lead.id !== leadId))
+    
+    // Remove from selected lead if it's the same one
+    if (selectedLead?.id === leadId) {
+      setSelectedLead(null)
+      setIsPanelOpen(false)
+    }
+
+    // Delete from API in production mode
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.deleteLead(leadId)
+        if (error) {
+          console.error("Error deleting lead:", error)
+          // Could add a toast notification here for error feedback
+        }
+      } catch (error) {
+        console.error("Error deleting lead:", error)
+      }
+    }
+  }
+
+  const handleDeleteAllLeads = async (): Promise<{ success: boolean; message: string }> => {
+    // Clear local state immediately
+    setLeads([])
+    setSelectedLead(null)
+    setIsPanelOpen(false)
+
+    // Delete from API in production mode
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.deleteAllLeads()
+        if (error) {
+          return { success: false, message: `Failed to delete all leads: ${error}` }
+        }
+        return { success: true, message: "All contacts deleted successfully" }
+      } catch (error) {
+        return { success: false, message: "Failed to delete all leads due to network error" }
+      }
+    }
+
+    return { success: true, message: "All contacts deleted successfully" }
+  }
+
+  const handleResetDatabase = async (): Promise<{ success: boolean; message: string }> => {
+    // Clear local state immediately
+    setLeads([])
+    setSelectedLead(null)
+    setIsPanelOpen(false)
+
+    // Reset database in production mode
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.resetDatabase()
+        if (error) {
+          return { success: false, message: `Failed to reset database: ${error}` }
+        }
+        return { success: true, message: "Database reset successfully" }
+      } catch (error) {
+        return { success: false, message: "Failed to reset database due to network error" }
+      }
+    }
+
+    // In development mode, clear localStorage
+    localStorage.removeItem("spaceport_leads")
+    return { success: true, message: "Database reset successfully" }
+  }
+
   const handleSignOut = () => {
     signOut()
     // Use window.location for static export compatibility
@@ -547,6 +618,7 @@ export default function DashboardPage() {
                 leads={sortedLeads}
                 onLeadUpdate={handleLeadUpdate}
                 onLeadSelect={handleLeadSelect}
+                onLeadDelete={handleDeleteLead}
                 sortConfig={sortConfig}
                 onSortChange={setSortConfig}
               />
@@ -565,6 +637,12 @@ export default function DashboardPage() {
           <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
 
           <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
+
+          <DatabaseReset 
+            onResetDatabase={handleResetDatabase}
+            onDeleteAllLeads={handleDeleteAllLeads}
+            isProductionMode={isProductionMode}
+          />
         </div>
       </div>
     </div>

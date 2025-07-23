@@ -1,0 +1,2048 @@
+{
+  "version": "tree-0.1",
+  "tree": {
+    "id": "App",
+    "path": "",
+    "children": {
+      "SpaceportCrmStack": {
+        "id": "SpaceportCrmStack",
+        "path": "SpaceportCrmStack",
+        "children": {
+          "LeadsTable": {
+            "id": "LeadsTable",
+            "path": "SpaceportCrmStack/LeadsTable",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/LeadsTable/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::DynamoDB::Table",
+                  "aws:cdk:cloudformation:props": {
+                    "keySchema": [
+                      {
+                        "attributeName": "id",
+                        "keyType": "HASH"
+                      }
+                    ],
+                    "attributeDefinitions": [
+                      {
+                        "attributeName": "id",
+                        "attributeType": "S"
+                      }
+                    ],
+                    "billingMode": "PAY_PER_REQUEST",
+                    "pointInTimeRecoverySpecification": {
+                      "pointInTimeRecoveryEnabled": true
+                    },
+                    "tableName": "spaceport-crm-leads",
+                    "timeToLiveSpecification": {
+                      "attributeName": "ttl",
+                      "enabled": true
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_dynamodb.CfnTable",
+                  "version": "2.87.0"
+                }
+              },
+              "ScalingRole": {
+                "id": "ScalingRole",
+                "path": "SpaceportCrmStack/LeadsTable/ScalingRole",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.Resource",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_dynamodb.Table",
+              "version": "2.87.0"
+            }
+          },
+          "ActivitiesTable": {
+            "id": "ActivitiesTable",
+            "path": "SpaceportCrmStack/ActivitiesTable",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/ActivitiesTable/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::DynamoDB::Table",
+                  "aws:cdk:cloudformation:props": {
+                    "keySchema": [
+                      {
+                        "attributeName": "id",
+                        "keyType": "HASH"
+                      },
+                      {
+                        "attributeName": "timestamp",
+                        "keyType": "RANGE"
+                      }
+                    ],
+                    "attributeDefinitions": [
+                      {
+                        "attributeName": "id",
+                        "attributeType": "S"
+                      },
+                      {
+                        "attributeName": "timestamp",
+                        "attributeType": "N"
+                      },
+                      {
+                        "attributeName": "leadId",
+                        "attributeType": "S"
+                      }
+                    ],
+                    "billingMode": "PAY_PER_REQUEST",
+                    "globalSecondaryIndexes": [
+                      {
+                        "indexName": "LeadIdIndex",
+                        "keySchema": [
+                          {
+                            "attributeName": "leadId",
+                            "keyType": "HASH"
+                          },
+                          {
+                            "attributeName": "timestamp",
+                            "keyType": "RANGE"
+                          }
+                        ],
+                        "projection": {
+                          "projectionType": "ALL"
+                        }
+                      }
+                    ],
+                    "pointInTimeRecoverySpecification": {
+                      "pointInTimeRecoveryEnabled": true
+                    },
+                    "tableName": "spaceport-crm-activities",
+                    "timeToLiveSpecification": {
+                      "attributeName": "ttl",
+                      "enabled": true
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_dynamodb.CfnTable",
+                  "version": "2.87.0"
+                }
+              },
+              "ScalingRole": {
+                "id": "ScalingRole",
+                "path": "SpaceportCrmStack/ActivitiesTable/ScalingRole",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.Resource",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_dynamodb.Table",
+              "version": "2.87.0"
+            }
+          },
+          "SpaceportCrmUserPool": {
+            "id": "SpaceportCrmUserPool",
+            "path": "SpaceportCrmStack/SpaceportCrmUserPool",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/SpaceportCrmUserPool/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::Cognito::UserPool",
+                  "aws:cdk:cloudformation:props": {
+                    "accountRecoverySetting": {
+                      "recoveryMechanisms": [
+                        {
+                          "name": "verified_email",
+                          "priority": 1
+                        }
+                      ]
+                    },
+                    "adminCreateUserConfig": {
+                      "allowAdminCreateUserOnly": false
+                    },
+                    "autoVerifiedAttributes": [
+                      "email"
+                    ],
+                    "emailVerificationMessage": "The verification code to your new account is {####}",
+                    "emailVerificationSubject": "Verify your new account",
+                    "policies": {
+                      "passwordPolicy": {
+                        "minimumLength": 8,
+                        "requireLowercase": true,
+                        "requireUppercase": true,
+                        "requireNumbers": true,
+                        "requireSymbols": false
+                      }
+                    },
+                    "schema": [
+                      {
+                        "name": "email",
+                        "mutable": true,
+                        "required": true
+                      },
+                      {
+                        "name": "given_name",
+                        "mutable": true,
+                        "required": true
+                      },
+                      {
+                        "name": "family_name",
+                        "mutable": true,
+                        "required": true
+                      }
+                    ],
+                    "smsVerificationMessage": "The verification code to your new account is {####}",
+                    "usernameAttributes": [
+                      "email"
+                    ],
+                    "userPoolName": "spaceport-crm-users",
+                    "verificationMessageTemplate": {
+                      "defaultEmailOption": "CONFIRM_WITH_CODE",
+                      "emailMessage": "The verification code to your new account is {####}",
+                      "emailSubject": "Verify your new account",
+                      "smsMessage": "The verification code to your new account is {####}"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_cognito.CfnUserPool",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_cognito.UserPool",
+              "version": "2.87.0"
+            }
+          },
+          "SpaceportCrmUserPoolClient": {
+            "id": "SpaceportCrmUserPoolClient",
+            "path": "SpaceportCrmStack/SpaceportCrmUserPoolClient",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/SpaceportCrmUserPoolClient/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::Cognito::UserPoolClient",
+                  "aws:cdk:cloudformation:props": {
+                    "userPoolId": {
+                      "Ref": "SpaceportCrmUserPoolABE86295"
+                    },
+                    "allowedOAuthFlows": [
+                      "code"
+                    ],
+                    "allowedOAuthFlowsUserPoolClient": true,
+                    "allowedOAuthScopes": [
+                      "email",
+                      "openid",
+                      "profile"
+                    ],
+                    "callbackUrLs": [
+                      "https://example.com"
+                    ],
+                    "explicitAuthFlows": [
+                      "ALLOW_ADMIN_USER_PASSWORD_AUTH",
+                      "ALLOW_CUSTOM_AUTH",
+                      "ALLOW_USER_SRP_AUTH",
+                      "ALLOW_REFRESH_TOKEN_AUTH"
+                    ],
+                    "generateSecret": false,
+                    "supportedIdentityProviders": [
+                      "COGNITO"
+                    ]
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_cognito.CfnUserPoolClient",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_cognito.UserPoolClient",
+              "version": "2.87.0"
+            }
+          },
+          "LambdaExecutionRole": {
+            "id": "LambdaExecutionRole",
+            "path": "SpaceportCrmStack/LambdaExecutionRole",
+            "children": {
+              "ImportLambdaExecutionRole": {
+                "id": "ImportLambdaExecutionRole",
+                "path": "SpaceportCrmStack/LambdaExecutionRole/ImportLambdaExecutionRole",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.Resource",
+                  "version": "2.87.0"
+                }
+              },
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/LambdaExecutionRole/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                  "aws:cdk:cloudformation:props": {
+                    "assumeRolePolicyDocument": {
+                      "Statement": [
+                        {
+                          "Action": "sts:AssumeRole",
+                          "Effect": "Allow",
+                          "Principal": {
+                            "Service": "lambda.amazonaws.com"
+                          }
+                        }
+                      ],
+                      "Version": "2012-10-17"
+                    },
+                    "managedPolicyArns": [
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+                          ]
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                  "version": "2.87.0"
+                }
+              },
+              "DefaultPolicy": {
+                "id": "DefaultPolicy",
+                "path": "SpaceportCrmStack/LambdaExecutionRole/DefaultPolicy",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/LambdaExecutionRole/DefaultPolicy/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                      "aws:cdk:cloudformation:props": {
+                        "policyDocument": {
+                          "Statement": [
+                            {
+                              "Action": [
+                                "dynamodb:BatchGetItem",
+                                "dynamodb:BatchWriteItem",
+                                "dynamodb:ConditionCheckItem",
+                                "dynamodb:DeleteItem",
+                                "dynamodb:DescribeTable",
+                                "dynamodb:GetItem",
+                                "dynamodb:GetRecords",
+                                "dynamodb:GetShardIterator",
+                                "dynamodb:PutItem",
+                                "dynamodb:Query",
+                                "dynamodb:Scan",
+                                "dynamodb:UpdateItem"
+                              ],
+                              "Effect": "Allow",
+                              "Resource": [
+                                {
+                                  "Fn::GetAtt": [
+                                    "ActivitiesTable7C8DBFD8",
+                                    "Arn"
+                                  ]
+                                },
+                                {
+                                  "Fn::GetAtt": [
+                                    "LeadsTableB370ABE7",
+                                    "Arn"
+                                  ]
+                                },
+                                {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      {
+                                        "Fn::GetAtt": [
+                                          "ActivitiesTable7C8DBFD8",
+                                          "Arn"
+                                        ]
+                                      },
+                                      "/index/*"
+                                    ]
+                                  ]
+                                },
+                                {
+                                  "Ref": "AWS::NoValue"
+                                }
+                              ]
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "policyName": "LambdaExecutionRoleDefaultPolicy6D69732F",
+                        "roles": [
+                          {
+                            "Ref": "LambdaExecutionRoleD5C26073"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Policy",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_iam.Role",
+              "version": "2.87.0"
+            }
+          },
+          "LeadsFunction": {
+            "id": "LeadsFunction",
+            "path": "SpaceportCrmStack/LeadsFunction",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/LeadsFunction/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::Lambda::Function",
+                  "aws:cdk:cloudformation:props": {
+                    "code": {
+                      "zipFile": "\n        const AWS = require('aws-sdk');\n        const dynamodb = new AWS.DynamoDB.DocumentClient();\n        \n        const corsHeaders = {\n          'Access-Control-Allow-Origin': '*',\n          'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'\n        };\n        \n        // Helper function to extract user info from JWT token\n        function getUserFromToken(authHeader) {\n          if (!authHeader || !authHeader.startsWith('Bearer ')) {\n            return null;\n          }\n          \n          try {\n            const token = authHeader.substring(7);\n            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());\n            return {\n              id: payload.sub,\n              email: payload.email,\n              name: payload.name || payload.email?.split('@')[0] || 'User'\n            };\n          } catch (error) {\n            console.error('Error parsing token:', error);\n            return null;\n          }\n        }\n        \n        exports.handler = async (event) => {\n          console.log('Event:', JSON.stringify(event, null, 2));\n          \n          if (event.httpMethod === 'OPTIONS') {\n            return { \n              statusCode: 200, \n              headers: corsHeaders,\n              body: JSON.stringify({ message: 'CORS preflight' })\n            };\n          }\n          \n          try {\n            const { httpMethod, pathParameters, body, headers } = event;\n            const leadsTableName = process.env.LEADS_TABLE_NAME;\n            const user = getUserFromToken(headers.Authorization || headers.authorization);\n            \n            switch (httpMethod) {\n              case 'GET':\n                if (pathParameters && pathParameters.id) {\n                  // Get single lead\n                  const result = await dynamodb.get({\n                    TableName: leadsTableName,\n                    Key: { id: pathParameters.id }\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Item || null)\n                  };\n                } else {\n                  // Get all leads\n                  const result = await dynamodb.scan({\n                    TableName: leadsTableName\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Items || [])\n                  };\n                }\n              \n              case 'POST':\n                const newLead = JSON.parse(body);\n                newLead.id = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n                newLead.createdAt = new Date().toISOString();\n                newLead.updatedAt = new Date().toISOString();\n                newLead.notes = newLead.notes || [];\n                newLead.lastInteraction = newLead.lastInteraction || new Date().toISOString();\n                newLead.nextActionDate = newLead.nextActionDate || new Date().toISOString();\n                newLead.priority = newLead.priority || 'medium';\n                newLead.status = newLead.status || 'contacted';\n                newLead.needsAttention = newLead.needsAttention || false;\n                \n                // Add user attribution\n                if (user) {\n                  newLead.createdBy = user.id;\n                  newLead.createdByName = user.name;\n                }\n                \n                await dynamodb.put({\n                  TableName: leadsTableName,\n                  Item: newLead\n                }).promise();\n                \n                return {\n                  statusCode: 201,\n                  headers: corsHeaders,\n                  body: JSON.stringify(newLead)\n                };\n              \n              case 'PUT':\n                const updatedLead = JSON.parse(body);\n                updatedLead.updatedAt = new Date().toISOString();\n                \n                // Add user attribution for updates\n                if (user) {\n                  updatedLead.lastUpdatedBy = user.id;\n                  updatedLead.lastUpdatedByName = user.name;\n                }\n                \n                await dynamodb.put({\n                  TableName: leadsTableName,\n                  Item: updatedLead\n                }).promise();\n                \n                return {\n                  statusCode: 200,\n                  headers: corsHeaders,\n                  body: JSON.stringify(updatedLead)\n                };\n              \n              case 'DELETE':\n                if (!pathParameters || !pathParameters.id) {\n                  return {\n                    statusCode: 400,\n                    headers: corsHeaders,\n                    body: JSON.stringify({ error: 'Lead ID is required' })\n                  };\n                }\n                \n                await dynamodb.delete({\n                  TableName: leadsTableName,\n                  Key: { id: pathParameters.id }\n                }).promise();\n                \n                return {\n                  statusCode: 204,\n                  headers: corsHeaders,\n                  body: ''\n                };\n              \n              default:\n                return {\n                  statusCode: 405,\n                  headers: corsHeaders,\n                  body: JSON.stringify({ error: 'Method not allowed' })\n                };\n            }\n          } catch (error) {\n            console.error('Error:', error);\n            return {\n              statusCode: 500,\n              headers: corsHeaders,\n              body: JSON.stringify({ \n                error: 'Internal server error',\n                message: error.message \n              })\n            };\n          }\n        };\n      "
+                    },
+                    "role": {
+                      "Fn::GetAtt": [
+                        "LambdaExecutionRoleD5C26073",
+                        "Arn"
+                      ]
+                    },
+                    "environment": {
+                      "variables": {
+                        "LEADS_TABLE_NAME": {
+                          "Ref": "LeadsTableB370ABE7"
+                        },
+                        "ACTIVITIES_TABLE_NAME": {
+                          "Ref": "ActivitiesTable7C8DBFD8"
+                        },
+                        "USER_POOL_ID": {
+                          "Ref": "SpaceportCrmUserPoolABE86295"
+                        }
+                      }
+                    },
+                    "handler": "index.handler",
+                    "memorySize": 256,
+                    "runtime": "nodejs18.x",
+                    "timeout": 30
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_lambda.CfnFunction",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lambda.Function",
+              "version": "2.87.0"
+            }
+          },
+          "ActivitiesFunction": {
+            "id": "ActivitiesFunction",
+            "path": "SpaceportCrmStack/ActivitiesFunction",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/ActivitiesFunction/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::Lambda::Function",
+                  "aws:cdk:cloudformation:props": {
+                    "code": {
+                      "zipFile": "\n        const AWS = require('aws-sdk');\n        const dynamodb = new AWS.DynamoDB.DocumentClient();\n        \n        const corsHeaders = {\n          'Access-Control-Allow-Origin': '*',\n          'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'\n        };\n        \n        // Helper function to extract user info from JWT token\n        function getUserFromToken(authHeader) {\n          if (!authHeader || !authHeader.startsWith('Bearer ')) {\n            return null;\n          }\n          \n          try {\n            const token = authHeader.substring(7);\n            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());\n            return {\n              id: payload.sub,\n              email: payload.email,\n              name: payload.name || payload.email?.split('@')[0] || 'User'\n            };\n          } catch (error) {\n            console.error('Error parsing token:', error);\n            return null;\n          }\n        }\n        \n        exports.handler = async (event) => {\n          console.log('Event:', JSON.stringify(event, null, 2));\n          \n          if (event.httpMethod === 'OPTIONS') {\n            return { \n              statusCode: 200, \n              headers: corsHeaders,\n              body: JSON.stringify({ message: 'CORS preflight' })\n            };\n          }\n          \n          try {\n            const { httpMethod, queryStringParameters, body, headers } = event;\n            const activitiesTableName = process.env.ACTIVITIES_TABLE_NAME;\n            const user = getUserFromToken(headers.Authorization || headers.authorization);\n            \n            switch (httpMethod) {\n              case 'GET':\n                if (queryStringParameters && queryStringParameters.leadId) {\n                  // Get activities for a specific lead\n                  const result = await dynamodb.query({\n                    TableName: activitiesTableName,\n                    IndexName: 'LeadIdIndex',\n                    KeyConditionExpression: 'leadId = :leadId',\n                    ExpressionAttributeValues: {\n                      ':leadId': queryStringParameters.leadId\n                    },\n                    ScanIndexForward: false // Most recent first\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Items || [])\n                  };\n                } else {\n                  // Get all activities\n                  const result = await dynamodb.scan({\n                    TableName: activitiesTableName\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Items || [])\n                  };\n                }\n              \n              case 'POST':\n                const newActivity = JSON.parse(body);\n                newActivity.id = `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n                newActivity.timestamp = Date.now();\n                newActivity.createdAt = new Date().toISOString();\n                \n                // Add user attribution\n                if (user) {\n                  newActivity.createdBy = user.id;\n                  newActivity.createdByName = user.name;\n                }\n                \n                await dynamodb.put({\n                  TableName: activitiesTableName,\n                  Item: newActivity\n                }).promise();\n                \n                return {\n                  statusCode: 201,\n                  headers: corsHeaders,\n                  body: JSON.stringify(newActivity)\n                };\n              \n              default:\n                return {\n                  statusCode: 405,\n                  headers: corsHeaders,\n                  body: JSON.stringify({ error: 'Method not allowed' })\n                };\n            }\n          } catch (error) {\n            console.error('Error:', error);\n            return {\n              statusCode: 500,\n              headers: corsHeaders,\n              body: JSON.stringify({ \n                error: 'Internal server error',\n                message: error.message \n              })\n            };\n          }\n        };\n      "
+                    },
+                    "role": {
+                      "Fn::GetAtt": [
+                        "LambdaExecutionRoleD5C26073",
+                        "Arn"
+                      ]
+                    },
+                    "environment": {
+                      "variables": {
+                        "LEADS_TABLE_NAME": {
+                          "Ref": "LeadsTableB370ABE7"
+                        },
+                        "ACTIVITIES_TABLE_NAME": {
+                          "Ref": "ActivitiesTable7C8DBFD8"
+                        },
+                        "USER_POOL_ID": {
+                          "Ref": "SpaceportCrmUserPoolABE86295"
+                        }
+                      }
+                    },
+                    "handler": "index.handler",
+                    "memorySize": 256,
+                    "runtime": "nodejs18.x",
+                    "timeout": 30
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_lambda.CfnFunction",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lambda.Function",
+              "version": "2.87.0"
+            }
+          },
+          "SpaceportCrmApi": {
+            "id": "SpaceportCrmApi",
+            "path": "SpaceportCrmStack/SpaceportCrmApi",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::RestApi",
+                  "aws:cdk:cloudformation:props": {
+                    "description": "API for Spaceport CRM application",
+                    "name": "Spaceport CRM API"
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.CfnRestApi",
+                  "version": "2.87.0"
+                }
+              },
+              "CloudWatchRole": {
+                "id": "CloudWatchRole",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/CloudWatchRole",
+                "children": {
+                  "ImportCloudWatchRole": {
+                    "id": "ImportCloudWatchRole",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/CloudWatchRole/ImportCloudWatchRole",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.87.0"
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/CloudWatchRole/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRole",
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Service": "apigateway.amazonaws.com"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "managedPolicyArns": [
+                          {
+                            "Fn::Join": [
+                              "",
+                              [
+                                "arn:",
+                                {
+                                  "Ref": "AWS::Partition"
+                                },
+                                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+                              ]
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.87.0"
+                }
+              },
+              "Account": {
+                "id": "Account",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/Account",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::Account",
+                  "aws:cdk:cloudformation:props": {
+                    "cloudWatchRoleArn": {
+                      "Fn::GetAtt": [
+                        "SpaceportCrmApiCloudWatchRoleEBDC1944",
+                        "Arn"
+                      ]
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.CfnAccount",
+                  "version": "2.87.0"
+                }
+              },
+              "Deployment": {
+                "id": "Deployment",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/Deployment",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/Deployment/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::ApiGateway::Deployment",
+                      "aws:cdk:cloudformation:props": {
+                        "restApiId": {
+                          "Ref": "SpaceportCrmApi889610B4"
+                        },
+                        "description": "API for Spaceport CRM application"
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.CfnDeployment",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.Deployment",
+                  "version": "2.87.0"
+                }
+              },
+              "DeploymentStage.prod": {
+                "id": "DeploymentStage.prod",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/DeploymentStage.prod",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/DeploymentStage.prod/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::ApiGateway::Stage",
+                      "aws:cdk:cloudformation:props": {
+                        "restApiId": {
+                          "Ref": "SpaceportCrmApi889610B4"
+                        },
+                        "deploymentId": {
+                          "Ref": "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa"
+                        },
+                        "stageName": "prod"
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.CfnStage",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.Stage",
+                  "version": "2.87.0"
+                }
+              },
+              "Endpoint": {
+                "id": "Endpoint",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/Endpoint",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.87.0"
+                }
+              },
+              "Default": {
+                "id": "Default",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/Default",
+                "children": {
+                  "OPTIONS": {
+                    "id": "OPTIONS",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/Default/OPTIONS",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/OPTIONS/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                          "aws:cdk:cloudformation:props": {
+                            "httpMethod": "OPTIONS",
+                            "resourceId": {
+                              "Fn::GetAtt": [
+                                "SpaceportCrmApi889610B4",
+                                "RootResourceId"
+                              ]
+                            },
+                            "restApiId": {
+                              "Ref": "SpaceportCrmApi889610B4"
+                            },
+                            "apiKeyRequired": false,
+                            "authorizationType": "NONE",
+                            "integration": {
+                              "type": "MOCK",
+                              "requestTemplates": {
+                                "application/json": "{ statusCode: 200 }"
+                              },
+                              "integrationResponses": [
+                                {
+                                  "statusCode": "204",
+                                  "responseParameters": {
+                                    "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                                    "method.response.header.Access-Control-Allow-Origin": "'*'",
+                                    "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+                                  }
+                                }
+                              ]
+                            },
+                            "methodResponses": [
+                              {
+                                "statusCode": "204",
+                                "responseParameters": {
+                                  "method.response.header.Access-Control-Allow-Headers": true,
+                                  "method.response.header.Access-Control-Allow-Origin": true,
+                                  "method.response.header.Access-Control-Allow-Methods": true
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                          "version": "2.87.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                      "version": "2.87.0"
+                    }
+                  },
+                  "leads": {
+                    "id": "leads",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::ApiGateway::Resource",
+                          "aws:cdk:cloudformation:props": {
+                            "parentId": {
+                              "Fn::GetAtt": [
+                                "SpaceportCrmApi889610B4",
+                                "RootResourceId"
+                              ]
+                            },
+                            "pathPart": "leads",
+                            "restApiId": {
+                              "Ref": "SpaceportCrmApi889610B4"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.CfnResource",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "OPTIONS": {
+                        "id": "OPTIONS",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/OPTIONS",
+                        "children": {
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/OPTIONS/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                              "aws:cdk:cloudformation:props": {
+                                "httpMethod": "OPTIONS",
+                                "resourceId": {
+                                  "Ref": "SpaceportCrmApileads641A59C3"
+                                },
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                },
+                                "apiKeyRequired": false,
+                                "authorizationType": "NONE",
+                                "integration": {
+                                  "type": "MOCK",
+                                  "requestTemplates": {
+                                    "application/json": "{ statusCode: 200 }"
+                                  },
+                                  "integrationResponses": [
+                                    {
+                                      "statusCode": "204",
+                                      "responseParameters": {
+                                        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                                        "method.response.header.Access-Control-Allow-Origin": "'*'",
+                                        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+                                      }
+                                    }
+                                  ]
+                                },
+                                "methodResponses": [
+                                  {
+                                    "statusCode": "204",
+                                    "responseParameters": {
+                                      "method.response.header.Access-Control-Allow-Headers": true,
+                                      "method.response.header.Access-Control-Allow-Origin": true,
+                                      "method.response.header.Access-Control-Allow-Methods": true
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "{id}": {
+                        "id": "{id}",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}",
+                        "children": {
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Resource",
+                              "aws:cdk:cloudformation:props": {
+                                "parentId": {
+                                  "Ref": "SpaceportCrmApileads641A59C3"
+                                },
+                                "pathPart": "{id}",
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnResource",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "OPTIONS": {
+                            "id": "OPTIONS",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/OPTIONS",
+                            "children": {
+                              "Resource": {
+                                "id": "Resource",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/OPTIONS/Resource",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                                  "aws:cdk:cloudformation:props": {
+                                    "httpMethod": "OPTIONS",
+                                    "resourceId": {
+                                      "Ref": "SpaceportCrmApileadsid69A4AAF1"
+                                    },
+                                    "restApiId": {
+                                      "Ref": "SpaceportCrmApi889610B4"
+                                    },
+                                    "apiKeyRequired": false,
+                                    "authorizationType": "NONE",
+                                    "integration": {
+                                      "type": "MOCK",
+                                      "requestTemplates": {
+                                        "application/json": "{ statusCode: 200 }"
+                                      },
+                                      "integrationResponses": [
+                                        {
+                                          "statusCode": "204",
+                                          "responseParameters": {
+                                            "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                                            "method.response.header.Access-Control-Allow-Origin": "'*'",
+                                            "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    "methodResponses": [
+                                      {
+                                        "statusCode": "204",
+                                        "responseParameters": {
+                                          "method.response.header.Access-Control-Allow-Headers": true,
+                                          "method.response.header.Access-Control-Allow-Origin": true,
+                                          "method.response.header.Access-Control-Allow-Methods": true
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                                  "version": "2.87.0"
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "GET": {
+                            "id": "GET",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET",
+                            "children": {
+                              "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}": {
+                                "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                                  "aws:cdk:cloudformation:props": {
+                                    "action": "lambda:InvokeFunction",
+                                    "functionName": {
+                                      "Fn::GetAtt": [
+                                        "LeadsFunction29E9CA18",
+                                        "Arn"
+                                      ]
+                                    },
+                                    "principal": "apigateway.amazonaws.com",
+                                    "sourceArn": {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          "arn:aws:execute-api:us-west-2:975050048887:",
+                                          {
+                                            "Ref": "SpaceportCrmApi889610B4"
+                                          },
+                                          "/",
+                                          {
+                                            "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                          },
+                                          "/GET/leads/*"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                                  "version": "2.87.0"
+                                }
+                              },
+                              "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}": {
+                                "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                                  "aws:cdk:cloudformation:props": {
+                                    "action": "lambda:InvokeFunction",
+                                    "functionName": {
+                                      "Fn::GetAtt": [
+                                        "LeadsFunction29E9CA18",
+                                        "Arn"
+                                      ]
+                                    },
+                                    "principal": "apigateway.amazonaws.com",
+                                    "sourceArn": {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          "arn:aws:execute-api:us-west-2:975050048887:",
+                                          {
+                                            "Ref": "SpaceportCrmApi889610B4"
+                                          },
+                                          "/test-invoke-stage/GET/leads/*"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                                  "version": "2.87.0"
+                                }
+                              },
+                              "Resource": {
+                                "id": "Resource",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET/Resource",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                                  "aws:cdk:cloudformation:props": {
+                                    "httpMethod": "GET",
+                                    "resourceId": {
+                                      "Ref": "SpaceportCrmApileadsid69A4AAF1"
+                                    },
+                                    "restApiId": {
+                                      "Ref": "SpaceportCrmApi889610B4"
+                                    },
+                                    "authorizationType": "COGNITO_USER_POOLS",
+                                    "authorizerId": {
+                                      "Ref": "CognitoAuthorizerF3215DBC"
+                                    },
+                                    "integration": {
+                                      "type": "AWS_PROXY",
+                                      "uri": {
+                                        "Fn::Join": [
+                                          "",
+                                          [
+                                            "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                            {
+                                              "Fn::GetAtt": [
+                                                "LeadsFunction29E9CA18",
+                                                "Arn"
+                                              ]
+                                            },
+                                            "/invocations"
+                                          ]
+                                        ]
+                                      },
+                                      "integrationHttpMethod": "POST"
+                                    },
+                                    "methodResponses": [
+                                      {
+                                        "statusCode": "200"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                                  "version": "2.87.0"
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "PUT": {
+                            "id": "PUT",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT",
+                            "children": {
+                              "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}": {
+                                "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                                  "aws:cdk:cloudformation:props": {
+                                    "action": "lambda:InvokeFunction",
+                                    "functionName": {
+                                      "Fn::GetAtt": [
+                                        "LeadsFunction29E9CA18",
+                                        "Arn"
+                                      ]
+                                    },
+                                    "principal": "apigateway.amazonaws.com",
+                                    "sourceArn": {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          "arn:aws:execute-api:us-west-2:975050048887:",
+                                          {
+                                            "Ref": "SpaceportCrmApi889610B4"
+                                          },
+                                          "/",
+                                          {
+                                            "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                          },
+                                          "/PUT/leads/*"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                                  "version": "2.87.0"
+                                }
+                              },
+                              "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}": {
+                                "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                                  "aws:cdk:cloudformation:props": {
+                                    "action": "lambda:InvokeFunction",
+                                    "functionName": {
+                                      "Fn::GetAtt": [
+                                        "LeadsFunction29E9CA18",
+                                        "Arn"
+                                      ]
+                                    },
+                                    "principal": "apigateway.amazonaws.com",
+                                    "sourceArn": {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          "arn:aws:execute-api:us-west-2:975050048887:",
+                                          {
+                                            "Ref": "SpaceportCrmApi889610B4"
+                                          },
+                                          "/test-invoke-stage/PUT/leads/*"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                                  "version": "2.87.0"
+                                }
+                              },
+                              "Resource": {
+                                "id": "Resource",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT/Resource",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                                  "aws:cdk:cloudformation:props": {
+                                    "httpMethod": "PUT",
+                                    "resourceId": {
+                                      "Ref": "SpaceportCrmApileadsid69A4AAF1"
+                                    },
+                                    "restApiId": {
+                                      "Ref": "SpaceportCrmApi889610B4"
+                                    },
+                                    "authorizationType": "COGNITO_USER_POOLS",
+                                    "authorizerId": {
+                                      "Ref": "CognitoAuthorizerF3215DBC"
+                                    },
+                                    "integration": {
+                                      "type": "AWS_PROXY",
+                                      "uri": {
+                                        "Fn::Join": [
+                                          "",
+                                          [
+                                            "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                            {
+                                              "Fn::GetAtt": [
+                                                "LeadsFunction29E9CA18",
+                                                "Arn"
+                                              ]
+                                            },
+                                            "/invocations"
+                                          ]
+                                        ]
+                                      },
+                                      "integrationHttpMethod": "POST"
+                                    },
+                                    "methodResponses": [
+                                      {
+                                        "statusCode": "200"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                                  "version": "2.87.0"
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "DELETE": {
+                            "id": "DELETE",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE",
+                            "children": {
+                              "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}": {
+                                "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                                  "aws:cdk:cloudformation:props": {
+                                    "action": "lambda:InvokeFunction",
+                                    "functionName": {
+                                      "Fn::GetAtt": [
+                                        "LeadsFunction29E9CA18",
+                                        "Arn"
+                                      ]
+                                    },
+                                    "principal": "apigateway.amazonaws.com",
+                                    "sourceArn": {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          "arn:aws:execute-api:us-west-2:975050048887:",
+                                          {
+                                            "Ref": "SpaceportCrmApi889610B4"
+                                          },
+                                          "/",
+                                          {
+                                            "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                          },
+                                          "/DELETE/leads/*"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                                  "version": "2.87.0"
+                                }
+                              },
+                              "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}": {
+                                "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                                  "aws:cdk:cloudformation:props": {
+                                    "action": "lambda:InvokeFunction",
+                                    "functionName": {
+                                      "Fn::GetAtt": [
+                                        "LeadsFunction29E9CA18",
+                                        "Arn"
+                                      ]
+                                    },
+                                    "principal": "apigateway.amazonaws.com",
+                                    "sourceArn": {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          "arn:aws:execute-api:us-west-2:975050048887:",
+                                          {
+                                            "Ref": "SpaceportCrmApi889610B4"
+                                          },
+                                          "/test-invoke-stage/DELETE/leads/*"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                                  "version": "2.87.0"
+                                }
+                              },
+                              "Resource": {
+                                "id": "Resource",
+                                "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE/Resource",
+                                "attributes": {
+                                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                                  "aws:cdk:cloudformation:props": {
+                                    "httpMethod": "DELETE",
+                                    "resourceId": {
+                                      "Ref": "SpaceportCrmApileadsid69A4AAF1"
+                                    },
+                                    "restApiId": {
+                                      "Ref": "SpaceportCrmApi889610B4"
+                                    },
+                                    "authorizationType": "COGNITO_USER_POOLS",
+                                    "authorizerId": {
+                                      "Ref": "CognitoAuthorizerF3215DBC"
+                                    },
+                                    "integration": {
+                                      "type": "AWS_PROXY",
+                                      "uri": {
+                                        "Fn::Join": [
+                                          "",
+                                          [
+                                            "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                            {
+                                              "Fn::GetAtt": [
+                                                "LeadsFunction29E9CA18",
+                                                "Arn"
+                                              ]
+                                            },
+                                            "/invocations"
+                                          ]
+                                        ]
+                                      },
+                                      "integrationHttpMethod": "POST"
+                                    },
+                                    "methodResponses": [
+                                      {
+                                        "statusCode": "200"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "constructInfo": {
+                                  "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                                  "version": "2.87.0"
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Resource",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "GET": {
+                        "id": "GET",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET",
+                        "children": {
+                          "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads": {
+                            "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "LeadsFunction29E9CA18",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/",
+                                      {
+                                        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                      },
+                                      "/GET/leads"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads": {
+                            "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "LeadsFunction29E9CA18",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/test-invoke-stage/GET/leads"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                              "aws:cdk:cloudformation:props": {
+                                "httpMethod": "GET",
+                                "resourceId": {
+                                  "Ref": "SpaceportCrmApileads641A59C3"
+                                },
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                },
+                                "authorizationType": "COGNITO_USER_POOLS",
+                                "authorizerId": {
+                                  "Ref": "CognitoAuthorizerF3215DBC"
+                                },
+                                "integration": {
+                                  "type": "AWS_PROXY",
+                                  "uri": {
+                                    "Fn::Join": [
+                                      "",
+                                      [
+                                        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                        {
+                                          "Fn::GetAtt": [
+                                            "LeadsFunction29E9CA18",
+                                            "Arn"
+                                          ]
+                                        },
+                                        "/invocations"
+                                      ]
+                                    ]
+                                  },
+                                  "integrationHttpMethod": "POST"
+                                },
+                                "methodResponses": [
+                                  {
+                                    "statusCode": "200"
+                                  }
+                                ]
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "POST": {
+                        "id": "POST",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST",
+                        "children": {
+                          "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads": {
+                            "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "LeadsFunction29E9CA18",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/",
+                                      {
+                                        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                      },
+                                      "/POST/leads"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads": {
+                            "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "LeadsFunction29E9CA18",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/test-invoke-stage/POST/leads"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                              "aws:cdk:cloudformation:props": {
+                                "httpMethod": "POST",
+                                "resourceId": {
+                                  "Ref": "SpaceportCrmApileads641A59C3"
+                                },
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                },
+                                "authorizationType": "COGNITO_USER_POOLS",
+                                "authorizerId": {
+                                  "Ref": "CognitoAuthorizerF3215DBC"
+                                },
+                                "integration": {
+                                  "type": "AWS_PROXY",
+                                  "uri": {
+                                    "Fn::Join": [
+                                      "",
+                                      [
+                                        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                        {
+                                          "Fn::GetAtt": [
+                                            "LeadsFunction29E9CA18",
+                                            "Arn"
+                                          ]
+                                        },
+                                        "/invocations"
+                                      ]
+                                    ]
+                                  },
+                                  "integrationHttpMethod": "POST"
+                                },
+                                "methodResponses": [
+                                  {
+                                    "statusCode": "200"
+                                  }
+                                ]
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                          "version": "2.87.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.Resource",
+                      "version": "2.87.0"
+                    }
+                  },
+                  "activities": {
+                    "id": "activities",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::ApiGateway::Resource",
+                          "aws:cdk:cloudformation:props": {
+                            "parentId": {
+                              "Fn::GetAtt": [
+                                "SpaceportCrmApi889610B4",
+                                "RootResourceId"
+                              ]
+                            },
+                            "pathPart": "activities",
+                            "restApiId": {
+                              "Ref": "SpaceportCrmApi889610B4"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.CfnResource",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "OPTIONS": {
+                        "id": "OPTIONS",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/OPTIONS",
+                        "children": {
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/OPTIONS/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                              "aws:cdk:cloudformation:props": {
+                                "httpMethod": "OPTIONS",
+                                "resourceId": {
+                                  "Ref": "SpaceportCrmApiactivities80746DE1"
+                                },
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                },
+                                "apiKeyRequired": false,
+                                "authorizationType": "NONE",
+                                "integration": {
+                                  "type": "MOCK",
+                                  "requestTemplates": {
+                                    "application/json": "{ statusCode: 200 }"
+                                  },
+                                  "integrationResponses": [
+                                    {
+                                      "statusCode": "204",
+                                      "responseParameters": {
+                                        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                                        "method.response.header.Access-Control-Allow-Origin": "'*'",
+                                        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+                                      }
+                                    }
+                                  ]
+                                },
+                                "methodResponses": [
+                                  {
+                                    "statusCode": "204",
+                                    "responseParameters": {
+                                      "method.response.header.Access-Control-Allow-Headers": true,
+                                      "method.response.header.Access-Control-Allow-Origin": true,
+                                      "method.response.header.Access-Control-Allow-Methods": true
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "GET": {
+                        "id": "GET",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET",
+                        "children": {
+                          "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities": {
+                            "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "ActivitiesFunction0198ABCD",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/",
+                                      {
+                                        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                      },
+                                      "/GET/activities"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities": {
+                            "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "ActivitiesFunction0198ABCD",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/test-invoke-stage/GET/activities"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                              "aws:cdk:cloudformation:props": {
+                                "httpMethod": "GET",
+                                "resourceId": {
+                                  "Ref": "SpaceportCrmApiactivities80746DE1"
+                                },
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                },
+                                "authorizationType": "COGNITO_USER_POOLS",
+                                "authorizerId": {
+                                  "Ref": "CognitoAuthorizerF3215DBC"
+                                },
+                                "integration": {
+                                  "type": "AWS_PROXY",
+                                  "uri": {
+                                    "Fn::Join": [
+                                      "",
+                                      [
+                                        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                        {
+                                          "Fn::GetAtt": [
+                                            "ActivitiesFunction0198ABCD",
+                                            "Arn"
+                                          ]
+                                        },
+                                        "/invocations"
+                                      ]
+                                    ]
+                                  },
+                                  "integrationHttpMethod": "POST"
+                                },
+                                "methodResponses": [
+                                  {
+                                    "statusCode": "200"
+                                  }
+                                ]
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                          "version": "2.87.0"
+                        }
+                      },
+                      "POST": {
+                        "id": "POST",
+                        "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST",
+                        "children": {
+                          "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities": {
+                            "id": "ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "ActivitiesFunction0198ABCD",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/",
+                                      {
+                                        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+                                      },
+                                      "/POST/activities"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities": {
+                            "id": "ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::Lambda::Permission",
+                              "aws:cdk:cloudformation:props": {
+                                "action": "lambda:InvokeFunction",
+                                "functionName": {
+                                  "Fn::GetAtt": [
+                                    "ActivitiesFunction0198ABCD",
+                                    "Arn"
+                                  ]
+                                },
+                                "principal": "apigateway.amazonaws.com",
+                                "sourceArn": {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      "arn:aws:execute-api:us-west-2:975050048887:",
+                                      {
+                                        "Ref": "SpaceportCrmApi889610B4"
+                                      },
+                                      "/test-invoke-stage/POST/activities"
+                                    ]
+                                  ]
+                                }
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_lambda.CfnPermission",
+                              "version": "2.87.0"
+                            }
+                          },
+                          "Resource": {
+                            "id": "Resource",
+                            "path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/Resource",
+                            "attributes": {
+                              "aws:cdk:cloudformation:type": "AWS::ApiGateway::Method",
+                              "aws:cdk:cloudformation:props": {
+                                "httpMethod": "POST",
+                                "resourceId": {
+                                  "Ref": "SpaceportCrmApiactivities80746DE1"
+                                },
+                                "restApiId": {
+                                  "Ref": "SpaceportCrmApi889610B4"
+                                },
+                                "authorizationType": "COGNITO_USER_POOLS",
+                                "authorizerId": {
+                                  "Ref": "CognitoAuthorizerF3215DBC"
+                                },
+                                "integration": {
+                                  "type": "AWS_PROXY",
+                                  "uri": {
+                                    "Fn::Join": [
+                                      "",
+                                      [
+                                        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+                                        {
+                                          "Fn::GetAtt": [
+                                            "ActivitiesFunction0198ABCD",
+                                            "Arn"
+                                          ]
+                                        },
+                                        "/invocations"
+                                      ]
+                                    ]
+                                  },
+                                  "integrationHttpMethod": "POST"
+                                },
+                                "methodResponses": [
+                                  {
+                                    "statusCode": "200"
+                                  }
+                                ]
+                              }
+                            },
+                            "constructInfo": {
+                              "fqn": "aws-cdk-lib.aws_apigateway.CfnMethod",
+                              "version": "2.87.0"
+                            }
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_apigateway.Method",
+                          "version": "2.87.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.Resource",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.ResourceBase",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_apigateway.RestApi",
+              "version": "2.87.0"
+            }
+          },
+          "CognitoAuthorizer": {
+            "id": "CognitoAuthorizer",
+            "path": "SpaceportCrmStack/CognitoAuthorizer",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "SpaceportCrmStack/CognitoAuthorizer/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::ApiGateway::Authorizer",
+                  "aws:cdk:cloudformation:props": {
+                    "name": "SpaceportCrmStackCognitoAuthorizer3BFD1D27",
+                    "restApiId": {
+                      "Ref": "SpaceportCrmApi889610B4"
+                    },
+                    "type": "COGNITO_USER_POOLS",
+                    "identitySource": "method.request.header.Authorization",
+                    "providerArns": [
+                      {
+                        "Fn::GetAtt": [
+                          "SpaceportCrmUserPoolABE86295",
+                          "Arn"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.CfnAuthorizer",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_apigateway.CognitoUserPoolsAuthorizer",
+              "version": "2.87.0"
+            }
+          },
+          "ApiUrl": {
+            "id": "ApiUrl",
+            "path": "SpaceportCrmStack/ApiUrl",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.87.0"
+            }
+          },
+          "UserPoolId": {
+            "id": "UserPoolId",
+            "path": "SpaceportCrmStack/UserPoolId",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.87.0"
+            }
+          },
+          "UserPoolClientId": {
+            "id": "UserPoolClientId",
+            "path": "SpaceportCrmStack/UserPoolClientId",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.87.0"
+            }
+          },
+          "Region": {
+            "id": "Region",
+            "path": "SpaceportCrmStack/Region",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.87.0"
+            }
+          },
+          "LeadsTableName": {
+            "id": "LeadsTableName",
+            "path": "SpaceportCrmStack/LeadsTableName",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.87.0"
+            }
+          },
+          "ActivitiesTableName": {
+            "id": "ActivitiesTableName",
+            "path": "SpaceportCrmStack/ActivitiesTableName",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.87.0"
+            }
+          },
+          "CDKMetadata": {
+            "id": "CDKMetadata",
+            "path": "SpaceportCrmStack/CDKMetadata",
+            "children": {
+              "Default": {
+                "id": "Default",
+                "path": "SpaceportCrmStack/CDKMetadata/Default",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnResource",
+                  "version": "2.87.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.4.2"
+            }
+          },
+          "BootstrapVersion": {
+            "id": "BootstrapVersion",
+            "path": "SpaceportCrmStack/BootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnParameter",
+              "version": "2.87.0"
+            }
+          },
+          "CheckBootstrapVersion": {
+            "id": "CheckBootstrapVersion",
+            "path": "SpaceportCrmStack/CheckBootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnRule",
+              "version": "2.87.0"
+            }
+          }
+        },
+        "constructInfo": {
+          "fqn": "aws-cdk-lib.Stack",
+          "version": "2.87.0"
+        }
+      },
+      "Tree": {
+        "id": "Tree",
+        "path": "Tree",
+        "constructInfo": {
+          "fqn": "constructs.Construct",
+          "version": "10.4.2"
+        }
+      }
+    },
+    "constructInfo": {
+      "fqn": "aws-cdk-lib.App",
+      "version": "2.87.0"
+    }
+  }
+}

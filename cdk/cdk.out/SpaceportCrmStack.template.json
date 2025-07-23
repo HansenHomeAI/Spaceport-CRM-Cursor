@@ -1,0 +1,1587 @@
+{
+ "Description": "Spaceport CRM - Luxury CRM application with AWS backend",
+ "Resources": {
+  "LeadsTableB370ABE7": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "KeySchema": [
+     {
+      "AttributeName": "id",
+      "KeyType": "HASH"
+     }
+    ],
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "id",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "TableName": "spaceport-crm-leads",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/LeadsTable/Resource"
+   }
+  },
+  "ActivitiesTable7C8DBFD8": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "KeySchema": [
+     {
+      "AttributeName": "id",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "timestamp",
+      "KeyType": "RANGE"
+     }
+    ],
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "id",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "timestamp",
+      "AttributeType": "N"
+     },
+     {
+      "AttributeName": "leadId",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "LeadIdIndex",
+      "KeySchema": [
+       {
+        "AttributeName": "leadId",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "timestamp",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "TableName": "spaceport-crm-activities",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/ActivitiesTable/Resource"
+   }
+  },
+  "SpaceportCrmUserPoolABE86295": {
+   "Type": "AWS::Cognito::UserPool",
+   "Properties": {
+    "AccountRecoverySetting": {
+     "RecoveryMechanisms": [
+      {
+       "Name": "verified_email",
+       "Priority": 1
+      }
+     ]
+    },
+    "AdminCreateUserConfig": {
+     "AllowAdminCreateUserOnly": false
+    },
+    "AutoVerifiedAttributes": [
+     "email"
+    ],
+    "EmailVerificationMessage": "The verification code to your new account is {####}",
+    "EmailVerificationSubject": "Verify your new account",
+    "Policies": {
+     "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": false,
+      "RequireUppercase": true
+     }
+    },
+    "Schema": [
+     {
+      "Mutable": true,
+      "Name": "email",
+      "Required": true
+     },
+     {
+      "Mutable": true,
+      "Name": "given_name",
+      "Required": true
+     },
+     {
+      "Mutable": true,
+      "Name": "family_name",
+      "Required": true
+     }
+    ],
+    "SmsVerificationMessage": "The verification code to your new account is {####}",
+    "UsernameAttributes": [
+     "email"
+    ],
+    "UserPoolName": "spaceport-crm-users",
+    "VerificationMessageTemplate": {
+     "DefaultEmailOption": "CONFIRM_WITH_CODE",
+     "EmailMessage": "The verification code to your new account is {####}",
+     "EmailSubject": "Verify your new account",
+     "SmsMessage": "The verification code to your new account is {####}"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmUserPool/Resource"
+   }
+  },
+  "SpaceportCrmUserPoolClient75FF4D15": {
+   "Type": "AWS::Cognito::UserPoolClient",
+   "Properties": {
+    "UserPoolId": {
+     "Ref": "SpaceportCrmUserPoolABE86295"
+    },
+    "AllowedOAuthFlows": [
+     "code"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "AllowedOAuthScopes": [
+     "email",
+     "openid",
+     "profile"
+    ],
+    "CallbackURLs": [
+     "https://example.com"
+    ],
+    "ExplicitAuthFlows": [
+     "ALLOW_ADMIN_USER_PASSWORD_AUTH",
+     "ALLOW_CUSTOM_AUTH",
+     "ALLOW_USER_SRP_AUTH",
+     "ALLOW_REFRESH_TOKEN_AUTH"
+    ],
+    "GenerateSecret": false,
+    "SupportedIdentityProviders": [
+     "COGNITO"
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmUserPoolClient/Resource"
+   }
+  },
+  "LambdaExecutionRoleD5C26073": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/LambdaExecutionRole/Resource"
+   }
+  },
+  "LambdaExecutionRoleDefaultPolicy6D69732F": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ActivitiesTable7C8DBFD8",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "LeadsTableB370ABE7",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ActivitiesTable7C8DBFD8",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        },
+        {
+         "Ref": "AWS::NoValue"
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "Roles": [
+     {
+      "Ref": "LambdaExecutionRoleD5C26073"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/LambdaExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "LeadsFunction29E9CA18": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "\n        const AWS = require('aws-sdk');\n        const dynamodb = new AWS.DynamoDB.DocumentClient();\n        \n        const corsHeaders = {\n          'Access-Control-Allow-Origin': '*',\n          'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'\n        };\n        \n        // Helper function to extract user info from JWT token\n        function getUserFromToken(authHeader) {\n          if (!authHeader || !authHeader.startsWith('Bearer ')) {\n            return null;\n          }\n          \n          try {\n            const token = authHeader.substring(7);\n            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());\n            return {\n              id: payload.sub,\n              email: payload.email,\n              name: payload.name || payload.email?.split('@')[0] || 'User'\n            };\n          } catch (error) {\n            console.error('Error parsing token:', error);\n            return null;\n          }\n        }\n        \n        exports.handler = async (event) => {\n          console.log('Event:', JSON.stringify(event, null, 2));\n          \n          if (event.httpMethod === 'OPTIONS') {\n            return { \n              statusCode: 200, \n              headers: corsHeaders,\n              body: JSON.stringify({ message: 'CORS preflight' })\n            };\n          }\n          \n          try {\n            const { httpMethod, pathParameters, body, headers } = event;\n            const leadsTableName = process.env.LEADS_TABLE_NAME;\n            const user = getUserFromToken(headers.Authorization || headers.authorization);\n            \n            switch (httpMethod) {\n              case 'GET':\n                if (pathParameters && pathParameters.id) {\n                  // Get single lead\n                  const result = await dynamodb.get({\n                    TableName: leadsTableName,\n                    Key: { id: pathParameters.id }\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Item || null)\n                  };\n                } else {\n                  // Get all leads\n                  const result = await dynamodb.scan({\n                    TableName: leadsTableName\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Items || [])\n                  };\n                }\n              \n              case 'POST':\n                const newLead = JSON.parse(body);\n                newLead.id = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n                newLead.createdAt = new Date().toISOString();\n                newLead.updatedAt = new Date().toISOString();\n                newLead.notes = newLead.notes || [];\n                newLead.lastInteraction = newLead.lastInteraction || new Date().toISOString();\n                newLead.nextActionDate = newLead.nextActionDate || new Date().toISOString();\n                newLead.priority = newLead.priority || 'medium';\n                newLead.status = newLead.status || 'contacted';\n                newLead.needsAttention = newLead.needsAttention || false;\n                \n                // Add user attribution\n                if (user) {\n                  newLead.createdBy = user.id;\n                  newLead.createdByName = user.name;\n                }\n                \n                await dynamodb.put({\n                  TableName: leadsTableName,\n                  Item: newLead\n                }).promise();\n                \n                return {\n                  statusCode: 201,\n                  headers: corsHeaders,\n                  body: JSON.stringify(newLead)\n                };\n              \n              case 'PUT':\n                const updatedLead = JSON.parse(body);\n                updatedLead.updatedAt = new Date().toISOString();\n                \n                // Add user attribution for updates\n                if (user) {\n                  updatedLead.lastUpdatedBy = user.id;\n                  updatedLead.lastUpdatedByName = user.name;\n                }\n                \n                await dynamodb.put({\n                  TableName: leadsTableName,\n                  Item: updatedLead\n                }).promise();\n                \n                return {\n                  statusCode: 200,\n                  headers: corsHeaders,\n                  body: JSON.stringify(updatedLead)\n                };\n              \n              case 'DELETE':\n                if (!pathParameters || !pathParameters.id) {\n                  return {\n                    statusCode: 400,\n                    headers: corsHeaders,\n                    body: JSON.stringify({ error: 'Lead ID is required' })\n                  };\n                }\n                \n                await dynamodb.delete({\n                  TableName: leadsTableName,\n                  Key: { id: pathParameters.id }\n                }).promise();\n                \n                return {\n                  statusCode: 204,\n                  headers: corsHeaders,\n                  body: ''\n                };\n              \n              default:\n                return {\n                  statusCode: 405,\n                  headers: corsHeaders,\n                  body: JSON.stringify({ error: 'Method not allowed' })\n                };\n            }\n          } catch (error) {\n            console.error('Error:', error);\n            return {\n              statusCode: 500,\n              headers: corsHeaders,\n              body: JSON.stringify({ \n                error: 'Internal server error',\n                message: error.message \n              })\n            };\n          }\n        };\n      "
+    },
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Environment": {
+     "Variables": {
+      "LEADS_TABLE_NAME": {
+       "Ref": "LeadsTableB370ABE7"
+      },
+      "ACTIVITIES_TABLE_NAME": {
+       "Ref": "ActivitiesTable7C8DBFD8"
+      },
+      "USER_POOL_ID": {
+       "Ref": "SpaceportCrmUserPoolABE86295"
+      }
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Runtime": "nodejs18.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/LeadsFunction/Resource"
+   }
+  },
+  "ActivitiesFunction0198ABCD": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "\n        const AWS = require('aws-sdk');\n        const dynamodb = new AWS.DynamoDB.DocumentClient();\n        \n        const corsHeaders = {\n          'Access-Control-Allow-Origin': '*',\n          'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'\n        };\n        \n        // Helper function to extract user info from JWT token\n        function getUserFromToken(authHeader) {\n          if (!authHeader || !authHeader.startsWith('Bearer ')) {\n            return null;\n          }\n          \n          try {\n            const token = authHeader.substring(7);\n            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());\n            return {\n              id: payload.sub,\n              email: payload.email,\n              name: payload.name || payload.email?.split('@')[0] || 'User'\n            };\n          } catch (error) {\n            console.error('Error parsing token:', error);\n            return null;\n          }\n        }\n        \n        exports.handler = async (event) => {\n          console.log('Event:', JSON.stringify(event, null, 2));\n          \n          if (event.httpMethod === 'OPTIONS') {\n            return { \n              statusCode: 200, \n              headers: corsHeaders,\n              body: JSON.stringify({ message: 'CORS preflight' })\n            };\n          }\n          \n          try {\n            const { httpMethod, queryStringParameters, body, headers } = event;\n            const activitiesTableName = process.env.ACTIVITIES_TABLE_NAME;\n            const user = getUserFromToken(headers.Authorization || headers.authorization);\n            \n            switch (httpMethod) {\n              case 'GET':\n                if (queryStringParameters && queryStringParameters.leadId) {\n                  // Get activities for a specific lead\n                  const result = await dynamodb.query({\n                    TableName: activitiesTableName,\n                    IndexName: 'LeadIdIndex',\n                    KeyConditionExpression: 'leadId = :leadId',\n                    ExpressionAttributeValues: {\n                      ':leadId': queryStringParameters.leadId\n                    },\n                    ScanIndexForward: false // Most recent first\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Items || [])\n                  };\n                } else {\n                  // Get all activities\n                  const result = await dynamodb.scan({\n                    TableName: activitiesTableName\n                  }).promise();\n                  \n                  return {\n                    statusCode: 200,\n                    headers: corsHeaders,\n                    body: JSON.stringify(result.Items || [])\n                  };\n                }\n              \n              case 'POST':\n                const newActivity = JSON.parse(body);\n                newActivity.id = `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n                newActivity.timestamp = Date.now();\n                newActivity.createdAt = new Date().toISOString();\n                \n                // Add user attribution\n                if (user) {\n                  newActivity.createdBy = user.id;\n                  newActivity.createdByName = user.name;\n                }\n                \n                await dynamodb.put({\n                  TableName: activitiesTableName,\n                  Item: newActivity\n                }).promise();\n                \n                return {\n                  statusCode: 201,\n                  headers: corsHeaders,\n                  body: JSON.stringify(newActivity)\n                };\n              \n              default:\n                return {\n                  statusCode: 405,\n                  headers: corsHeaders,\n                  body: JSON.stringify({ error: 'Method not allowed' })\n                };\n            }\n          } catch (error) {\n            console.error('Error:', error);\n            return {\n              statusCode: 500,\n              headers: corsHeaders,\n              body: JSON.stringify({ \n                error: 'Internal server error',\n                message: error.message \n              })\n            };\n          }\n        };\n      "
+    },
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Environment": {
+     "Variables": {
+      "LEADS_TABLE_NAME": {
+       "Ref": "LeadsTableB370ABE7"
+      },
+      "ACTIVITIES_TABLE_NAME": {
+       "Ref": "ActivitiesTable7C8DBFD8"
+      },
+      "USER_POOL_ID": {
+       "Ref": "SpaceportCrmUserPoolABE86295"
+      }
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Runtime": "nodejs18.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/ActivitiesFunction/Resource"
+   }
+  },
+  "SpaceportCrmApi889610B4": {
+   "Type": "AWS::ApiGateway::RestApi",
+   "Properties": {
+    "Description": "API for Spaceport CRM application",
+    "Name": "Spaceport CRM API"
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Resource"
+   }
+  },
+  "SpaceportCrmApiCloudWatchRoleEBDC1944": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "apigateway.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+       ]
+      ]
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/CloudWatchRole/Resource"
+   }
+  },
+  "SpaceportCrmApiAccount35B72B64": {
+   "Type": "AWS::ApiGateway::Account",
+   "Properties": {
+    "CloudWatchRoleArn": {
+     "Fn::GetAtt": [
+      "SpaceportCrmApiCloudWatchRoleEBDC1944",
+      "Arn"
+     ]
+    }
+   },
+   "DependsOn": [
+    "SpaceportCrmApi889610B4"
+   ],
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Account"
+   }
+  },
+  "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa": {
+   "Type": "AWS::ApiGateway::Deployment",
+   "Properties": {
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "Description": "API for Spaceport CRM application"
+   },
+   "DependsOn": [
+    "CognitoAuthorizerF3215DBC",
+    "SpaceportCrmApiactivitiesGET5EACBAA6",
+    "SpaceportCrmApiactivitiesOPTIONS02414625",
+    "SpaceportCrmApiactivitiesPOST2AF63FB6",
+    "SpaceportCrmApiactivities80746DE1",
+    "SpaceportCrmApileadsidDELETE69AE9E66",
+    "SpaceportCrmApileadsidGET1C0DC9BC",
+    "SpaceportCrmApileadsidOPTIONS5BFE0631",
+    "SpaceportCrmApileadsidPUTD36F3D14",
+    "SpaceportCrmApileadsid69A4AAF1",
+    "SpaceportCrmApileadsGET5C536FA0",
+    "SpaceportCrmApileadsOPTIONSBD10D365",
+    "SpaceportCrmApileadsPOST5CCE6AFC",
+    "SpaceportCrmApileads641A59C3",
+    "SpaceportCrmApiOPTIONS8E822612"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Deployment/Resource"
+   }
+  },
+  "SpaceportCrmApiDeploymentStageprod5C2455DC": {
+   "Type": "AWS::ApiGateway::Stage",
+   "Properties": {
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "DeploymentId": {
+     "Ref": "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa"
+    },
+    "StageName": "prod"
+   },
+   "DependsOn": [
+    "SpaceportCrmApiAccount35B72B64"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/DeploymentStage.prod/Resource"
+   }
+  },
+  "SpaceportCrmApiOPTIONS8E822612": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "OPTIONS",
+    "ResourceId": {
+     "Fn::GetAtt": [
+      "SpaceportCrmApi889610B4",
+      "RootResourceId"
+     ]
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/OPTIONS/Resource"
+   }
+  },
+  "SpaceportCrmApileads641A59C3": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "SpaceportCrmApi889610B4",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "leads",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/Resource"
+   }
+  },
+  "SpaceportCrmApileadsOPTIONSBD10D365": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "OPTIONS",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileads641A59C3"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/OPTIONS/Resource"
+   }
+  },
+  "SpaceportCrmApileadsid69A4AAF1": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "SpaceportCrmApileads641A59C3"
+    },
+    "PathPart": "{id}",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/Resource"
+   }
+  },
+  "SpaceportCrmApileadsidOPTIONS5BFE0631": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "OPTIONS",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileadsid69A4AAF1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/OPTIONS/Resource"
+   }
+  },
+  "SpaceportCrmApileadsidGETApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3AGETleadsid93732C6E": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/GET/leads/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}"
+   }
+  },
+  "SpaceportCrmApileadsidGETApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3AGETleadsid7866F6DF": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/GET/leads/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads.{id}"
+   }
+  },
+  "SpaceportCrmApileadsidGET1C0DC9BC": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "GET",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileadsid69A4AAF1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "LeadsFunction29E9CA18",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/GET/Resource"
+   }
+  },
+  "SpaceportCrmApileadsidPUTApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3APUTleadsidAA8765D7": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/PUT/leads/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}"
+   }
+  },
+  "SpaceportCrmApileadsidPUTApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3APUTleadsidAFB45B2C": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/PUT/leads/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.PUT..leads.{id}"
+   }
+  },
+  "SpaceportCrmApileadsidPUTD36F3D14": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "PUT",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileadsid69A4AAF1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "LeadsFunction29E9CA18",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/PUT/Resource"
+   }
+  },
+  "SpaceportCrmApileadsidDELETEApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3ADELETEleadsid84062DD4": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/DELETE/leads/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}"
+   }
+  },
+  "SpaceportCrmApileadsidDELETEApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3ADELETEleadsidF83B5A75": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/DELETE/leads/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.DELETE..leads.{id}"
+   }
+  },
+  "SpaceportCrmApileadsidDELETE69AE9E66": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "DELETE",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileadsid69A4AAF1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "LeadsFunction29E9CA18",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/{id}/DELETE/Resource"
+   }
+  },
+  "SpaceportCrmApileadsGETApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3AGETleads64DECFBC": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/GET/leads"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads"
+   }
+  },
+  "SpaceportCrmApileadsGETApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3AGETleads1C5B28E3": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/GET/leads"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..leads"
+   }
+  },
+  "SpaceportCrmApileadsGET5C536FA0": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "GET",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileads641A59C3"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "LeadsFunction29E9CA18",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/GET/Resource"
+   }
+  },
+  "SpaceportCrmApileadsPOSTApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3APOSTleads7FA38DFF": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/POST/leads"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads"
+   }
+  },
+  "SpaceportCrmApileadsPOSTApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3APOSTleadsFA95C2D5": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LeadsFunction29E9CA18",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/POST/leads"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..leads"
+   }
+  },
+  "SpaceportCrmApileadsPOST5CCE6AFC": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "POST",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApileads641A59C3"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "LeadsFunction29E9CA18",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/leads/POST/Resource"
+   }
+  },
+  "SpaceportCrmApiactivities80746DE1": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "SpaceportCrmApi889610B4",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "activities",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/Resource"
+   }
+  },
+  "SpaceportCrmApiactivitiesOPTIONS02414625": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "OPTIONS",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApiactivities80746DE1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/OPTIONS/Resource"
+   }
+  },
+  "SpaceportCrmApiactivitiesGETApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3AGETactivitiesC46DDC8F": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ActivitiesFunction0198ABCD",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/GET/activities"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities"
+   }
+  },
+  "SpaceportCrmApiactivitiesGETApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3AGETactivities527C593F": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ActivitiesFunction0198ABCD",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/GET/activities"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..activities"
+   }
+  },
+  "SpaceportCrmApiactivitiesGET5EACBAA6": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "GET",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApiactivities80746DE1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "ActivitiesFunction0198ABCD",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/GET/Resource"
+   }
+  },
+  "SpaceportCrmApiactivitiesPOSTApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3APOSTactivities6F0F067E": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ActivitiesFunction0198ABCD",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/",
+       {
+        "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+       },
+       "/POST/activities"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities"
+   }
+  },
+  "SpaceportCrmApiactivitiesPOSTApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3APOSTactivitiesC9051A28": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ActivitiesFunction0198ABCD",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-west-2:975050048887:",
+       {
+        "Ref": "SpaceportCrmApi889610B4"
+       },
+       "/test-invoke-stage/POST/activities"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..activities"
+   }
+  },
+  "SpaceportCrmApiactivitiesPOST2AF63FB6": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "HttpMethod": "POST",
+    "ResourceId": {
+     "Ref": "SpaceportCrmApiactivities80746DE1"
+    },
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "AuthorizationType": "COGNITO_USER_POOLS",
+    "AuthorizerId": {
+     "Ref": "CognitoAuthorizerF3215DBC"
+    },
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "ActivitiesFunction0198ABCD",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "MethodResponses": [
+     {
+      "StatusCode": "200"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/Resource"
+   }
+  },
+  "CognitoAuthorizerF3215DBC": {
+   "Type": "AWS::ApiGateway::Authorizer",
+   "Properties": {
+    "Name": "SpaceportCrmStackCognitoAuthorizer3BFD1D27",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "Type": "COGNITO_USER_POOLS",
+    "IdentitySource": "method.request.header.Authorization",
+    "ProviderARNs": [
+     {
+      "Fn::GetAtt": [
+       "SpaceportCrmUserPoolABE86295",
+       "Arn"
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/CognitoAuthorizer/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/1WRTU/DMAyGfwv3LIxd2LUMcUNUA84oTUzxlsRVPphKlf9O2rSjnPzYb/zGTnZ8f8+3N+LiN1KdNxobPrwGIc8slz4G1VthSOXim2g0sMOnnSAxSa3FQHx49+BqIj1qV17goBFsWEulkhgKw4cjFc8p1qRR9mNaKDEtTKMEH56ilQHJjtqaa3AGvc9ZYqLDVgS4iD7bgg9Vh5PzH1ZSUszDPEKnqTfzXKss791O4xTIrRSdhAfhgT1D+CI1ijMt6nzJzOVRll19FfNZhz/gpgGuWUr/+l9i6GJYOyVmSQE/+dvv3Zbf7fMXnTzixuUF0AA/lvgLfcBoTL4BAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "SpaceportCrmApiEndpointF7B600F9": {
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "SpaceportCrmApi889610B4"
+      },
+      ".execute-api.us-west-2.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+      },
+      "/"
+     ]
+    ]
+   }
+  },
+  "ApiUrl": {
+   "Description": "API Gateway URL",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "SpaceportCrmApi889610B4"
+      },
+      ".execute-api.us-west-2.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "SpaceportCrmApiDeploymentStageprod5C2455DC"
+      },
+      "/"
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "SpaceportCrmApiUrl"
+   }
+  },
+  "UserPoolId": {
+   "Description": "Cognito User Pool ID",
+   "Value": {
+    "Ref": "SpaceportCrmUserPoolABE86295"
+   },
+   "Export": {
+    "Name": "SpaceportCrmUserPoolId"
+   }
+  },
+  "UserPoolClientId": {
+   "Description": "Cognito User Pool Client ID",
+   "Value": {
+    "Ref": "SpaceportCrmUserPoolClient75FF4D15"
+   },
+   "Export": {
+    "Name": "SpaceportCrmUserPoolClientId"
+   }
+  },
+  "Region": {
+   "Description": "AWS Region",
+   "Value": "us-west-2",
+   "Export": {
+    "Name": "SpaceportCrmRegion"
+   }
+  },
+  "LeadsTableName": {
+   "Description": "DynamoDB Leads Table Name",
+   "Value": {
+    "Ref": "LeadsTableB370ABE7"
+   },
+   "Export": {
+    "Name": "SpaceportCrmLeadsTable"
+   }
+  },
+  "ActivitiesTableName": {
+   "Description": "DynamoDB Activities Table Name",
+   "Value": {
+    "Ref": "ActivitiesTable7C8DBFD8"
+   },
+   "Export": {
+    "Name": "SpaceportCrmActivitiesTable"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
