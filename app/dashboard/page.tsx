@@ -152,24 +152,27 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Subtle gradient background */}
+      {/* Subtle gradient background - made more visible */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-600/20 via-blue-500/10 to-orange-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -top-20 -right-20 w-60 h-60 bg-gradient-to-bl from-purple-500/15 via-blue-400/8 to-orange-400/8 rounded-full blur-2xl"></div>
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-purple-600/30 via-blue-500/20 to-orange-500/15 rounded-full blur-3xl"></div>
+        <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-bl from-purple-500/25 via-blue-400/15 to-orange-400/12 rounded-full blur-2xl"></div>
+        <div className="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-tr from-purple-500/20 via-blue-400/10 to-orange-400/8 rounded-full blur-2xl"></div>
       </div>
       
       <div className="relative z-10 p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header with increased vertical margin */}
+          {/* Header with aligned vertical margins */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center justify-between mb-16 pt-8"
+            className="flex items-center justify-between mb-16 pt-12"
           >
             <div className="flex items-center gap-6">
-              <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
-              <div>
+              <div className="pt-2">
+                <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
+              </div>
+              <div className="pt-2">
                 <h1 className="text-4xl font-title text-primary-hierarchy mb-3">Welcome back, {user?.name}</h1>
                 <p className="text-gray-400 font-body text-lg">
                   {leads.length === 0
@@ -181,7 +184,7 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 pt-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
