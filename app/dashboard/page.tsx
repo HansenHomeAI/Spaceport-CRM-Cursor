@@ -151,278 +151,258 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex items-center justify-between mb-8"
-        >
-          <div className="flex items-center gap-4">
-            <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={40} height={40} className="w-10 h-10" />
-            <div>
-              <h1 className="text-3xl font-title text-primary-hierarchy mb-2">Welcome back, {user?.name}</h1>
-              <p className="text-gray-400 font-body">
-                {leads.length === 0
-                  ? "Get started by importing your CSV file or adding your first lead."
-                  : "Here's what's happening with your leads today."}
-              </p>
-              {user?.isDemo && (
-                <Badge className="mt-2 bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30">Demo Mode</Badge>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
-                    <AvatarFallback className="bg-white/10 text-white">
-                      {user.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
-                <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </motion.div>
-
-        {/* Enhanced Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-body text-sm">Total Leads</p>
-                  <p className="text-3xl font-title text-primary-hierarchy">{leads.length}</p>
-                </div>
-                <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center">
-                  <Search className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-body text-sm">High Priority</p>
-                  <p className="text-3xl font-title text-primary-hierarchy">{highPriorityLeads}</p>
-                </div>
-                <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-red-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-body text-sm">My Leads</p>
-                  <p className="text-3xl font-title text-primary-hierarchy">{myLeads}</p>
-                </div>
-                <div className="h-12 w-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-body text-sm">Unclaimed</p>
-                  <p className="text-3xl font-title text-primary-hierarchy">{unclaimedLeads}</p>
-                </div>
-                <div className="h-12 w-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-yellow-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-body text-sm">Dormant</p>
-                  <p className="text-3xl font-title text-primary-hierarchy">{dormantLeads}</p>
-                </div>
-                <div className="h-12 w-12 bg-gray-500/20 rounded-full flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-gray-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 font-body text-sm">Need Attention</p>
-                  <p className="text-3xl font-title text-primary-hierarchy">{needsAttentionLeads}</p>
-                </div>
-                <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {leads.length === 0 ? (
-          // Empty state
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-600/20 via-blue-500/10 to-orange-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-20 -right-20 w-60 h-60 bg-gradient-to-bl from-purple-500/15 via-blue-400/8 to-orange-400/8 rounded-full blur-2xl"></div>
+      </div>
+      
+      <div className="relative z-10 p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with increased vertical margin */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-center py-16"
+            transition={{ duration: 0.5 }}
+            className="flex items-center justify-between mb-16 pt-8"
           >
-            <div className="max-w-md mx-auto">
-              <div className="h-24 w-24 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Upload className="h-12 w-12 text-white" />
+            <div className="flex items-center gap-6">
+              <Image src={process.env.NODE_ENV === 'production' ? '/Spaceport-CRM-Cursor/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
+              <div>
+                <h1 className="text-4xl font-title text-primary-hierarchy mb-3">Welcome back, {user?.name}</h1>
+                <p className="text-gray-400 font-body text-lg">
+                  {leads.length === 0
+                    ? "Get started by importing your CSV file or adding your first lead."
+                    : "Here's what's happening with your leads today."}
+                </p>
+                {user?.isDemo && (
+                  <Badge className="mt-3 bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30">Demo Mode</Badge>
+                )}
               </div>
-              <h3 className="text-xl font-title text-white mb-2">No leads yet</h3>
-              <p className="text-gray-400 font-body mb-6">
-                Get started by importing your CSV file with contact data, or add your first lead manually.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Button
-                  onClick={() => setIsImportOpen(true)}
-                  className="bg-white text-black hover:bg-gray-100 rounded-pill px-6"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import CSV
-                </Button>
-                <Button
-                  onClick={() => setIsAddModalOpen(true)}
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Lead
-                </Button>
-              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
+                      <AvatarFallback className="bg-white/10 text-white">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
+                  <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </motion.div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex gap-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={() => setSortByRecent(!sortByRecent)}
-                        variant="outline"
-                        className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                          sortByRecent ? "bg-white/10 text-white" : ""
-                        }`}
-                      >
-                        <Clock className="h-4 w-4 mr-2" />
-                        {sortByRecent ? "Recent First" : "Sort by Recent"}
-                        <Info className="h-3 w-3 ml-1 opacity-50" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
-                      <p className="font-body">Toggle to show most recently contacted leads first</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
 
-                <Button
-                  onClick={() =>
-                    setFilterByOwnership(
-                      filterByOwnership === "all" ? "mine" : filterByOwnership === "mine" ? "unclaimed" : "all",
-                    )
-                  }
-                  variant="outline"
-                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                    filterByOwnership !== "all" ? "bg-white/10 text-white" : ""
-                  }`}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  {filterByOwnership === "all" ? "All Leads" : filterByOwnership === "mine" ? "My Leads" : "Unclaimed"}
-                </Button>
+          {/* Enhanced Metrics - removed unclaimed card */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 font-body text-sm">Total Leads</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{leads.length}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center">
+                    <Search className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                <Button
-                  onClick={() => setShowDormant(!showDormant)}
-                  variant="outline"
-                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                    showDormant ? "bg-white/10 text-white" : ""
-                  }`}
-                >
-                  {showDormant ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                  {showDormant ? "Hide Dormant" : "Show Dormant"}
-                </Button>
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 font-body text-sm">High Priority</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{highPriorityLeads}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-red-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                <Button
-                  onClick={() => setShowNeedsAttention(!showNeedsAttention)}
-                  variant="outline"
-                  className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                    showNeedsAttention ? "bg-red-500/20 text-red-300 border-red-500/30" : ""
-                  }`}
-                >
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  {showNeedsAttention ? "Hide Issues" : "Show Issues"}
-                </Button>
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 font-body text-sm">My Leads</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{myLeads}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-blue-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 font-body text-sm">Need Attention</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{needsAttentionLeads}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="h-6 w-6 text-red-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {leads.length === 0 ? (
+            // Empty state
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-center py-16"
+            >
+              <div className="max-w-md mx-auto">
+                <div className="h-24 w-24 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Upload className="h-12 w-12 text-white" />
+                </div>
+                <h3 className="text-xl font-title text-white mb-2">No leads yet</h3>
+                <p className="text-gray-400 font-body mb-6">
+                  Get started by importing your CSV file with contact data, or add your first lead manually.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    onClick={() => setIsImportOpen(true)}
+                    className="bg-white text-black hover:bg-gray-100 rounded-pill px-6"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import CSV
+                  </Button>
+                  <Button
+                    onClick={() => setIsAddModalOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Lead
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex gap-3">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setSortByRecent(!sortByRecent)}
+                          variant="outline"
+                          className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
+                            sortByRecent ? "bg-white/10 text-white" : ""
+                          }`}
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          {sortByRecent ? "Recent First" : "Sort by Recent"}
+                          <Info className="h-3 w-3 ml-1 opacity-50" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
+                        <p className="font-body">Toggle to show most recently contacted leads first</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <Button
+                    onClick={() =>
+                      setFilterByOwnership(
+                        filterByOwnership === "all" ? "mine" : filterByOwnership === "mine" ? "unclaimed" : "all",
+                      )
+                    }
+                    variant="outline"
+                    className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
+                      filterByOwnership !== "all" ? "bg-white/10 text-white" : ""
+                    }`}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    {filterByOwnership === "all" ? "All Leads" : filterByOwnership === "mine" ? "My Leads" : "Unclaimed"}
+                  </Button>
+
+                  <Button
+                    onClick={() => setShowDormant(!showDormant)}
+                    variant="outline"
+                    className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
+                      showDormant ? "bg-white/10 text-white" : ""
+                    }`}
+                  >
+                    {showDormant ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                    {showDormant ? "Hide Dormant" : "Show Dormant"}
+                  </Button>
+
+                  <Button
+                    onClick={() => setShowNeedsAttention(!showNeedsAttention)}
+                    variant="outline"
+                    className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
+                      showNeedsAttention ? "bg-red-500/20 text-red-300 border-red-500/30" : ""
+                    }`}
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    {showNeedsAttention ? "Hide Issues" : "Show Issues"}
+                  </Button>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setIsImportOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import CSV
+                  </Button>
+                  <Button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Lead
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => setIsImportOpen(true)}
-                  variant="outline"
-                  className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import CSV
-                </Button>
-                <Button
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Lead
-                </Button>
-              </div>
-            </div>
+              <FollowUpPriority leads={filteredLeads} onLeadSelect={handleLeadSelect} />
 
-            <FollowUpPriority leads={filteredLeads} onLeadSelect={handleLeadSelect} />
+              <LeadsTable
+                leads={filteredLeads}
+                onLeadUpdate={handleLeadUpdate}
+                onLeadSelect={handleLeadSelect}
+                sortByRecent={sortByRecent}
+                showDormant={showDormant}
+              />
+            </>
+          )}
 
-            <LeadsTable
-              leads={filteredLeads}
-              onLeadUpdate={handleLeadUpdate}
-              onLeadSelect={handleLeadSelect}
-              sortByRecent={sortByRecent}
-              showDormant={showDormant}
-            />
-          </>
-        )}
+          <LeadPanel
+            lead={selectedLead}
+            isOpen={isPanelOpen}
+            onClose={() => setIsPanelOpen(false)}
+            onAddNote={handleAddNote}
+            onUpdateLead={handleLeadUpdate}
+          />
 
-        <LeadPanel
-          lead={selectedLead}
-          isOpen={isPanelOpen}
-          onClose={() => setIsPanelOpen(false)}
-          onAddNote={handleAddNote}
-          onUpdateLead={handleLeadUpdate}
-        />
+          <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
 
-        <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
-
-        <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
+          <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
+        </div>
       </div>
     </div>
   )
