@@ -6,16 +6,14 @@ import { Clock, AlertTriangle, Phone, Mail } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getNextRecommendedStep, calculateCadenceProgress } from "@/lib/sales-cadence"
 import type { Lead } from "./leads-table"
 
 interface FollowUpItem {
   lead: Lead
   urgency: "high" | "medium" | "low"
-  nextAction: string
+  nextAction: "call" | "email"
   daysOverdue: number
   reason: string
-  nextStep: any
 }
 
 interface FollowUpPriorityProps {
@@ -36,7 +34,7 @@ const urgencyIcons = {
 }
 
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
-  // Calculate follow-up priorities based on sales cadence
+  // Calculate follow-up priorities based on your cadence
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
     const followUps: FollowUpItem[] = []
@@ -44,53 +42,52 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     leads.forEach((lead) => {
       if (lead.status === "closed") return
 
-      const nextStep = getNextRecommendedStep(lead)
-      if (!nextStep) return
+      const lastInteraction = lead.notes.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )[0]
 
-      const progress = calculateCadenceProgress(lead)
-      const stepProgress = progress.find(p => p.stepId === nextStep.id)
-      
-      if (!stepProgress) return
-
-      let urgency: "high" | "medium" | "low" = "low"
-      let daysOverdue = 0
-      let reason = ""
-
-      if (stepProgress.overdue) {
-        const overdueDate = new Date(stepProgress.scheduledDate!)
-        daysOverdue = Math.floor((now.getTime() - overdueDate.getTime()) / (1000 * 60 * 60 * 24))
-        
-        if (daysOverdue > 3) {
-          urgency = "high"
-          reason = `${daysOverdue} days overdue`
-        } else {
-          urgency = "medium"
-          reason = `${daysOverdue} days overdue`
-        }
-      } else {
-        const scheduledDate = new Date(stepProgress.scheduledDate!)
-        const daysUntil = Math.floor((scheduledDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        
-        if (daysUntil <= 0) {
-          urgency = "medium"
-          reason = "Due today"
-        } else if (daysUntil <= 1) {
-          urgency = "medium"
-          reason = `Due in ${daysUntil} day`
-        } else {
-          urgency = "low"
-          reason = `Due in ${daysUntil} days`
-        }
+      if (!lastInteraction) {
+        // No interaction yet - high priority
+        followUps.push({
+          lead,
+          urgency: "high",
+          nextAction: "call",
+          daysOverdue: 0,
+          reason: "No initial contact made",
+        })
+        return
       }
 
-      followUps.push({
-        lead,
-        urgency,
-        nextAction: nextStep.action,
-        daysOverdue,
-        reason,
-        nextStep
-      })
+      const daysSinceLastContact = Math.floor(
+        (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
+      )
+
+      // Follow-up cadence logic
+      if (lastInteraction.type === "call" && daysSinceLastContact >= 2) {
+        followUps.push({
+          lead,
+          urgency: daysSinceLastContact > 4 ? "high" : "medium",
+          nextAction: "email",
+          daysOverdue: daysSinceLastContact - 2,
+          reason: "Email follow-up after call",
+        })
+      } else if (lastInteraction.type === "email" && daysSinceLastContact >= 4) {
+        followUps.push({
+          lead,
+          urgency: daysSinceLastContact > 7 ? "high" : "medium",
+          nextAction: "call",
+          daysOverdue: daysSinceLastContact - 4,
+          reason: "Call follow-up after email",
+        })
+      } else if (daysSinceLastContact >= 7) {
+        followUps.push({
+          lead,
+          urgency: "low",
+          nextAction: "call",
+          daysOverdue: daysSinceLastContact - 7,
+          reason: "Weekly check-in",
+        })
+      }
     })
 
     return followUps.sort((a, b) => {
@@ -142,14 +139,14 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{item.nextStep.icon}</span>
+                    {item.nextAction === "call" ? (
+                      <Phone className="h-3 w-3 text-purple-400" />
+                    ) : (
+                      <Mail className="h-3 w-3 text-purple-400" />
+                    )}
                     <span className="text-medium-hierarchy font-body text-xs">
-                      {item.nextAction}
+                      {item.nextAction === "call" ? "Call" : "Email"}
                     </span>
-                  </div>
-                  
-                  <div className="text-xs text-gray-400 font-body mt-1">
-                    {item.reason}
                   </div>
                 </CardContent>
               </Card>

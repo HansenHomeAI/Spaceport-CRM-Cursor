@@ -19,8 +19,6 @@ import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle } from 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { colors } from "@/lib/colors"
 import { useAuth } from "@/lib/auth-context"
-import { CadenceProgress } from "./cadence-progress"
-import { calculateCadenceProgress } from "@/lib/sales-cadence"
 
 export interface Lead {
   id: string
@@ -41,7 +39,6 @@ export interface Lead {
     text: string
     timestamp: string
     type: "call" | "email" | "note"
-    cadenceStepId?: string
   }>
 }
 
@@ -457,37 +454,28 @@ export function LeadsTable({
           }
 
           return (
-            <div className="space-y-3">
-              <Select
-                value={status}
-                onValueChange={(newStatus) => onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })}
-              >
-                <SelectTrigger className="w-32 bg-transparent border-none p-0">
-                  <Badge
-                    className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-pill px-4 py-1.5 font-body`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Badge>
-                </SelectTrigger>
-                <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
-                  {Object.entries(colors.status).map(([key, color]) => (
-                    <SelectItem key={key} value={key} className="rounded-lg font-body">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color.icon }} />
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              {/* Cadence Progress */}
-              <CadenceProgress
-                progress={calculateCadenceProgress(row.original)}
-                status={status}
-                className="mt-2"
-              />
-            </div>
+            <Select
+              value={status}
+              onValueChange={(newStatus) => onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })}
+            >
+              <SelectTrigger className="w-32 bg-transparent border-none p-0">
+                <Badge
+                  className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-pill px-4 py-1.5 font-body`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
+                {Object.entries(colors.status).map(([key, color]) => (
+                  <SelectItem key={key} value={key} className="rounded-lg font-body">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color.icon }} />
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )
         },
       }),

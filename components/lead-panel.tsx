@@ -2,22 +2,20 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, CheckCircle } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
-import { CadenceProgress } from "./cadence-progress"
-import { calculateCadenceProgress, getNextRecommendedStep, SALES_CADENCE } from "@/lib/sales-cadence"
 import type { Lead } from "./leads-table"
 
 interface LeadPanelProps {
   lead: Lead | null
   isOpen: boolean
   onClose: () => void
-  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note"; cadenceStepId?: string }) => void
+  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" }) => void
   onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
 }
@@ -38,19 +36,6 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
       type: noteType,
     })
     setNewNote("")
-  }
-
-  const handleCompleteCadenceStep = (stepId: string) => {
-    if (!lead) return
-    
-    const step = SALES_CADENCE.find(s => s.id === stepId)
-    if (!step) return
-
-    onAddNote(lead.id, {
-      text: `Completed: ${step.title}`,
-      type: step.type as "call" | "email" | "note",
-      cadenceStepId: stepId
-    })
   }
 
   const handleStatusChange = (newStatus: Lead["status"]) => {
@@ -87,8 +72,6 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   if (!lead) return null
 
   const statusColor = colors.status[lead.status]
-  const cadenceProgress = calculateCadenceProgress(lead)
-  const nextStep = getNextRecommendedStep(lead)
 
   return (
     <AnimatePresence>
@@ -210,41 +193,6 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     <Calendar className="h-4 w-4 text-purple-400" />
                     <span>Last interaction: {lead.lastInteraction}</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Sales Cadence Progress */}
-              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="text-primary-hierarchy font-title text-lg">Sales Cadence</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CadenceProgress
-                    progress={cadenceProgress}
-                    status={lead.status}
-                    onStepClick={handleCompleteCadenceStep}
-                  />
-                  
-                  {/* Quick Action Button */}
-                  {nextStep && (
-                    <div className="mt-4 p-3 bg-white/5 rounded-2xl border border-white/10">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{nextStep.icon}</span>
-                        <div className="flex-1">
-                          <div className="text-sm font-body text-white font-medium">{nextStep.action}</div>
-                          <div className="text-xs font-body text-gray-300">{nextStep.description}</div>
-                        </div>
-                        <Button
-                          onClick={() => handleCompleteCadenceStep(nextStep.id)}
-                          size="sm"
-                          className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-full"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Complete
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 

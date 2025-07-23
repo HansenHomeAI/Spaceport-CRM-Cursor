@@ -121,7 +121,7 @@ export default function DashboardPage() {
     setIsPanelOpen(true)
   }
 
-  const handleAddNote = (leadId: string, note: { text: string; type: "call" | "email" | "note"; cadenceStepId?: string }) => {
+  const handleAddNote = (leadId: string, note: { text: string; type: "call" | "email" | "note" }) => {
     const newNote = {
       id: Date.now().toString(),
       ...note,
