@@ -26,10 +26,6 @@ export default function DashboardPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [sortByRecent, setSortByRecent] = useState(false)
-  const [showDormant, setShowDormant] = useState(false)
-  const [showNeedsAttention, setShowNeedsAttention] = useState(false)
-  const [filterByOwnership, setFilterByOwnership] = useState<"all" | "mine" | "unclaimed">("all")
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
@@ -59,21 +55,6 @@ export default function DashboardPage() {
   const highPriorityLeads = leads.filter((lead) => lead.priority === "high").length
   const needsAttentionLeads = leads.filter((lead) => lead.needsAttention).length
 
-  // Filter leads based on ownership and attention needs
-  const filteredLeads = leads.filter((lead) => {
-    // Filter by ownership
-    if (filterByOwnership === "mine") {
-      if (!lead.ownerId || lead.ownerId !== user?.id) return false
-    } else if (filterByOwnership === "unclaimed") {
-      if (lead.ownerId) return false
-    }
-    
-    // Filter by attention needs
-    if (showNeedsAttention && !lead.needsAttention) return false
-    
-    return true
-  })
-
   const handleLeadUpdate = (leadId: string, updates: Partial<Lead>) => {
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
 
@@ -100,6 +81,29 @@ export default function DashboardPage() {
     // Update selected lead if it's the same one
     if (selectedLead?.id === leadId) {
       setSelectedLead((prev) => (prev ? { ...prev, notes: [...prev.notes, newNote] } : null))
+    }
+  }
+
+  const handleUpdateNote = (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => {
+    setLeads((prev) => prev.map((lead) => 
+      lead.id === leadId 
+        ? { 
+            ...lead, 
+            notes: lead.notes.map((note) => 
+              note.id === noteId ? { ...note, ...updates } : note
+            )
+          }
+        : lead
+    ))
+
+    // Update selected lead if it's the same one
+    if (selectedLead?.id === leadId) {
+      setSelectedLead((prev) => prev ? {
+        ...prev,
+        notes: prev.notes.map((note) => 
+          note.id === noteId ? { ...note, ...updates } : note
+        )
+      } : null)
     }
   }
 
@@ -162,7 +166,7 @@ export default function DashboardPage() {
       </div>
       
       {/* Noise texture overlay */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.02]">
+      <div className="absolute inset-0 pointer-events-none opacity-[0.08]">
         <div className="w-full h-full" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'repeat'
@@ -314,66 +318,6 @@ export default function DashboardPage() {
             <>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex gap-3">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={() => setSortByRecent(!sortByRecent)}
-                          variant="outline"
-                          className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                            sortByRecent ? "bg-white/10 text-white" : ""
-                          }`}
-                        >
-                          <Clock className="h-4 w-4 mr-2" />
-                          {sortByRecent ? "Recent First" : "Sort by Recent"}
-                          <Info className="h-3 w-3 ml-1 opacity-50" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
-                        <p className="font-body">Toggle to show most recently contacted leads first</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-
-                  <Button
-                    onClick={() =>
-                      setFilterByOwnership(
-                        filterByOwnership === "all" ? "mine" : filterByOwnership === "mine" ? "unclaimed" : "all",
-                      )
-                    }
-                    variant="outline"
-                    className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                      filterByOwnership !== "all" ? "bg-white/10 text-white" : ""
-                    }`}
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    {filterByOwnership === "all" ? "All Leads" : filterByOwnership === "mine" ? "My Leads" : "Unclaimed"}
-                  </Button>
-
-                  <Button
-                    onClick={() => setShowDormant(!showDormant)}
-                    variant="outline"
-                    className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                      showDormant ? "bg-white/10 text-white" : ""
-                    }`}
-                  >
-                    {showDormant ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                    {showDormant ? "Hide Dormant" : "Show Dormant"}
-                  </Button>
-
-                  <Button
-                    onClick={() => setShowNeedsAttention(!showNeedsAttention)}
-                    variant="outline"
-                    className={`border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body ${
-                      showNeedsAttention ? "bg-red-500/20 text-red-300 border-red-500/30" : ""
-                    }`}
-                  >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    {showNeedsAttention ? "Hide Issues" : "Show Issues"}
-                  </Button>
-                </div>
-
-                <div className="flex gap-3">
                   <Button
                     onClick={() => setIsImportOpen(true)}
                     variant="outline"
@@ -392,14 +336,12 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <FollowUpPriority leads={filteredLeads} onLeadSelect={handleLeadSelect} />
+              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
 
               <LeadsTable
-                leads={filteredLeads}
+                leads={leads}
                 onLeadUpdate={handleLeadUpdate}
                 onLeadSelect={handleLeadSelect}
-                sortByRecent={sortByRecent}
-                showDormant={showDormant}
               />
             </>
           )}
@@ -409,6 +351,7 @@ export default function DashboardPage() {
             isOpen={isPanelOpen}
             onClose={() => setIsPanelOpen(false)}
             onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
             onUpdateLead={handleLeadUpdate}
           />
 

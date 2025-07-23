@@ -26,6 +26,12 @@ export const colors = {
       border: "border-amber-500/20",
       icon: "#fbbf24", // Amber-400
     },
+    dormant: {
+      bg: "bg-gray-500/10",
+      text: "text-gray-300",
+      border: "border-gray-500/20",
+      icon: "#6b7280", // Gray-500
+    },
     "left voicemail": {
       bg: "bg-orange-500/10",
       text: "text-orange-300",

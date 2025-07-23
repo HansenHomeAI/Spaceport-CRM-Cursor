@@ -16,13 +16,17 @@ interface LeadPanelProps {
   isOpen: boolean
   onClose: () => void
   onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" }) => void
+  onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
 }
 
-export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateLead }: LeadPanelProps) {
+export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead }: LeadPanelProps) {
   const [newNote, setNewNote] = useState("")
   const [noteType, setNoteType] = useState<"call" | "email" | "note">("note")
   const [isEditingStatus, setIsEditingStatus] = useState(false)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteText, setEditingNoteText] = useState("")
+  const [editingNoteDate, setEditingNoteDate] = useState("")
 
   const handleAddNote = () => {
     if (!lead || !newNote.trim()) return
@@ -38,6 +42,31 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateLead }: Le
     if (!lead) return
     onUpdateLead(lead.id, { status: newStatus })
     setIsEditingStatus(false)
+  }
+
+  const handleStartEditNote = (note: any) => {
+    setEditingNoteId(note.id)
+    setEditingNoteText(note.text)
+    setEditingNoteDate(new Date(note.timestamp).toISOString().split('T')[0])
+  }
+
+  const handleSaveNoteEdit = () => {
+    if (!lead || !editingNoteId) return
+    
+    onUpdateNote(lead.id, editingNoteId, {
+      text: editingNoteText,
+      timestamp: new Date(editingNoteDate).toISOString()
+    })
+    
+    setEditingNoteId(null)
+    setEditingNoteText("")
+    setEditingNoteDate("")
+  }
+
+  const handleCancelNoteEdit = () => {
+    setEditingNoteId(null)
+    setEditingNoteText("")
+    setEditingNoteDate("")
   }
 
   if (!lead) return null
@@ -223,6 +252,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateLead }: Le
                         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                         .map((note) => {
                           const noteColor = colors.interaction[note.type]
+                          const isEditing = editingNoteId === note.id
+                          
                           return (
                             <motion.div
                               key={note.id}
@@ -231,17 +262,67 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateLead }: Le
                               className="border-l-2 pl-4 py-3 bg-white/5 rounded-r-2xl"
                               style={{ borderLeftColor: noteColor.icon }}
                             >
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge
-                                  className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
-                                >
-                                  {note.type}
-                                </Badge>
-                                <span className="text-xs text-medium-hierarchy font-body">
-                                  {new Date(note.timestamp).toLocaleDateString()}
-                                </span>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
+                                  >
+                                    {note.type}
+                                  </Badge>
+                                  {isEditing ? (
+                                    <input
+                                      type="date"
+                                      value={editingNoteDate}
+                                      onChange={(e) => setEditingNoteDate(e.target.value)}
+                                      className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-medium-hierarchy font-body">
+                                      {new Date(note.timestamp).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {isEditing ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={handleSaveNoteEdit}
+                                        className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700 rounded-full"
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleCancelNoteEdit}
+                                        className="h-6 px-2 text-xs border-white/20 text-white hover:bg-white/10 rounded-full"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleStartEditNote(note)}
+                                      className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
+                                    >
+                                      <Edit3 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                              {isEditing ? (
+                                <Textarea
+                                  value={editingNoteText}
+                                  onChange={(e) => setEditingNoteText(e.target.value)}
+                                  className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
+                                  rows={2}
+                                />
+                              ) : (
+                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                              )}
                             </motion.div>
                           )
                         })

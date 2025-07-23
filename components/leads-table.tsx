@@ -45,8 +45,6 @@ interface LeadsTableProps {
   leads: Lead[]
   onLeadUpdate: (leadId: string, updates: Partial<Lead>) => void
   onLeadSelect: (lead: Lead) => void
-  sortByRecent?: boolean
-  showDormant?: boolean
 }
 
 const columnHelper = createColumnHelper<Lead>()
@@ -123,8 +121,6 @@ export function LeadsTable({
   leads,
   onLeadUpdate,
   onLeadSelect,
-  sortByRecent = false,
-  showDormant = false,
 }: LeadsTableProps) {
   const { user } = useAuth()
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null)
@@ -143,29 +139,29 @@ export function LeadsTable({
     let filtered = leadsWithPriority
 
     // Filter by dormant status
-    if (!showDormant) {
-      filtered = filtered.filter((lead) => lead.priority !== "dormant")
-    }
+    // if (!showDormant) { // This line is removed as per the edit hint
+    //   filtered = filtered.filter((lead) => lead.priority !== "dormant")
+    // }
 
     // Sort by priority and recency
-    if (sortByRecent) {
-      filtered.sort((a, b) => {
-        // First by priority
-        const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
-        const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority]
-        if (priorityDiff !== 0) return priorityDiff
+    // if (sortByRecent) { // This line is removed as per the edit hint
+    //   filtered.sort((a, b) => {
+    //     // First by priority
+    //     const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
+    //     const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority]
+    //     if (priorityDiff !== 0) return priorityDiff
 
-        // Then by most recent interaction
-        const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
-        const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
-        const aTime = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
-        const bTime = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
-        return bTime - aTime
-      })
-    }
+    //     // Then by most recent interaction
+    //     const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+    //     const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+    //     const aTime = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
+    //     const bTime = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
+    //     return bTime - aTime
+    //   })
+    // }
 
     return filtered
-  }, [leadsWithPriority, sortByRecent, showDormant])
+  }, [leadsWithPriority]) // Removed sortByRecent and showDormant from dependencies
 
   const handleClaimLead = (leadId: string) => {
     if (!user) return
