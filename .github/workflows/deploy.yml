@@ -156,10 +156,17 @@ jobs:
 
     - name: Build for static export
       run: |
-        echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env.local
-        echo "NEXT_PUBLIC_USER_POOL_ID=${{ secrets.NEXT_PUBLIC_USER_POOL_ID }}" >> .env.local
-        echo "NEXT_PUBLIC_USER_POOL_CLIENT_ID=${{ secrets.NEXT_PUBLIC_USER_POOL_CLIENT_ID }}" >> .env.local
+        # Use repository variables for public Cognito configuration
+        echo "NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}" >> .env.local
+        echo "NEXT_PUBLIC_USER_POOL_ID=${{ vars.NEXT_PUBLIC_USER_POOL_ID }}" >> .env.local
+        echo "NEXT_PUBLIC_USER_POOL_CLIENT_ID=${{ vars.NEXT_PUBLIC_USER_POOL_CLIENT_ID }}" >> .env.local
         echo "NEXT_PUBLIC_DEV_MODE=false" >> .env.local
+        
+        # Debug: Print the values to verify they're being set (excluding sensitive data)
+        echo "Verifying environment variables..."
+        echo "API URL set: [$([ ! -z "${{ vars.NEXT_PUBLIC_API_URL }}" ] && echo "YES" || echo "NO")]"
+        echo "User Pool ID set: [$([ ! -z "${{ vars.NEXT_PUBLIC_USER_POOL_ID }}" ] && echo "YES" || echo "NO")]"
+        echo "Client ID set: [$([ ! -z "${{ vars.NEXT_PUBLIC_USER_POOL_CLIENT_ID }}" ] && echo "YES" || echo "NO")]"
         NODE_ENV=production pnpm run build
 
     - name: Debug build output
