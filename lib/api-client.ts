@@ -21,6 +21,12 @@ export interface Lead {
     timestamp: string
     type: "call" | "email" | "note" | "video" | "social"
   }>
+  createdAt: string
+  updatedAt: string
+  createdBy?: string
+  createdByName?: string
+  lastUpdatedBy?: string
+  lastUpdatedByName?: string
 }
 
 export interface Activity {
@@ -150,7 +156,7 @@ class ApiClient {
   }
 
   async createLead(
-    lead: Omit<Lead, "id" | "createdAt" | "updatedAt" | "notes">,
+    lead: Omit<Lead, "id" | "createdAt" | "updatedAt">,
   ): Promise<{ data: Lead | null; error: string | null }> {
     return this.request<Lead>("/leads", {
       method: "POST",
@@ -188,7 +194,7 @@ class ApiClient {
 
   // Bulk operations
   async createLeads(
-    leads: Omit<Lead, "id" | "createdAt" | "updatedAt" | "notes">[],
+    leads: Omit<Lead, "id" | "createdAt" | "updatedAt">[],
   ): Promise<{ data: Lead[] | null; error: string | null }> {
     const results: Lead[] = []
     const errors: string[] = []
@@ -212,57 +218,15 @@ class ApiClient {
     return { data: results, error: null }
   }
 
-  // Database management
-  async deleteAllLeads(): Promise<{ data: null; error: string | null }> {
-    // Get all leads first
-    const { data: leads, error: getError } = await this.getLeads()
-    if (getError) {
-      return { data: null, error: getError }
-    }
-
-    if (!leads || leads.length === 0) {
-      return { data: null, error: null }
-    }
-
-    // Delete each lead
-    const errors: string[] = []
-    for (const lead of leads) {
-      const { error } = await this.deleteLead(lead.id)
-      if (error) {
-        errors.push(`Failed to delete lead ${lead.name}: ${error}`)
-      }
-    }
-
-    if (errors.length > 0) {
-      return {
-        data: null,
-        error: errors.join("; "),
-      }
-    }
-
-    return { data: null, error: null }
+  // Database reset operations
+  async resetDatabase(): Promise<{ data: null; error: string | null }> {
+    return this.request<null>("/reset", {
+      method: "POST",
+    })
   }
 
-  async resetDatabase(): Promise<{ data: null; error: string | null }> {
-    // Delete all leads
-    const { error: leadsError } = await this.deleteAllLeads()
-    if (leadsError) {
-      return { data: null, error: `Failed to delete leads: ${leadsError}` }
-    }
-
-    // Delete all activities
-    const { data: activities, error: getActivitiesError } = await this.getActivities()
-    if (getActivitiesError) {
-      return { data: null, error: `Failed to get activities: ${getActivitiesError}` }
-    }
-
-    if (activities && activities.length > 0) {
-      // Note: We'd need to add a deleteActivity method to the API
-      // For now, we'll just return success since activities are linked to leads
-      console.log("Activities will be cleaned up automatically when leads are deleted")
-    }
-
-    return { data: null, error: null }
+  async getDatabaseStats(): Promise<{ data: { leadCount: number; activityCount: number } | null; error: string | null }> {
+    return this.request<{ leadCount: number; activityCount: number }>("/stats")
   }
 }
 

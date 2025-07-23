@@ -1,7 +1,7 @@
 {
   "version": "32.0.0",
   "files": {
-    "01cca96cd390973ae35c4f8384ff76ed477a75a515370b4a39283afcbb441e41": {
+    "beb5f559523a77a8aa62dc305804e3a21e218e45febf7a1f3552999880dade8a": {
       "source": {
         "path": "SpaceportCrmStack.template.json",
         "packaging": "file"
@@ -9,7 +9,7 @@
       "destinations": {
         "975050048887-us-west-2": {
           "bucketName": "cdk-hnb659fds-assets-975050048887-us-west-2",
-          "objectKey": "01cca96cd390973ae35c4f8384ff76ed477a75a515370b4a39283afcbb441e41.json",
+          "objectKey": "beb5f559523a77a8aa62dc305804e3a21e218e45febf7a1f3552999880dade8a.json",
           "region": "us-west-2",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::975050048887:role/cdk-hnb659fds-file-publishing-role-975050048887-us-west-2"
         }

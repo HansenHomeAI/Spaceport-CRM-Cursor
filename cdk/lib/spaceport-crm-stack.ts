@@ -17,8 +17,13 @@ export class SpaceportCrmStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       pointInTimeRecovery: true,
-      // Enable versioning for data recovery
-      timeToLiveAttribute: "ttl",
+    })
+
+    // Enable versioning for data recovery
+    leadsTable.addGlobalSecondaryIndex({
+      indexName: "VersionIndex",
+      partitionKey: { name: "version", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "timestamp", type: dynamodb.AttributeType.NUMBER },
     })
 
     const activitiesTable = new dynamodb.Table(this, "ActivitiesTable", {
@@ -28,8 +33,6 @@ export class SpaceportCrmStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       pointInTimeRecovery: true,
-      // Enable versioning for data recovery
-      timeToLiveAttribute: "ttl",
     })
 
     // Add GSI for querying activities by lead ID
@@ -136,6 +139,28 @@ export class SpaceportCrmStack extends cdk.Stack {
             
             switch (httpMethod) {
               case 'GET':
+                // Handle database stats
+                if (event.path === '/stats') {
+                  const leadsCount = await dynamodb.scan({
+                    TableName: leadsTableName,
+                    Select: 'COUNT'
+                  }).promise();
+                  
+                  const activitiesCount = await dynamodb.scan({
+                    TableName: process.env.ACTIVITIES_TABLE_NAME,
+                    Select: 'COUNT'
+                  }).promise();
+                  
+                  return {
+                    statusCode: 200,
+                    headers: corsHeaders,
+                    body: JSON.stringify({
+                      leadCount: leadsCount.Count || 0,
+                      activityCount: activitiesCount.Count || 0
+                    })
+                  };
+                }
+                
                 if (pathParameters && pathParameters.id) {
                   // Get single lead
                   const result = await dynamodb.get({
@@ -162,6 +187,53 @@ export class SpaceportCrmStack extends cdk.Stack {
                 }
               
               case 'POST':
+                // Handle database reset
+                if (event.path === '/reset') {
+                  // Get all leads and delete them
+                  const scanResult = await dynamodb.scan({
+                    TableName: leadsTableName
+                  }).promise();
+                  
+                  if (scanResult.Items && scanResult.Items.length > 0) {
+                    // Delete all leads in batches
+                    const deletePromises = scanResult.Items.map(item => 
+                      dynamodb.delete({
+                        TableName: leadsTableName,
+                        Key: { id: item.id }
+                      }).promise()
+                    );
+                    
+                    await Promise.all(deletePromises);
+                  }
+                  
+                  // Also clear activities table
+                  const activitiesTableName = process.env.ACTIVITIES_TABLE_NAME;
+                  const activitiesScanResult = await dynamodb.scan({
+                    TableName: activitiesTableName
+                  }).promise();
+                  
+                  if (activitiesScanResult.Items && activitiesScanResult.Items.length > 0) {
+                    const activityDeletePromises = activitiesScanResult.Items.map(item => 
+                      dynamodb.delete({
+                        TableName: activitiesTableName,
+                        Key: { id: item.id, timestamp: item.timestamp }
+                      }).promise()
+                    );
+                    
+                    await Promise.all(activityDeletePromises);
+                  }
+                  
+                  return {
+                    statusCode: 200,
+                    headers: corsHeaders,
+                    body: JSON.stringify({ 
+                      message: 'Database reset successfully',
+                      deletedLeads: scanResult.Items ? scanResult.Items.length : 0,
+                      deletedActivities: activitiesScanResult.Items ? activitiesScanResult.Items.length : 0
+                    })
+                  };
+                }
+                
                 const newLead = JSON.parse(body);
                 newLead.id = \`lead_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;
                 newLead.createdAt = new Date().toISOString();
@@ -230,6 +302,8 @@ export class SpaceportCrmStack extends cdk.Stack {
                   headers: corsHeaders,
                   body: ''
                 };
+              
+
               
               default:
                 return {
@@ -421,6 +495,8 @@ export class SpaceportCrmStack extends cdk.Stack {
     const leadsResource = api.root.addResource("leads")
     const leadResource = leadsResource.addResource("{id}")
     const activitiesResource = api.root.addResource("activities")
+    const resetResource = api.root.addResource("reset")
+    const statsResource = api.root.addResource("stats")
 
     // API Methods with Cognito authorization
     const methodOptions = {
@@ -446,6 +522,10 @@ export class SpaceportCrmStack extends cdk.Stack {
 
     activitiesResource.addMethod("GET", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
     activitiesResource.addMethod("POST", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
+
+    // Database management endpoints
+    resetResource.addMethod("POST", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    statsResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
 
     // Outputs
     new cdk.CfnOutput(this, "ApiUrl", {

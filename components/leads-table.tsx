@@ -15,9 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle, Trash2, Search } from "lucide-react"
+import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { colors } from "@/lib/colors"
 import { useAuth } from "@/lib/auth-context"
 
@@ -47,7 +46,6 @@ interface LeadsTableProps {
   leads: Lead[]
   onLeadUpdate: (leadId: string, updates: Partial<Lead>) => void
   onLeadSelect: (lead: Lead) => void
-  onLeadDelete: (leadId: string) => void
   sortConfig?: {
     field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
@@ -60,22 +58,176 @@ interface LeadsTableProps {
 
 const columnHelper = createColumnHelper<Lead>()
 
+// Sales cadence logic
+const calculatePriority = (lead: Lead): { priority: Lead["priority"]; nextActionDate: string; reason: string } => {
+  const now = new Date()
+  const lastNote = lead.notes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+
+  if (!lastNote) {
+    return {
+      priority: "high",
+      nextActionDate: new Date().toISOString(),
+      reason: "No initial contact made",
+    }
+  }
+
+  const daysSinceLastContact = Math.floor(
+    (now.getTime() - new Date(lastNote.timestamp).getTime()) / (1000 * 60 * 60 * 24),
+  )
+
+  // Over 30 days = dormant
+  if (daysSinceLastContact > 30) {
+    return {
+      priority: "dormant",
+      nextActionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Next week
+      reason: "Dormant - follow up when convenient",
+    }
+  }
+
+  // Sales cadence based on last interaction type and status
+  if (lead.status === "interested") {
+    if (daysSinceLastContact >= 2) {
+      return {
+        priority: "high",
+        nextActionDate: new Date().toISOString(),
+        reason: "Interested lead needs immediate follow-up",
+      }
+    }
+  }
+
+  if (lastNote.type === "call" && daysSinceLastContact >= 3) {
+    return {
+      priority: "medium",
+      nextActionDate: new Date().toISOString(),
+      reason: "Email follow-up after call",
+    }
+  }
+
+  if (lastNote.type === "email" && daysSinceLastContact >= 5) {
+    return {
+      priority: "medium",
+      nextActionDate: new Date().toISOString(),
+      reason: "Call follow-up after email",
+    }
+  }
+
+  if (daysSinceLastContact >= 7) {
+    return {
+      priority: "low",
+      nextActionDate: new Date().toISOString(),
+      reason: "Weekly check-in",
+    }
+  }
+
+  return {
+    priority: "low",
+    nextActionDate: new Date(Date.now() + (7 - daysSinceLastContact) * 24 * 60 * 60 * 1000).toISOString(),
+    reason: "On schedule",
+  }
+}
+
 export function LeadsTable({
   leads,
   onLeadUpdate,
   onLeadSelect,
-  onLeadDelete,
   sortConfig,
   onSortChange,
 }: LeadsTableProps) {
   const { user } = useAuth()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null)
+
+  // Sort leads based on current configuration
+  const sortedLeads = useMemo(() => {
+    if (!sortConfig) return leads
+
+    const sorted = [...leads].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortConfig.field) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'status':
+          aValue = a.status
+          bValue = b.status
+          break
+        case 'priority':
+          const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
+          aValue = priorityOrder[a.priority]
+          bValue = priorityOrder[b.priority]
+          break
+        case 'lastContact':
+          const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+          const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+          aValue = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
+          bValue = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
+          break
+        case 'dateAdded':
+          // Using id as proxy for date added since it's timestamp-based
+          aValue = parseInt(a.id)
+          bValue = parseInt(b.id)
+          break
+        case 'interestLevel':
+          const interestOrder = { interested: 4, contacted: 3, 'left voicemail': 2, cold: 1, dormant: 0, closed: 5 }
+          aValue = interestOrder[a.status]
+          bValue = interestOrder[b.status]
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return sorted
+  }, [leads, sortConfig])
+
+  // Calculate priorities for all leads
+  const leadsWithPriority = useMemo(() => {
+    return leads.map((lead) => {
+      const { priority, nextActionDate, reason } = calculatePriority(lead)
+      return { ...lead, priority, nextActionDate, priorityReason: reason }
+    })
+  }, [leads])
+
+  // Filter and sort leads
+  const filteredAndSortedLeads = useMemo(() => {
+    let filtered = sortedLeads
+
+    // Filter by dormant status
+    // if (!showDormant) { // This line is removed as per the edit hint
+    //   filtered = filtered.filter((lead) => lead.priority !== "dormant")
+    // }
+
+    // Sort by priority and recency
+    // if (sortByRecent) { // This line is removed as per the edit hint
+    //   filtered.sort((a, b) => {
+    //     // First by priority
+    //     const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
+    //     const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority]
+    //     if (priorityDiff !== 0) return priorityDiff
+
+    //     // Then by most recent interaction
+    //     const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+    //     const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
+    //     const aTime = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
+    //     const bTime = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
+    //     return bTime - aTime
+    //   })
+    // }
+
+    return filtered
+  }, [sortedLeads]) // Removed sortByRecent and showDormant from dependencies
 
   const handleClaimLead = (leadId: string) => {
+    if (!user) return
     onLeadUpdate(leadId, {
-      ownerId: user?.id,
-      ownerName: user?.name,
+      ownerId: user.id,
+      ownerName: user.name,
     })
   }
 
@@ -89,30 +241,26 @@ export function LeadsTable({
   const getPriorityIcon = (priority: Lead["priority"]) => {
     switch (priority) {
       case "high":
-        return <Clock className="h-4 w-4 text-red-400" />
+        return <AlertTriangle className="h-3 w-3 text-red-400" />
       case "medium":
-        return <Clock className="h-4 w-4 text-yellow-400" />
+        return <Clock className="h-3 w-3 text-yellow-400" />
       case "low":
-        return <Clock className="h-4 w-4 text-green-400" />
+        return <Clock className="h-3 w-3 text-green-400" />
       case "dormant":
-        return <Clock className="h-4 w-4 text-gray-400" />
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />
+        return <Clock className="h-3 w-3 text-gray-400" />
     }
   }
 
   const getPriorityColor = (priority: Lead["priority"]) => {
     switch (priority) {
       case "high":
-        return "bg-red-500/20 text-red-300 border-red-500/30"
+        return "bg-red-500/10 text-red-300 border-red-500/20"
       case "medium":
-        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+        return "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
       case "low":
-        return "bg-green-500/20 text-green-300 border-green-500/30"
+        return "bg-green-500/10 text-green-300 border-green-500/20"
       case "dormant":
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
-      default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
+        return "bg-gray-500/10 text-gray-300 border-gray-500/20"
     }
   }
 
@@ -120,312 +268,377 @@ export function LeadsTable({
     () => [
       columnHelper.accessor("name", {
         header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-title text-white hover:bg-white/10"
-          >
-            Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white font-title text-sm">
-                  {row.original.name.split(" ").map((n) => n[0]).join("").toUpperCase()}
-                </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="text-gray-400 font-body hover:text-white p-0"
+              >
+                Contact
+                <ArrowUpDown className="ml-2 h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-72 bg-black/95 backdrop-blur-xl border-system rounded-2xl shadow-2xl" align="start" forceMount sideOffset={8}>
+              <div className="p-4">
+                <div className="text-xs text-gray-400 font-body mb-4 px-1">Sort by</div>
+                <div className="space-y-1">
+                  {[
+                    { value: 'name', label: 'Name', icon: '👤' },
+                    { value: 'status', label: 'Status', icon: '📊' },
+                    { value: 'priority', label: 'Priority', icon: '⚡' },
+                    { value: 'lastContact', label: 'Last Contact', icon: '📞' },
+                    { value: 'dateAdded', label: 'Date Added', icon: '📅' },
+                    { value: 'interestLevel', label: 'Interest Level', icon: '🎯' }
+                  ].map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => onSortChange?.({ 
+                        field: option.value as any,
+                        direction: sortConfig?.direction || 'desc'
+                      })}
+                      className={`text-white hover:bg-white/10 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-200 ${
+                        sortConfig?.field === option.value ? 'bg-white/10 ring-1 ring-white/20' : ''
+                      }`}
+                    >
+                      <span className="mr-3 text-lg">{option.icon}</span>
+                      <span className="font-body flex-1">{option.label}</span>
+                      {sortConfig?.field === option.value && (
+                        <span className="text-xs opacity-60 ml-2">
+                          {sortConfig.direction === 'desc' ? '↓' : '↑'}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+                <div className="border-t border-white/10 mt-4 pt-4">
+                  <div className="text-xs text-gray-400 font-body mb-3 px-1">Direction</div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant={sortConfig?.direction === 'asc' ? 'default' : 'outline'}
+                      onClick={() => onSortChange?.({ 
+                        field: sortConfig?.field || 'name',
+                        direction: 'asc'
+                      })}
+                      className={`text-xs rounded-full transition-all duration-200 ${
+                        sortConfig?.direction === 'asc' 
+                          ? 'bg-white text-black shadow-lg' 
+                          : 'border-white/20 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      ↑ Ascending
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={sortConfig?.direction === 'desc' ? 'default' : 'outline'}
+                      onClick={() => onSortChange?.({ 
+                        field: sortConfig?.field || 'name',
+                        direction: 'desc'
+                      })}
+                      className={`text-xs rounded-full transition-all duration-200 ${
+                        sortConfig?.direction === 'desc' 
+                          ? 'bg-white text-black shadow-lg' 
+                          : 'border-white/20 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      ↓ Descending
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-title truncate">{row.original.name}</p>
-              <p className="text-gray-400 text-sm truncate">{row.original.email}</p>
-            </div>
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
-      }),
-      columnHelper.accessor("phone", {
-        header: "Phone",
-        cell: ({ row }) => (
-          <div className="text-white font-body">{row.original.phone}</div>
-        ),
+        cell: ({ getValue, row, column }) => {
+          const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
+          const value = getValue()
+          const lead = row.original as Lead & { priorityReason?: string }
+
+          if (isEditing) {
+            return (
+              <Input
+                defaultValue={value}
+                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg"
+                onBlur={(e) => {
+                  onLeadUpdate(row.original.id, { name: e.target.value })
+                  setEditingCell(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onLeadUpdate(row.original.id, { name: e.currentTarget.value })
+                    setEditingCell(null)
+                  }
+                }}
+                autoFocus
+              />
+            )
+          }
+
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                {getPriorityIcon(lead.priority)}
+                <div
+                  className="text-white font-title cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200"
+                  onDoubleClick={() => setEditingCell({ rowId: row.id, columnId: column.id })}
+                >
+                  {value}
+                </div>
+                {lead.needsAttention && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
+                        <p className="font-body text-red-300">Missing required fields - needs attention</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <div className="text-gray-400 font-body text-sm">{row.original.email}</div>
+              <div className="text-gray-400 font-body text-sm">{row.original.phone}</div>
+              {lead.company && <div className="text-gray-500 font-body text-xs">{lead.company}</div>}
+              {lead.priorityReason && <div className="text-xs text-gray-500 italic">{lead.priorityReason}</div>}
+            </div>
+          )
+        },
       }),
       columnHelper.accessor("address", {
-        header: "Address",
-        cell: ({ row }) => (
-          <div className="flex items-center space-x-2">
-            <MapPin className="h-4 w-4 text-gray-400" />
-            <span className="text-white font-body text-sm truncate max-w-48">
-              {row.original.address}
-            </span>
-          </div>
-        ),
+        header: "Property Address",
+        cell: ({ getValue, row, column }) => {
+          const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
+          const value = getValue()
+
+          if (isEditing) {
+            return (
+              <Input
+                defaultValue={value}
+                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg"
+                onBlur={(e) => {
+                  onLeadUpdate(row.original.id, { address: e.target.value })
+                  setEditingCell(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onLeadUpdate(row.original.id, { address: e.currentTarget.value })
+                    setEditingCell(null)
+                  }
+                }}
+                autoFocus
+              />
+            )
+          }
+
+          return (
+            <div
+              className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group"
+              onDoubleClick={() => setEditingCell({ rowId: row.id, columnId: column.id })}
+            >
+              <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <div className="text-white font-body leading-tight">{value}</div>
+            </div>
+          )
+        },
       }),
       columnHelper.accessor("status", {
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-title text-white hover:bg-white/10"
-          >
-            Status
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        ),
-        cell: ({ row }) => {
-          const status = row.original.status
-          const statusColors = {
-            cold: "bg-slate-500/20 text-slate-300 border-slate-500/30",
-            contacted: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-            interested: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-            closed: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-            dormant: "bg-gray-500/20 text-gray-300 border-gray-500/30",
-            "left voicemail": "bg-orange-500/20 text-orange-300 border-orange-500/30",
+        header: "Status",
+        cell: ({ getValue, row }) => {
+          const status = getValue()
+          const statusColor = colors.status[status as keyof typeof colors.status] || {
+            bg: "bg-gray-500/10",
+            text: "text-gray-300",
+            border: "border-gray-500/20",
+            icon: "#6b7280",
           }
+
           return (
-            <Badge className={`${statusColors[status]} rounded-pill`}>
-              {status}
-            </Badge>
+            <Select
+              value={status}
+              onValueChange={(newStatus) => onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })}
+            >
+              <SelectTrigger className="w-32 bg-transparent border-none p-0">
+                <Badge
+                  className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-pill px-4 py-1.5 font-body`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Badge>
+              </SelectTrigger>
+              <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
+                {Object.entries(colors.status).map(([key, color]) => (
+                  <SelectItem key={key} value={key} className="rounded-lg font-body">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color.icon }} />
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )
         },
       }),
       columnHelper.accessor("priority", {
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="h-auto p-0 font-title text-white hover:bg-white/10"
-          >
-            Priority
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <div className="flex items-center space-x-2">
-            {getPriorityIcon(row.original.priority)}
-            <Badge className={`${getPriorityColor(row.original.priority)} rounded-pill`}>
-              {row.original.priority}
-            </Badge>
-          </div>
-        ),
+        header: "Priority",
+        cell: ({ getValue, row }) => {
+          const priority = getValue()
+          const lead = row.original as Lead & { priorityReason?: string }
+
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge className={`${getPriorityColor(priority)} rounded-pill px-3 py-1 font-body cursor-help`}>
+                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
+                  <p className="font-body">{lead.priorityReason}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )
+        },
       }),
       columnHelper.accessor("ownerName", {
         header: "Owner",
-        cell: ({ row }) => (
-          <div className="flex items-center space-x-2">
-            {row.original.ownerId ? (
-              <>
-                <User className="h-4 w-4 text-blue-400" />
-                <span className="text-white font-body text-sm">{row.original.ownerName || "Unknown"}</span>
-              </>
-            ) : (
-              <>
-                <UserX className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-400 font-body text-sm">Unclaimed</span>
-              </>
-            )}
-          </div>
+        cell: ({ getValue, row }) => {
+          const ownerName = getValue()
+          const isOwnedByCurrentUser = row.original.ownerId === user?.id
+
+          if (!ownerName) {
+            return (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleClaimLead(row.original.id)}
+                className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill px-3 py-1 transition-all duration-200 font-body"
+              >
+                <UserX className="h-3 w-3 mr-1" />
+                Unclaimed
+              </Button>
+            )
+          }
+
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => isOwnedByCurrentUser ? handleUnclaimLead(row.original.id) : null}
+              disabled={!isOwnedByCurrentUser}
+              className={`${
+                isOwnedByCurrentUser
+                  ? "bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30 hover:bg-[#CD70E4]/30"
+                  : "bg-blue-500/20 text-blue-300 border-blue-500/30 cursor-default"
+              } rounded-pill px-2 py-1 font-body text-xs transition-all duration-200`}
+            >
+              <User className="h-3 w-3 mr-1" />
+              {ownerName}
+            </Button>
+          )
+        },
+      }),
+      columnHelper.accessor("lastInteraction", {
+        header: ({ column }) => (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                  className="text-gray-400 font-body hover:text-white p-0"
+                >
+                  Last Contact
+                  <ArrowUpDown className="ml-2 h-3 w-3" />
+                  <Info className="ml-1 h-3 w-3 opacity-50" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
+                <p className="font-body">Sort by most recent interaction date</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ),
+        cell: ({ getValue, row }) => {
+          const lastNote = row.original.notes.sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          )[0]
+          const daysSince = lastNote
+            ? Math.floor((new Date().getTime() - new Date(lastNote.timestamp).getTime()) / (1000 * 60 * 60 * 24))
+            : null
+
+          return (
+            <div className="text-gray-400 font-body text-sm">
+              {getValue()}
+              {daysSince !== null && (
+                <div className="text-xs">{daysSince === 0 ? "Today" : `${daysSince} days ago`}</div>
+              )}
+            </div>
+          )
+        },
       }),
       columnHelper.display({
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex items-center space-x-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onLeadSelect(row.original)}
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-white/10"
-                  >
-                    <Info className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>View Details</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-white/10"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-black/90 backdrop-blur-xl border-system rounded-brand">
-                {!row.original.ownerId ? (
-                  <DropdownMenuItem
-                    onClick={() => handleClaimLead(row.original.id)}
-                    className="text-white hover:bg-white/10"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Claim Lead
-                  </DropdownMenuItem>
-                ) : row.original.ownerId === user?.id ? (
-                  <DropdownMenuItem
-                    onClick={() => handleUnclaimLead(row.original.id)}
-                    className="text-white hover:bg-white/10"
-                  >
-                    <UserX className="mr-2 h-4 w-4" />
-                    Unclaim Lead
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem className="text-gray-400 cursor-not-allowed">
-                    <User className="mr-2 h-4 w-4" />
-                    Claimed by {row.original.ownerName}
-                  </DropdownMenuItem>
-                )}
-                
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-red-400 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Contact
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-brand">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="text-white font-title">Delete Contact</AlertDialogTitle>
-                      <AlertDialogDescription className="text-gray-400 font-body">
-                        Are you sure you want to delete "{row.original.name}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="border-white/20 text-white hover:bg-white/10 rounded-pill">
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onLeadDelete(row.original.id)}
-                        className="bg-red-500 text-white hover:bg-red-600 rounded-pill"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onLeadSelect(row.original)}
+                          className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
+          >
+            View Details
+          </Button>
         ),
       }),
     ],
-    [onLeadSelect, onLeadUpdate, onLeadDelete, user]
+    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange],
   )
 
-  const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
-      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.phone.includes(searchTerm) ||
-        (lead.address && lead.address.toLowerCase().includes(searchTerm.toLowerCase()))
-      
-      const matchesStatus = statusFilter === "all" || lead.status === statusFilter
-      
-      return matchesSearch && matchesStatus
-    })
-  }, [leads, searchTerm, statusFilter])
-
   const table = useReactTable({
-    data: filteredLeads,
+    data: filteredAndSortedLeads,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   })
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search contacts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-black/20 border-system text-white placeholder-gray-400 rounded-brand"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48 bg-black/20 border-system text-white rounded-brand">
-            <span>{statusFilter === "all" ? "All Statuses" : statusFilter}</span>
-          </SelectTrigger>
-          <SelectContent className="bg-black/90 backdrop-blur-xl border-system rounded-brand">
-            <SelectItem value="all" className="text-white hover:bg-white/10">All Statuses</SelectItem>
-            <SelectItem value="cold" className="text-white hover:bg-white/10">Cold</SelectItem>
-            <SelectItem value="contacted" className="text-white hover:bg-white/10">Contacted</SelectItem>
-            <SelectItem value="interested" className="text-white hover:bg-white/10">Interested</SelectItem>
-            <SelectItem value="closed" className="text-white hover:bg-white/10">Closed</SelectItem>
-            <SelectItem value="dormant" className="text-white hover:bg-white/10">Dormant</SelectItem>
-            <SelectItem value="left voicemail" className="text-white hover:bg-white/10">Left Voicemail</SelectItem>
-          </SelectContent>
-        </Select>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      className="bg-black/20 backdrop-blur-xl border-white/10 rounded-xl overflow-hidden"
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="border-b border-white/5">
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id} className="text-left p-3 text-sm font-body text-gray-400 whitespace-nowrap">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <motion.tr
+                key={row.id}
+                className="border-b border-white/5 hover:bg-white/5 transition-all duration-200 cursor-pointer"
+                whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.02)" }}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="p-3">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      {/* Table */}
-      <div className="bg-black/20 backdrop-blur-xl border-system rounded-brand overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b border-white/10">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-4 text-left font-title text-sm text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <motion.tr
-                  key={row.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Empty state */}
-      {filteredLeads.length === 0 && (
-        <div className="text-center py-12">
-          <div className="h-16 w-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="h-8 w-8 text-white" />
-          </div>
-          <h3 className="text-lg font-title text-white mb-2">No contacts found</h3>
-          <p className="text-gray-400 font-body">
-            {searchTerm || statusFilter !== "all"
-              ? "Try adjusting your search or filters"
-              : "Get started by importing your CSV file or adding your first contact"}
-          </p>
-        </div>
-      )}
-    </div>
+    </motion.div>
   )
 }

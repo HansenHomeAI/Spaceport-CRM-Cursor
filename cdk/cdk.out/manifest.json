@@ -17,7 +17,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::975050048887:role/cdk-hnb659fds-deploy-role-975050048887-us-west-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::975050048887:role/cdk-hnb659fds-cfn-exec-role-975050048887-us-west-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-975050048887-us-west-2/01cca96cd390973ae35c4f8384ff76ed477a75a515370b4a39283afcbb441e41.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-975050048887-us-west-2/beb5f559523a77a8aa62dc305804e3a21e218e45febf7a1f3552999880dade8a.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -118,7 +118,7 @@
         "/SpaceportCrmStack/SpaceportCrmApi/Deployment/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa"
+            "data": "SpaceportCrmApiDeployment5F566CD29760ea7d1aeee9ece9d1435794229370"
           }
         ],
         "/SpaceportCrmStack/SpaceportCrmApi/DeploymentStage.prod/Resource": [
@@ -299,6 +299,66 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "SpaceportCrmApiactivitiesPOST2AF63FB6"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/reset/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiresetA6D6AD71"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/reset/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiresetOPTIONSDD5D268A"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/reset/POST/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..reset": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiresetPOSTApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3APOSTreset4766AC24"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/reset/POST/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.POST..reset": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiresetPOSTApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3APOSTreset9265537A"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/reset/POST/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiresetPOST36C44A87"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/stats/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApistats0F346DE6"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/stats/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApistatsOPTIONS47E4C153"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/stats/GET/ApiPermission.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..stats": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApistatsGETApiPermissionSpaceportCrmStackSpaceportCrmApi5974FF3AGETstats22AA406E"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/stats/GET/ApiPermission.Test.SpaceportCrmStackSpaceportCrmApi5974FF3A.GET..stats": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApistatsGETApiPermissionTestSpaceportCrmStackSpaceportCrmApi5974FF3AGETstats1BC7A34F"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/Default/stats/GET/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApistatsGET7E92F12C"
           }
         ],
         "/SpaceportCrmStack/CognitoAuthorizer/Resource": [

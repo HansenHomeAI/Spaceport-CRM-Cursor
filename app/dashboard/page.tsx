@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, Trash2, Database } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -16,7 +16,6 @@ import { LeadPanel } from "@/components/lead-panel"
 import { AddLeadModal } from "@/components/add-lead-modal"
 import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
-import { DatabaseReset } from "@/components/database-reset"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
 import Image from "next/image"
@@ -36,7 +35,7 @@ export default function DashboardPage() {
   }>({ field: 'lastContact', direction: 'desc' })
 
   // Check if we're in production mode (have AWS config)
-  const isProductionMode = Boolean(awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+  const isProductionMode = awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl
 
   // Load leads from API on mount
   useEffect(() => {
@@ -331,74 +330,55 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDeleteLead = async (leadId: string) => {
-    // Remove from local state immediately
-    setLeads((prev) => prev.filter(lead => lead.id !== leadId))
-    
-    // Remove from selected lead if it's the same one
-    if (selectedLead?.id === leadId) {
-      setSelectedLead(null)
-      setIsPanelOpen(false)
+  const handleResetDatabase = async () => {
+    if (!confirm("⚠️ WARNING: This will permanently delete ALL contacts and activities from the database. This action cannot be undone. Are you sure you want to continue?")) {
+      return
     }
 
-    // Delete from API in production mode
-    if (isProductionMode) {
-      try {
-        const { error } = await apiClient.deleteLead(leadId)
-        if (error) {
-          console.error("Error deleting lead:", error)
-          // Could add a toast notification here for error feedback
-        }
-      } catch (error) {
-        console.error("Error deleting lead:", error)
-      }
-    }
-  }
-
-  const handleDeleteAllLeads = async (): Promise<{ success: boolean; message: string }> => {
-    // Clear local state immediately
-    setLeads([])
-    setSelectedLead(null)
-    setIsPanelOpen(false)
-
-    // Delete from API in production mode
-    if (isProductionMode) {
-      try {
-        const { error } = await apiClient.deleteAllLeads()
-        if (error) {
-          return { success: false, message: `Failed to delete all leads: ${error}` }
-        }
-        return { success: true, message: "All contacts deleted successfully" }
-      } catch (error) {
-        return { success: false, message: "Failed to delete all leads due to network error" }
-      }
+    if (!confirm("🚨 FINAL WARNING: This will delete ALL data for ALL users. Type 'YES' to confirm:")) {
+      return
     }
 
-    return { success: true, message: "All contacts deleted successfully" }
-  }
-
-  const handleResetDatabase = async (): Promise<{ success: boolean; message: string }> => {
-    // Clear local state immediately
-    setLeads([])
-    setSelectedLead(null)
-    setIsPanelOpen(false)
-
-    // Reset database in production mode
-    if (isProductionMode) {
-      try {
+    try {
+      if (isProductionMode) {
         const { error } = await apiClient.resetDatabase()
         if (error) {
-          return { success: false, message: `Failed to reset database: ${error}` }
+          console.error("Error resetting database:", error)
+          alert("Failed to reset database: " + error)
+          return
         }
-        return { success: true, message: "Database reset successfully" }
-      } catch (error) {
-        return { success: false, message: "Failed to reset database due to network error" }
       }
+      
+      // Clear local state
+      setLeads([])
+      setSelectedLead(null)
+      
+      alert("✅ Database reset successfully! All contacts and activities have been removed.")
+    } catch (error) {
+      console.error("Error resetting database:", error)
+      alert("Failed to reset database")
     }
+  }
 
-    // In development mode, clear localStorage
-    localStorage.removeItem("spaceport_leads")
-    return { success: true, message: "Database reset successfully" }
+  const handleGetDatabaseStats = async () => {
+    try {
+      if (isProductionMode) {
+        const { data, error } = await apiClient.getDatabaseStats()
+        if (error) {
+          console.error("Error getting database stats:", error)
+          alert("Failed to get database stats: " + error)
+          return
+        }
+        if (data) {
+          alert(`📊 Database Statistics:\n\nLeads: ${data.leadCount}\nActivities: ${data.activityCount}`)
+        }
+      } else {
+        alert(`📊 Local Database Statistics:\n\nLeads: ${leads.length}\nActivities: ${leads.reduce((acc, lead) => acc + lead.notes.length, 0)}`)
+      }
+    } catch (error) {
+      console.error("Error getting database stats:", error)
+      alert("Failed to get database stats")
+    }
   }
 
   const handleSignOut = () => {
@@ -474,26 +454,64 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-start gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
-                      <AvatarFallback className="bg-white/10 text-white">
-                        {user.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
-                  <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sign out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                          <div className="flex items-start gap-4">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGetDatabaseStats}
+                        className="border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-pill"
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        Stats
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>View database statistics</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetDatabase}
+                        className="border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-pill"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Reset DB
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Reset database (delete all data)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
+                        <AvatarFallback className="bg-white/10 text-white">
+                          {user.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-brand" align="end" forceMount>
+                    <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sign out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
           </motion.div>
 
           {/* Enhanced Metrics - removed unclaimed card */}
@@ -618,7 +636,6 @@ export default function DashboardPage() {
                 leads={sortedLeads}
                 onLeadUpdate={handleLeadUpdate}
                 onLeadSelect={handleLeadSelect}
-                onLeadDelete={handleDeleteLead}
                 sortConfig={sortConfig}
                 onSortChange={setSortConfig}
               />
@@ -637,12 +654,6 @@ export default function DashboardPage() {
           <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
 
           <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
-
-          <DatabaseReset 
-            onResetDatabase={handleResetDatabase}
-            onDeleteAllLeads={handleDeleteAllLeads}
-            isProductionMode={isProductionMode}
-          />
         </div>
       </div>
     </div>
