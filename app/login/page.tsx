@@ -109,13 +109,20 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
-      {/* Purple background splotches */}
+      {/* Centered background glow effects */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/6 left-1/6 w-[32rem] h-[32rem] bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/6 right-1/6 w-[28rem] h-[28rem] bg-purple-600/18 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[24rem] h-[24rem] bg-purple-400/15 rounded-full blur-3xl animate-pulse delay-500"></div>
-        <div className="absolute top-3/4 left-1/3 w-[20rem] h-[20rem] bg-purple-300/12 rounded-full blur-3xl animate-pulse delay-1500"></div>
-        <div className="absolute top-1/3 right-1/4 w-[18rem] h-[18rem] bg-purple-700/16 rounded-full blur-3xl animate-pulse delay-750"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-purple-500/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-blue-500/6 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[24rem] h-[24rem] bg-orange-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }}></div>
+      </div>
+      
+      {/* Noise overlay */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="w-full h-full" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '256px 256px'
+        }}></div>
       </div>
       
       <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-2.5 border-white/10 rounded-2xl relative z-10">
