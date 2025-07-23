@@ -390,21 +390,18 @@ export default function DashboardPage() {
 
               {/* Priority Follow-ups */}
               <div className="mb-8">
-                <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Priority Follow-ups</h2>
-                <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
+                <h2 className="text-2xl font-title text-primary-hierarchy mb-4">Priority Follow-ups</h2>
+                <FollowUpPriority 
+                  leads={leads} 
+                  onLeadSelect={handleLeadSelect}
+                />
               </div>
 
-              {/* Leads Table Section */}
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-title text-primary-hierarchy">Leads Table</h2>
-                  <div className="flex items-center gap-3">
-                    <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
-                    <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
-                  </div>
-                </div>
-                <LeadsTable
-                  leads={sortedLeads}
+              {/* Leads Table */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-title text-primary-hierarchy mb-4">Leads Table</h2>
+                <LeadsTable 
+                  leads={leads} 
                   onLeadUpdate={handleLeadUpdate}
                   onLeadSelect={handleLeadSelect}
                   sortConfig={sortConfig}
@@ -422,6 +419,8 @@ export default function DashboardPage() {
             onUpdateNote={handleUpdateNote}
             onUpdateLead={handleLeadUpdate}
           />
+
+          <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
 
           <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
         </div>

@@ -5,7 +5,7 @@ import { Phone, Mail, Video, Users } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SALES_CADENCE, type CadenceProgress } from "@/lib/sales-cadence"
 
-export interface SalesProgressProps {
+interface SalesProgressProps {
   progress: CadenceProgress
   statusColor: string
   onStepClick?: (stepId: number) => void
@@ -23,8 +23,7 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
   const stepWidth = 100 / (totalSteps - 1) // percentage width between steps
 
   const handleStepClick = (stepId: number) => {
-    // Only allow clicking on the current step or previous uncompleted steps
-    if (onStepClick && stepId <= progress.currentStep) {
+    if (onStepClick) {
       onStepClick(stepId)
     }
   }
@@ -34,7 +33,7 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
       {/* Base line with gradient and glow */}
       <div className="absolute h-[2px] left-0 right-0 top-1/2 -translate-y-1/2">
         <div
-          className="h-full rounded-full transition-all duration-500"
+          className="h-full rounded-full"
           style={{
             background: `linear-gradient(to right, white, ${statusColor})`,
             boxShadow: `0 0 10px rgba(255, 255, 255, 0.2), 0 0 20px ${statusColor}40`
@@ -54,12 +53,10 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
           <TooltipProvider key={step.id}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div
-                  className={`absolute top-1/2 -translate-y-1/2 ${
-                    !isFuture ? 'cursor-pointer' : ''
-                  }`}
-                  style={{ left: position }}
+                <button
                   onClick={() => handleStepClick(step.id)}
+                  className="absolute top-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2 focus:ring-offset-black"
+                  style={{ left: position }}
                 >
                   <motion.div
                     initial={false}
@@ -69,25 +66,25 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                         ? `0 0 0 4px ${statusColor}20, 0 0 20px ${statusColor}40`
                         : "none"
                     }}
-                    className={`relative w-4 h-4 rounded-full transition-colors duration-500 ${
+                    className={`relative w-4 h-4 rounded-full transition-colors duration-200 ${
                       isCompleted
                         ? `bg-white shadow-lg`
                         : isCurrent
                         ? `border-2 border-white`
                         : isFuture
                         ? `border-2 border-white/20`
-                        : `border-2 border-white/50 hover:border-white`
+                        : `border-2 border-white/50`
                     }`}
                   >
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                       <StepIcon
                         className={`w-4 h-4 ${
-                          isCompleted || isCurrent ? "text-white" : isFuture ? "text-white/20" : "text-white/50 hover:text-white"
+                          isCompleted || isCurrent ? "text-white" : isFuture ? "text-white/20" : "text-white/50"
                         }`}
                       />
                     </div>
                   </motion.div>
-                </div>
+                </button>
               </TooltipTrigger>
               <TooltipContent
                 side="top"
@@ -103,8 +100,8 @@ export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgr
                   {isCurrent && !isCompleted && (
                     <div className="text-xs text-yellow-400 mt-1">In progress</div>
                   )}
-                  {!isFuture && !isCompleted && (
-                    <div className="text-xs text-blue-400 mt-1">Click to mark as complete</div>
+                  {onStepClick && (
+                    <div className="text-xs text-blue-400 mt-1">Click to mark complete</div>
                   )}
                 </div>
               </TooltipContent>
