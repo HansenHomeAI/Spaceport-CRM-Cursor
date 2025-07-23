@@ -37,6 +37,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
   // Calculate follow-up priorities based on your cadence
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()) // Start of today
     const followUps: FollowUpItem[] = []
 
     leads.forEach((lead) => {
@@ -45,6 +46,45 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       const lastInteraction = lead.notes.sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )[0]
+
+      // Check for reminders (both upcoming and overdue)
+      const allReminders = lead.notes.filter(note => note.text.includes("Set reminder:"))
+      
+      if (allReminders.length > 0) {
+        // Find the most recent reminder
+        const mostRecentReminder = allReminders.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )[0]
+        
+        const reminderDate = new Date(mostRecentReminder.timestamp)
+        const reminderDay = new Date(reminderDate.getFullYear(), reminderDate.getMonth(), reminderDate.getDate())
+        
+        // Check if reminder is due today or overdue
+        if (reminderDay <= today) {
+          // Check if there's been any action since the reminder was set
+          const actionsAfterReminder = lead.notes.filter(note => 
+            !note.text.includes("Set reminder:") && 
+            new Date(note.timestamp) > reminderDate
+          )
+          
+          if (actionsAfterReminder.length === 0) {
+            // No action taken since reminder was set - high priority
+            const daysOverdue = Math.floor((today.getTime() - reminderDay.getTime()) / (1000 * 60 * 60 * 24))
+            followUps.push({
+              lead,
+              urgency: "high",
+              nextAction: "call",
+              daysOverdue: daysOverdue,
+              reason: daysOverdue === 0 ? "Reminder due today" : `Reminder overdue by ${daysOverdue} day${daysOverdue > 1 ? 's' : ''}`,
+            })
+            return
+          }
+          // If there's been action since the reminder, treat it as a normal lead
+        } else {
+          // Reminder is in the future - don't include in follow-ups (lowest priority)
+          return
+        }
+      }
 
       if (!lastInteraction) {
         // No interaction yet - high priority
@@ -164,7 +204,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       transition={{ duration: 0.5, delay: 0.2 }}
       className="mb-8"
     >
-      <h2 className="text-primary-hierarchy font-title text-lg mb-4">Priority Follow-ups</h2>
+      <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Priority Follow-ups</h2>
       <div className="space-y-4">
         {Object.entries(groupedFollowUps).map(([urgency, items]) => (
           <div key={urgency} className="space-y-2">

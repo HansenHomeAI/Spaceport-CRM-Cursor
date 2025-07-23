@@ -9,14 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
-import { Loader2, Play } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import Image from "next/image"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, signUp, signInDemo } = useAuth()
+  const { signIn, signUp } = useAuth()
 
   // Debug: Check localStorage on component mount
   useEffect(() => {
@@ -106,24 +105,18 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemoSignIn = () => {
-    console.log("🔍 handleDemoSignIn: Starting demo sign in...")
-    signInDemo()
-    console.log("🔍 handleDemoSignIn: signInDemo completed, about to navigate...")
-    
-    // Use window.location for static export compatibility
-    if (process.env.NODE_ENV === 'production') {
-      console.log("🔍 handleDemoSignIn: Navigating to production dashboard...")
-      window.location.href = '/dashboard/'
-    } else {
-      console.log("🔍 handleDemoSignIn: Navigating to development dashboard...")
-      router.push("/dashboard")
-    }
-  }
+
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black p-4">
-      <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
+      {/* Purple background splotches */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-600/8 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-400/6 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+      
+      <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-2.5 border-white/10 rounded-2xl relative z-10">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center">
             <Image src={process.env.NODE_ENV === 'production' ? '/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={64} height={64} className="w-full h-full" />
@@ -132,26 +125,9 @@ export default function LoginPage() {
           <CardDescription className="text-gray-400">Sign in to your account or create a new one</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Demo Account Button */}
-          <Button
-            onClick={handleDemoSignIn}
-            className="w-full bg-white text-black hover:bg-gray-100 rounded-lg font-body"
-          >
-            <Play className="mr-2 h-4 w-4" />
-            Try Demo Account
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full bg-white/10" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-black px-2 text-gray-400">Or continue with</span>
-            </div>
-          </div>
 
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white/5">
+            <TabsList className="grid w-full grid-cols-2 bg-white/5 rounded-2xl">
               <TabsTrigger value="signin" className="text-gray-300 data-[state=active]:text-white">
                 Sign In
               </TabsTrigger>
@@ -172,7 +148,7 @@ export default function LoginPage() {
                     placeholder="Enter your email"
                     value={signInForm.email}
                     onChange={(e) => setSignInForm({ ...signInForm, email: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl"
                     required
                   />
                 </div>
@@ -186,29 +162,20 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     value={signInForm.password}
                     onChange={(e) => setSignInForm({ ...signInForm, password: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl"
                     required
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-pill border-system"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-2xl border-system transition-all duration-200"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sign In
                 </Button>
               </form>
-
-              <div className="mt-4 text-xs text-gray-500">
-                <strong>Demo accounts:</strong>
-                <ul className="mt-1 space-y-1">
-                  <li>• demo@spaceport.com / demo123</li>
-                  <li>• sarah@spaceport.com / demo123</li>
-                  <li>• mike@spaceport.com / demo123</li>
-                </ul>
-              </div>
             </TabsContent>
 
             <TabsContent value="signup" className="mt-4">
@@ -223,7 +190,7 @@ export default function LoginPage() {
                     placeholder="Enter your full name"
                     value={signUpForm.name}
                     onChange={(e) => setSignUpForm({ ...signUpForm, name: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl"
                     required
                   />
                 </div>
@@ -237,7 +204,7 @@ export default function LoginPage() {
                     placeholder="Enter your email"
                     value={signUpForm.email}
                     onChange={(e) => setSignUpForm({ ...signUpForm, email: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl"
                     required
                   />
                 </div>
@@ -251,7 +218,7 @@ export default function LoginPage() {
                     placeholder="Enter your password (min 6 characters)"
                     value={signUpForm.password}
                     onChange={(e) => setSignUpForm({ ...signUpForm, password: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl"
                     required
                     minLength={6}
                   />
@@ -266,14 +233,14 @@ export default function LoginPage() {
                     placeholder="Confirm your password"
                     value={signUpForm.confirmPassword}
                     onChange={(e) => setSignUpForm({ ...signUpForm, confirmPassword: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-brand"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl"
                     required
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-pill border-system"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-2xl border-system transition-all duration-200"
                   disabled={isLoading}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Plus, Sparkles } from "lucide-react"
+import { X, Plus, Sparkles, User, Mail, Phone, Building, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -142,6 +142,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       company: formData.company || "",
       priority: "medium" as const,
       nextActionDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     })
 
     // Reset form
@@ -276,7 +278,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-white font-body">
+                    <Label htmlFor="name" className="text-white font-body flex items-center gap-2">
+                      <User className="h-4 w-4 text-purple-400" />
                       Contact Name <span className="text-red-400">*</span>
                     </Label>
                     <Input
@@ -290,7 +293,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-white font-body">
+                    <Label htmlFor="email" className="text-white font-body flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-purple-400" />
                       Email <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
@@ -304,7 +308,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-white font-body">
+                    <Label htmlFor="phone" className="text-white font-body flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-purple-400" />
                       Phone <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
@@ -317,7 +322,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="company" className="text-white font-body">
+                    <Label htmlFor="company" className="text-white font-body flex items-center gap-2">
+                      <Building className="h-4 w-4 text-purple-400" />
                       Company <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
@@ -330,7 +336,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="address" className="text-white font-body">
+                    <Label htmlFor="address" className="text-white font-body flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-purple-400" />
                       Property Address <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
                     <Input
