@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -446,34 +446,50 @@ export function LeadsTable({
         header: "Status",
         cell: ({ getValue, row }) => {
           const status = getValue()
-          const statusColor = colors.status[status as keyof typeof colors.status] || {
-            bg: "bg-gray-500/10",
-            text: "text-gray-300",
-            border: "border-gray-500/20",
-            icon: "#6b7280",
-          }
+          const lead = row.original as Lead & { priorityReason?: string }
 
           return (
-            <Select
-              value={status}
-              onValueChange={(newStatus) => onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })}
-            >
-              <SelectTrigger className="w-32 bg-transparent border-none p-0">
-                <Badge
-                  className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-pill px-4 py-1.5 font-body`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </Badge>
+            <Select value={status} onValueChange={(value) => onLeadUpdate(row.original.id, { status: value as Lead["status"] })}>
+              <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
+                <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
-                {Object.entries(colors.status).map(([key, color]) => (
-                  <SelectItem key={key} value={key} className="rounded-lg font-body">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color.icon }} />
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </div>
-                  </SelectItem>
-                ))}
+              <SelectContent className="bg-black/90 backdrop-blur-xl border-system rounded-3xl">
+                <SelectItem value="left voicemail" className="rounded-full font-body">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-orange-400" />
+                    Left Voicemail
+                  </div>
+                </SelectItem>
+                <SelectItem value="contacted" className="rounded-full font-body">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-400" />
+                    Contacted
+                  </div>
+                </SelectItem>
+                <SelectItem value="interested" className="rounded-full font-body">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                    Interested
+                  </div>
+                </SelectItem>
+                <SelectItem value="closed" className="rounded-full font-body">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                    Closed
+                  </div>
+                </SelectItem>
+                <SelectItem value="dormant" className="rounded-full font-body">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-gray-500" />
+                    Dormant
+                  </div>
+                </SelectItem>
+                <SelectItem value="cold" className="rounded-full font-body">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-gray-400" />
+                    Cold
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           )

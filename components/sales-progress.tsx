@@ -8,6 +8,7 @@ import { SALES_CADENCE, type CadenceProgress } from "@/lib/sales-cadence"
 interface SalesProgressProps {
   progress: CadenceProgress
   statusColor: string
+  onStepClick?: (stepId: number) => void
 }
 
 const stepIcons = {
@@ -17,9 +18,15 @@ const stepIcons = {
   social: Users,
 }
 
-export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
+export function SalesProgress({ progress, statusColor, onStepClick }: SalesProgressProps) {
   const totalSteps = SALES_CADENCE.length
   const stepWidth = 100 / (totalSteps - 1) // percentage width between steps
+
+  const handleStepClick = (stepId: number) => {
+    if (onStepClick && progress.completedSteps.includes(stepId)) {
+      onStepClick(stepId)
+    }
+  }
 
   return (
     <div className="relative py-6 px-2">
@@ -41,6 +48,7 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
         const isCurrent = progress.currentStep === step.id
         const isFuture = step.id > progress.currentStep
         const position = `${index * stepWidth}%`
+        const isClickable = isCompleted && onStepClick
 
         return (
           <TooltipProvider key={step.id}>
@@ -60,13 +68,14 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                     }}
                     className={`relative w-4 h-4 rounded-full transition-colors duration-200 ${
                       isCompleted
-                        ? `bg-white shadow-lg`
+                        ? `bg-white shadow-lg ${isClickable ? 'cursor-pointer hover:scale-110' : ''}`
                         : isCurrent
                         ? `border-2 border-white`
                         : isFuture
                         ? `border-2 border-white/20`
                         : `border-2 border-white/50`
                     }`}
+                    onClick={() => handleStepClick(step.id)}
                   >
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                       <StepIcon
@@ -75,6 +84,15 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                         }`}
                       />
                     </div>
+                    
+                    {/* Date display for current step */}
+                    {isCurrent && (
+                      <div className="absolute top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                        <div className="text-xs text-white/70 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          {new Date(progress.nextActionDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 </div>
               </TooltipTrigger>
@@ -91,6 +109,9 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                   )}
                   {isCurrent && !isCompleted && (
                     <div className="text-xs text-yellow-400 mt-1">In progress</div>
+                  )}
+                  {isClickable && (
+                    <div className="text-xs text-blue-400 mt-1">Click to advance</div>
                   )}
                 </div>
               </TooltipContent>

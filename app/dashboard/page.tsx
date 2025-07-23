@@ -134,6 +134,12 @@ export default function DashboardPage() {
     if (selectedLead?.id === leadId) {
       setSelectedLead((prev) => (prev ? { ...prev, notes: [...prev.notes, newNote] } : null))
     }
+
+    // If this is a manual step completion, trigger progress recalculation
+    if (note.text.includes("Manually completed:")) {
+      // The progress will be recalculated automatically when the component re-renders
+      // due to the updated notes array
+    }
   }
 
   const handleUpdateNote = (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => {
@@ -368,32 +374,37 @@ export default function DashboardPage() {
             </motion.div>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => setIsImportOpen(true)}
-                    variant="outline"
-                    className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import CSV
-                  </Button>
-                  <Button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Lead
-                  </Button>
-                </div>
+              {/* Priority Follow-ups */}
+              <FollowUpPriority leads={leads} onLeadSelect={setSelectedLead} />
+
+              {/* Leads Table Header */}
+              <div className="mb-6">
+                <h2 className="text-primary-hierarchy font-title text-2xl">Leads Table</h2>
               </div>
 
-              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
+              {/* Action Buttons - Right Aligned */}
+              <div className="flex justify-end gap-3 mb-6">
+                <Button
+                  onClick={() => setIsImportOpen(true)}
+                  className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 rounded-full"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import CSV
+                </Button>
+                <Button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-white text-black hover:bg-white/90 rounded-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Lead
+                </Button>
+              </div>
 
+              {/* Leads Table */}
               <LeadsTable
                 leads={sortedLeads}
                 onLeadUpdate={handleLeadUpdate}
-                onLeadSelect={handleLeadSelect}
+                onLeadSelect={setSelectedLead}
                 sortConfig={sortConfig}
                 onSortChange={setSortConfig}
               />
