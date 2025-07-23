@@ -105,6 +105,64 @@ class CognitoAuth {
     })
   }
 
+  // Confirm user with verification code
+  async confirmUser(email: string, verificationCode: string): Promise<AuthResult> {
+    if (!userPool) {
+      return { success: false, message: "User pool not configured" }
+    }
+
+    return new Promise((resolve) => {
+      const cognitoUser = new CognitoUser({
+        Username: email,
+        Pool: userPool!,
+      })
+
+      cognitoUser.confirmRegistration(verificationCode, true, (err, result) => {
+        if (err) {
+          console.error('Confirmation error:', err)
+          resolve({
+            success: false,
+            message: err.message || 'Failed to verify account',
+          })
+        } else {
+          resolve({
+            success: true,
+            message: 'Account verified successfully! You can now sign in.',
+          })
+        }
+      })
+    })
+  }
+
+  // Resend verification code
+  async resendVerificationCode(email: string): Promise<AuthResult> {
+    if (!userPool) {
+      return { success: false, message: "User pool not configured" }
+    }
+
+    return new Promise((resolve) => {
+      const cognitoUser = new CognitoUser({
+        Username: email,
+        Pool: userPool!,
+      })
+
+      cognitoUser.resendConfirmationCode((err, result) => {
+        if (err) {
+          console.error('Resend verification error:', err)
+          resolve({
+            success: false,
+            message: err.message || 'Failed to resend verification code',
+          })
+        } else {
+          resolve({
+            success: true,
+            message: 'Verification code sent to your email.',
+          })
+        }
+      })
+    })
+  }
+
   // Sign in user
   async signIn(email: string, password: string): Promise<AuthResult> {
     if (!userPool) {

@@ -15,7 +15,7 @@ import Image from "next/image"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, confirmUser, resendVerificationCode } = useAuth()
 
   // Debug: Check localStorage on component mount
   useEffect(() => {
@@ -26,6 +26,8 @@ export default function LoginPage() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [showVerification, setShowVerification] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState("")
 
   const [signInForm, setSignInForm] = useState({
     email: "",
@@ -37,6 +39,10 @@ export default function LoginPage() {
     email: "",
     password: "",
     confirmPassword: "",
+  })
+
+  const [verificationForm, setVerificationForm] = useState({
+    verificationCode: "",
   })
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -57,7 +63,14 @@ export default function LoginPage() {
           router.push("/dashboard")
         }
       } else {
-        setMessage({ type: "error", text: result.message })
+        // Check if user needs to verify their email
+        if (result.message.includes("User is not confirmed")) {
+          setPendingEmail(signInForm.email)
+          setShowVerification(true)
+          setMessage({ type: "error", text: "Please verify your email address using the code sent to your inbox." })
+        } else {
+          setMessage({ type: "error", text: result.message })
+        }
       }
     } catch (error) {
       setMessage({ type: "error", text: "An unexpected error occurred" })
@@ -87,14 +100,9 @@ export default function LoginPage() {
       const result = await signUp(signUpForm.email, signUpForm.password, signUpForm.name)
 
       if (result.success) {
+        setPendingEmail(signUpForm.email)
+        setShowVerification(true)
         setMessage({ type: "success", text: result.message })
-        // Use window.location for static export compatibility
-        if (process.env.NODE_ENV === 'production') {
-          console.log("🔍 LoginPage: Redirecting to production dashboard...")
-          window.location.href = '/dashboard/'
-        } else {
-          router.push("/dashboard")
-        }
       } else {
         setMessage({ type: "error", text: result.message })
       }
@@ -105,7 +113,45 @@ export default function LoginPage() {
     }
   }
 
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setMessage(null)
 
+    try {
+      const result = await confirmUser(pendingEmail, verificationForm.verificationCode)
+
+      if (result.success) {
+        setMessage({ type: "success", text: result.message })
+        setShowVerification(false)
+        setPendingEmail("")
+        setVerificationForm({ verificationCode: "" })
+        // Reset forms
+        setSignInForm({ email: "", password: "" })
+        setSignUpForm({ name: "", email: "", password: "", confirmPassword: "" })
+      } else {
+        setMessage({ type: "error", text: result.message })
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "An unexpected error occurred" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    setIsLoading(true)
+    setMessage(null)
+
+    try {
+      const result = await resendVerificationCode(pendingEmail)
+      setMessage({ type: result.success ? "success" : "error", text: result.message })
+    } catch (error) {
+      setMessage({ type: "error", text: "An unexpected error occurred" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
@@ -131,15 +177,80 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="space-y-6">
 
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white/5 rounded-2xl">
-              <TabsTrigger value="signin" className="text-gray-300 data-[state=active]:text-white">
-                Sign In
-              </TabsTrigger>
-              <TabsTrigger value="signup" className="text-gray-300 data-[state=active]:text-white">
-                Sign Up
-              </TabsTrigger>
-            </TabsList>
+          {showVerification ? (
+            // Email Verification Form
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-white font-title text-lg mb-2">Verify Your Email</h3>
+                <p className="text-gray-400 text-sm">
+                  We sent a verification code to <span className="text-white">{pendingEmail}</span>
+                </p>
+              </div>
+              
+              <form onSubmit={handleVerification} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="verification-code" className="text-white">
+                    Verification Code
+                  </Label>
+                  <Input
+                    id="verification-code"
+                    type="text"
+                    placeholder="Enter 6-digit code"
+                    value={verificationForm.verificationCode}
+                    onChange={(e) => setVerificationForm({ verificationCode: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 rounded-2xl text-center text-lg tracking-widest"
+                    maxLength={6}
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white rounded-2xl border-system transition-all duration-200"
+                  disabled={isLoading}
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Verify Account
+                </Button>
+              </form>
+
+              <div className="text-center space-y-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleResendCode}
+                  className="text-gray-400 hover:text-white text-sm"
+                  disabled={isLoading}
+                >
+                  Resend Code
+                </Button>
+                <br />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowVerification(false)
+                    setPendingEmail("")
+                    setVerificationForm({ verificationCode: "" })
+                    setMessage(null)
+                  }}
+                  className="text-gray-400 hover:text-white text-sm"
+                >
+                  Back to Sign In
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // Sign In / Sign Up Tabs
+            <Tabs defaultValue="signin" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-white/5 rounded-2xl">
+                <TabsTrigger value="signin" className="text-gray-300 data-[state=active]:text-white">
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="text-gray-300 data-[state=active]:text-white">
+                  Sign Up
+                </TabsTrigger>
+              </TabsList>
 
             <TabsContent value="signin" className="mt-4">
               <form onSubmit={handleSignIn} className="space-y-4">
@@ -253,7 +364,8 @@ export default function LoginPage() {
                 </Button>
               </form>
             </TabsContent>
-          </Tabs>
+            </Tabs>
+          )}
 
           {message && (
             <Alert className={message.type === "error" ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>

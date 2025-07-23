@@ -10,6 +10,8 @@ interface AuthContextType {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ success: boolean; message: string }>
   signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; message: string }>
+  confirmUser: (email: string, verificationCode: string) => Promise<{ success: boolean; message: string }>
+  resendVerificationCode: (email: string) => Promise<{ success: boolean; message: string }>
   signInDemo: () => void
   signOut: () => void
 }
@@ -180,6 +182,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const confirmUser = async (email: string, verificationCode: string): Promise<{ success: boolean; message: string }> => {
+    // Check if we have AWS config (production mode)
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+    
+    if (hasAwsConfig) {
+      // Production mode - use Cognito
+      console.log("🔍 AuthProvider: Using Cognito confirm user")
+      return await cognitoAuth.confirmUser(email, verificationCode)
+    } else {
+      // Development mode - not applicable
+      return { success: false, message: "Email verification not available in development mode" }
+    }
+  }
+
+  const resendVerificationCode = async (email: string): Promise<{ success: boolean; message: string }> => {
+    // Check if we have AWS config (production mode)
+    const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+    
+    if (hasAwsConfig) {
+      // Production mode - use Cognito
+      console.log("🔍 AuthProvider: Using Cognito resend verification code")
+      return await cognitoAuth.resendVerificationCode(email)
+    } else {
+      // Development mode - not applicable
+      return { success: false, message: "Email verification not available in development mode" }
+    }
+  }
+
   const signInDemo = () => {
     // Check if we're in production mode
     const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
@@ -220,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, signIn, signUp, signInDemo, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, signIn, signUp, confirmUser, resendVerificationCode, signInDemo, signOut }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
