@@ -111,9 +111,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
       {/* Purple background splotches */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-600/8 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-400/6 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-1/6 left-1/6 w-[32rem] h-[32rem] bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/6 right-1/6 w-[28rem] h-[28rem] bg-purple-600/18 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[24rem] h-[24rem] bg-purple-400/15 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-3/4 left-1/3 w-[20rem] h-[20rem] bg-purple-300/12 rounded-full blur-3xl animate-pulse delay-1500"></div>
+        <div className="absolute top-1/3 right-1/4 w-[18rem] h-[18rem] bg-purple-700/16 rounded-full blur-3xl animate-pulse delay-750"></div>
       </div>
       
       <Card className="w-full max-w-md bg-black/90 backdrop-blur-xl border-2.5 border-white/10 rounded-2xl relative z-10">
