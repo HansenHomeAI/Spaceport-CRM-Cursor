@@ -159,6 +159,7 @@ jobs:
         echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env.local
         echo "NEXT_PUBLIC_USER_POOL_ID=${{ secrets.NEXT_PUBLIC_USER_POOL_ID }}" >> .env.local
         echo "NEXT_PUBLIC_USER_POOL_CLIENT_ID=${{ secrets.NEXT_PUBLIC_USER_POOL_CLIENT_ID }}" >> .env.local
+        echo "NEXT_PUBLIC_DEV_MODE=false" >> .env.local
         NODE_ENV=production pnpm run build
 
     - name: Debug build output
