@@ -28,6 +28,9 @@ const parseContactInfo = (text: string) => {
 
   if (!text) return result
 
+  // Clean up the text first - handle multi-line content
+  text = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim()
+
   // Email regex
   const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
   if (emailMatch) {
@@ -37,7 +40,7 @@ const parseContactInfo = (text: string) => {
 
   // Phone regex - ONLY proper phone formats (no dates!)
   // Accepts: 000-000-0000, 0(000)-000-0000, 000.000.0000, 000 000 0000
-  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
+  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})(?!\d)/)
   if (phoneMatch) {
     const phoneStr = phoneMatch[0]
     // Double-check this isn't a date by ensuring it doesn't match date patterns
@@ -52,14 +55,14 @@ const parseContactInfo = (text: string) => {
 
   // Company detection - real estate keywords
   const companyKeywords = [
-    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc", "Partners", "Sotheby's", "Compass", "Keller Williams", "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", "Upside", "Premier", "Edina", "Real Broker", "Keller Williams Realty", "Berkshire Hathaway HomeServices", "Toll Brothers", "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", "Corcoran", "Houlihan Lawrence",
+    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc", "Partners", "Sotheby's", "Compass", "Keller Williams", "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", "Upside", "Premier", "Edina", "Real Broker", "Keller Williams Realty", "Berkshire Hathaway HomeServices", "Toll Brothers", "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"
   ]
 
   // Look for company names in the text
   for (const keyword of companyKeywords) {
     if (text.toLowerCase().includes(keyword.toLowerCase())) {
       // Find the full company name (including variations)
-      const companyRegex = new RegExp(`[^,\\n]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,\\n]*`, "i")
+      const companyRegex = new RegExp(`[^,]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,]*`, "i")
       const match = text.match(companyRegex)
       if (match) {
         result.company = match[0].trim()
@@ -69,45 +72,23 @@ const parseContactInfo = (text: string) => {
     }
   }
 
-  // Clean up name - remove parenthetical aliases and extra info
-  text = text.replace(/\([^)]*\)/g, "") // Remove (aka Lawrence) type content
+  // Clean up remaining text for name extraction
+  text = text.replace(/\([^)]*\)/g, "") // Remove parenthetical content
+  text = text.replace(/,+/g, " ") // Replace commas with spaces
   text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
 
-  // Extract name (first few words before any remaining punctuation)
-  const nameMatch = text.match(/^([A-Za-z\s]+)/)
-  if (nameMatch) {
-    result.name = nameMatch[1].trim()
+  // Extract name (should be what's left after removing phone, email, company)
+  if (text.length > 0) {
+    // Remove any remaining non-alphabetic characters at the start/end
+    const nameMatch = text.match(/^[^a-zA-Z]*([A-Za-z\s]+?)[^a-zA-Z]*$/)
+    if (nameMatch) {
+      result.name = nameMatch[1].trim()
+    } else {
+      result.name = text.trim()
+    }
   }
 
   return result
-}
-
-// Helper function to detect if a line contains a date (indicating notes/interactions)
-const hasDatePattern = (text: string): boolean => {
-  const datePatterns = [
-    /(\w+\s+\d{1,2},?\s+\d{4})/g, // "October 21, 2024"
-    /(\d{1,2}\/\d{1,2}\/\d{2,4})/g, // "10/21/24" or "10/21/2024"
-    /(\w+\s+\d{1,2})/g, // "Oct 21" or "10/21"
-    /(\d{1,2}\/\d{1,2})/g, // "10/21"
-    /(\w+\s+\d{1,2}st|\w+\s+\d{1,2}nd|\w+\s+\d{1,2}rd|\w+\s+\d{1,2}th)/g, // "Jun 9th"
-  ]
-  
-  return datePatterns.some(pattern => pattern.test(text))
-}
-
-// Helper function to detect if a line looks like a new contact (name + phone/email)
-const looksLikeNewContact = (text: string): boolean => {
-  if (!text.trim()) return false
-  
-  // Check if it starts with a name pattern (capital letters)
-  const namePattern = /^[A-Z][a-z]+(\s+[A-Z][a-z]+)*/
-  if (!namePattern.test(text)) return false
-  
-  // Check if it contains phone or email
-  const hasPhone = /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(text)
-  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)
-  
-  return hasPhone || hasEmail
 }
 
 const parseNotes = (notesText: string): Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> => {
@@ -115,56 +96,83 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
   
   if (!notesText) return notes
 
-  // Split by periods and look for date patterns
-  const sentences = notesText.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0)
+  // Split by periods, but be less aggressive - include shorter sentences
+  const sentences = notesText.split(/\.(?=\s|$)/).map(s => s.trim()).filter(s => s.length > 2)
   
   sentences.forEach((sentence, index) => {
-    if (sentence.length < 5) return // Skip very short sentences
-    
-    // Look for date patterns in the sentence
+    // Look for date patterns - be more precise
     const datePatterns = [
-      /(\w+\s+\d{1,2},?\s+\d{4})/g, // "October 21, 2024"
-      /(\d{1,2}\/\d{1,2}\/\d{2,4})/g, // "10/21/24" or "10/21/2024"
-      /(\w+\s+\d{1,2})/g, // "Oct 21" or "10/21"
-      /(\d{1,2}\/\d{1,2})/g, // "10/21"
-      /(\w+\s+\d{1,2}st|\w+\s+\d{1,2}nd|\w+\s+\d{1,2}rd|\w+\s+\d{1,2}th)/g, // "Jun 9th"
+      // Full dates with years - exact patterns
+      /\b(\w+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})\b/gi, // "April 7th 2025"
+      /\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/g, // "10/21/24" or "4/3/25"
+      
+      // Month/day patterns - more precise
+      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:st|nd|rd|th)?\b/gi,
+      /\b(\d{1,2}\/\d{1,2})\b/g, // "10/21", "12/6" - but not in words
     ]
     
-    let foundDate = false
-    let timestamp = new Date().toISOString()
+    let timestamp = new Date("2024-10-01").toISOString() // Default fallback
+    let foundValidDate = false
     
     for (const pattern of datePatterns) {
       const matches = sentence.match(pattern)
-      if (matches) {
-        try {
-          const dateStr = matches[0]
-          let parsedDate = new Date(dateStr)
-          
-          if (isNaN(parsedDate.getTime())) {
-            // Try with 2024 as base year for older dates (Oct-Dec 2024)
-            parsedDate = new Date(dateStr + ", 2024")
-          }
-          if (isNaN(parsedDate.getTime())) {
-            // Try with 2025 as base year for recent dates (Jan-Aug 2025)
-            parsedDate = new Date(dateStr + ", 2025")
-          }
-          
-          if (!isNaN(parsedDate.getTime())) {
-            // Validate the year makes sense for our timeframe
-            const year = parsedDate.getFullYear()
-            const month = parsedDate.getMonth() + 1 // 0-indexed to 1-indexed
+      if (matches && matches.length > 0) {
+        for (const match of matches) {
+          try {
+            const dateStr = match.trim()
+            let parsedDate = null
             
-            // If it's 2024, should be Oct-Dec (months 10-12)
-            // If it's 2025, should be Jan-Aug (months 1-8)
-            if ((year === 2024 && month >= 10) || (year === 2025 && month <= 8)) {
-              timestamp = parsedDate.toISOString()
-              foundDate = true
-              break
+            // Handle different date formats more carefully
+            if (dateStr.includes('/')) {
+              const parts = dateStr.split('/')
+              if (parts.length === 3) {
+                // Handle 2-digit years like "4/3/25"
+                let year = parseInt(parts[2])
+                if (year < 100) {
+                  year += 2000 // Convert 25 to 2025
+                }
+                parsedDate = new Date(year, parseInt(parts[0]) - 1, parseInt(parts[1]))
+              } else if (parts.length === 2) {
+                // Handle "10/21" format - infer year
+                const month = parseInt(parts[0])
+                const day = parseInt(parts[1])
+                
+                // Determine year based on month
+                if (month >= 10) {
+                  parsedDate = new Date(2024, month - 1, day) // Oct-Dec 2024
+                } else {
+                  parsedDate = new Date(2025, month - 1, day) // Jan-Sep 2025
+                }
+              }
+            } else {
+              // Handle text dates like "Jun 9th" or "Apr 7th 2025"
+              const monthMatch = dateStr.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(\d{4})?\b/i)
+              if (monthMatch) {
+                const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+                const monthIndex = monthNames.indexOf(monthMatch[1].toLowerCase())
+                const day = parseInt(monthMatch[2])
+                const year = monthMatch[3] ? parseInt(monthMatch[3]) : (monthIndex >= 9 ? 2024 : 2025)
+                
+                parsedDate = new Date(year, monthIndex, day)
+              }
             }
+            
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+              const year = parsedDate.getFullYear()
+              const month = parsedDate.getMonth() + 1
+              
+              // Validate the date makes sense for our timeframe
+              if ((year === 2024 && month >= 10) || (year === 2025 && month <= 8)) {
+                timestamp = parsedDate.toISOString()
+                foundValidDate = true
+                break
+              }
+            }
+          } catch (e) {
+            // Continue to next match
           }
-        } catch (e) {
-          // Continue to next pattern
         }
+        if (foundValidDate) break
       }
     }
     
@@ -197,225 +205,188 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
 }
 
 const parseCSVContent = (content: string): Omit<Lead, "id">[] => {
-  const lines = content.split("\n").filter((line) => line.trim())
+  // First, let's handle the CSV properly by understanding the structure
+  const lines = content.split("\n")
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-
-  const contacts: Omit<Lead, "id">[] = []
-  let currentContact: any = null
-  let currentNotes = ""
-
-  // Process each line to group multi-line contacts
+  
+  const results: Omit<Lead, "id">[] = []
+  let currentRow = ""
+  let inQuotedField = false
+  
+  // Process lines, handling multi-line quoted fields
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]
+    const line = lines[i].trim()
+    if (!line) continue
     
-    // Split by comma but respect quotes
-    const values: string[] = []
-    let current = ""
-    let inQuotes = false
+    currentRow += (currentRow ? "\n" : "") + line
     
-    for (let j = 0; j < line.length; j++) {
-      const char = line[j]
-      if (char === '"') {
-        inQuotes = !inQuotes
-      } else if (char === ',' && !inQuotes) {
-        values.push(current.trim())
-        current = ""
-      } else {
-        current += char
-      }
-    }
-    values.push(current.trim())
+    // Count quotes to determine if we're in a multi-line quoted field
+    const quoteCount = (currentRow.match(/"/g) || []).length
+    inQuotedField = quoteCount % 2 === 1
     
-    const row: any = {}
-    headers.forEach((header, index) => {
-      row[header] = (values[index] || "").replace(/"/g, "")
-    })
-
-    // Check if this line contains notes (has a date pattern)
-    const hasNotes = hasDatePattern(line)
-    
-    // Check if this looks like a new contact
-    const isNewContact = looksLikeNewContact(row.name || row.contact || row.client || "")
-    
-    // If we have a current contact and this line has notes, add to current contact
-    if (currentContact && hasNotes) {
-      currentNotes += " " + (row.notes || row.comments || row.interactions || line)
-    }
-    // If this looks like a new contact, save the previous one and start a new one
-    else if (isNewContact) {
-      // Save the previous contact if we have one
-      if (currentContact) {
-        // Parse the accumulated notes
-        const notes = parseNotes(currentNotes)
-        
-        // Determine status and priority
-        let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
-        const lowerNotes = currentNotes.toLowerCase()
-        
-        if (lowerNotes.includes("interested") || lowerNotes.includes("wants to see") || lowerNotes.includes("sounded interested")) {
-          status = "interested"
-        } else if (lowerNotes.includes("not interested") || lowerNotes.includes("said no") || lowerNotes.includes("isn't interested")) {
-          status = "cold"
-        } else if (lowerNotes.includes("closed") || lowerNotes.includes("sold")) {
-          status = "closed"
-        } else if (lowerNotes.includes("voicemail") && !lowerNotes.includes("talked") && !lowerNotes.includes("picked up")) {
-          status = "left voicemail"
-        }
-
-        let priority: "high" | "medium" | "low" | "dormant" = "medium"
-        if (status === "interested") {
-          priority = "high"
-        } else if (status === "cold") {
-          priority = "low"
-        } else if (lowerNotes.includes("dormant") || lowerNotes.includes("spring")) {
-          priority = "dormant"
-        } else if (status === "left voicemail") {
-          const recentNotes = notes.filter(note => {
-            const noteDate = new Date(note.timestamp)
-            const now = new Date()
-            const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
-            return daysDiff <= 14
-          })
-          if (recentNotes.length > 0) {
-            priority = "high"
-          }
-        }
-
-        // Find the most recent date from notes
-        let lastInteraction = new Date().toISOString().split("T")[0]
-        if (notes.length > 0) {
-          const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
-          if (dates.length > 0) {
-            const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
-            lastInteraction = mostRecentDate.toISOString().split("T")[0]
-          }
-        }
-
-        const needsAttention = !currentContact.name.trim() || currentContact.name === "Unknown Contact" || 
-                              !currentContact.address.trim() || currentContact.address === "Address not provided"
-
-        contacts.push({
-          name: currentContact.name || "Unknown Contact",
-          phone: currentContact.phone || "Not provided",
-          email: currentContact.email || "Not provided",
-          company: currentContact.company || "",
-          address: currentContact.address || "Address not provided",
-          status: status,
-          lastInteraction: lastInteraction,
-          priority: priority,
-          nextActionDate: new Date().toISOString(),
-          needsAttention: needsAttention,
-          notes: notes.length > 0 ? notes : [{
-            id: Date.now().toString(),
-            text: "Imported from CSV - no interaction history",
-            timestamp: new Date().toISOString(),
-            type: "note" as const,
-          }],
-        })
+    // If we're not in a quoted field and we have content, process this row
+    if (!inQuotedField && currentRow) {
+      const parsedRow = parseCSVRow(currentRow, headers)
+      if (parsedRow) {
+        results.push(parsedRow)
       }
-      
-      // Start a new contact
-      currentContact = {
-        name: row.name || row.contact || row.client || "",
-        phone: row.phone || row.telephone || row.mobile || "",
-        email: row.email || row["email address"] || "",
-        company: row.company || row.business || row.organization || "",
-        address: row.address || row.location || row.property || "",
-      }
-      
-      // Parse complex name field
-      if (currentContact.name) {
-        const parsed = parseContactInfo(currentContact.name)
-        currentContact.name = parsed.name || currentContact.name
-        currentContact.phone = currentContact.phone || parsed.phone
-        currentContact.email = currentContact.email || parsed.email
-        currentContact.company = currentContact.company || parsed.company
-      }
-      
-      currentNotes = row.notes || row.comments || row.interactions || ""
-    }
-    // If this line doesn't have notes and doesn't look like a new contact, it might be additional info for current contact
-    else if (currentContact && !hasNotes && !isNewContact) {
-      // This might be additional company info, phone, email, etc.
-      const additionalInfo = line.trim()
-      if (additionalInfo) {
-        const parsed = parseContactInfo(additionalInfo)
-        currentContact.phone = currentContact.phone || parsed.phone
-        currentContact.email = currentContact.email || parsed.email
-        currentContact.company = currentContact.company || parsed.company
-      }
+      currentRow = ""
     }
   }
   
-  // Don't forget the last contact
-  if (currentContact) {
-    const notes = parseNotes(currentNotes)
-    
-    let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
-    const lowerNotes = currentNotes.toLowerCase()
-    
-    if (lowerNotes.includes("interested") || lowerNotes.includes("wants to see") || lowerNotes.includes("sounded interested")) {
-      status = "interested"
-    } else if (lowerNotes.includes("not interested") || lowerNotes.includes("said no") || lowerNotes.includes("isn't interested")) {
-      status = "cold"
-    } else if (lowerNotes.includes("closed") || lowerNotes.includes("sold")) {
-      status = "closed"
-    } else if (lowerNotes.includes("voicemail") && !lowerNotes.includes("talked") && !lowerNotes.includes("picked up")) {
-      status = "left voicemail"
+  // Process any remaining row
+  if (currentRow && !inQuotedField) {
+    const parsedRow = parseCSVRow(currentRow, headers)
+    if (parsedRow) {
+      results.push(parsedRow)
     }
+  }
+  
+  return results
+}
 
-    let priority: "high" | "medium" | "low" | "dormant" = "medium"
-    if (status === "interested") {
+const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | null => {
+  // Parse the row respecting quotes
+  const values: string[] = []
+  let current = ""
+  let inQuotes = false
+  
+  for (let i = 0; i < rowText.length; i++) {
+    const char = rowText[i]
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.trim().replace(/^"|"$/g, ""))
+      current = ""
+    } else {
+      current += char
+    }
+  }
+  values.push(current.trim().replace(/^"|"$/g, ""))
+  
+  // Create row object
+  const row: any = {}
+  headers.forEach((header, index) => {
+    row[header] = values[index] || ""
+  })
+
+  // Extract and clean the fields
+  let name = row.name || row.contact || row.client || ""
+  let phone = row.phone || row.telephone || row.mobile || ""
+  let email = row.email || row["email address"] || ""
+  let address = row.address || row.location || row.property || ""
+  const notesText = row.notes || row.comments || row.interactions || ""
+
+  // Parse the complex name field
+  if (name) {
+    const parsed = parseContactInfo(name)
+    name = parsed.name || "Unknown Contact"
+    phone = phone || parsed.phone
+    email = email || parsed.email
+    
+    // Only set company if we don't already have one
+    if (!row.company && !row.business && !row.organization) {
+      row.company = parsed.company
+    }
+  }
+
+  // Skip if this looks like a company-only row (no individual name)
+  if (!name || name === "Unknown Contact" || name.length < 2) {
+    return null
+  }
+
+  // Parse notes and extract interaction history
+  const notes = parseNotes(notesText)
+  
+  // Determine status based on notes content
+  let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
+  const lowerNotes = notesText.toLowerCase()
+  
+  if (lowerNotes.includes("interested") || lowerNotes.includes("wants to see") || lowerNotes.includes("sounded interested")) {
+    status = "interested"
+  } else if (lowerNotes.includes("not interested") || lowerNotes.includes("said no") || lowerNotes.includes("isn't interested")) {
+    status = "cold"
+  } else if (lowerNotes.includes("closed") || lowerNotes.includes("sold")) {
+    status = "closed"
+  } else if (lowerNotes.includes("voicemail") && !lowerNotes.includes("talked") && !lowerNotes.includes("picked up")) {
+    status = "left voicemail"
+  }
+
+  // Determine priority based on notes and status
+  let priority: "high" | "medium" | "low" | "dormant" = "medium"
+  if (status === "interested") {
+    priority = "high"
+  } else if (status === "cold") {
+    priority = "low"
+  } else if (lowerNotes.includes("dormant") || lowerNotes.includes("spring")) {
+    priority = "dormant"
+  } else if (status === "left voicemail") {
+    // Check if they should be high priority (recent contact but no response)
+    const recentNotes = notes.filter(note => {
+      const noteDate = new Date(note.timestamp)
+      const now = new Date()
+      const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
+      return daysDiff <= 14 // Within last 2 weeks
+    })
+    if (recentNotes.length > 0) {
       priority = "high"
-    } else if (status === "cold") {
-      priority = "low"
-    } else if (lowerNotes.includes("dormant") || lowerNotes.includes("spring")) {
-      priority = "dormant"
-    } else if (status === "left voicemail") {
-      const recentNotes = notes.filter(note => {
-        const noteDate = new Date(note.timestamp)
-        const now = new Date()
-        const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
-        return daysDiff <= 14
-      })
-      if (recentNotes.length > 0) {
-        priority = "high"
-      }
     }
-
-    let lastInteraction = new Date().toISOString().split("T")[0]
-    if (notes.length > 0) {
-      const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
-      if (dates.length > 0) {
-        const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
-        lastInteraction = mostRecentDate.toISOString().split("T")[0]
-      }
-    }
-
-    const needsAttention = !currentContact.name.trim() || currentContact.name === "Unknown Contact" || 
-                          !currentContact.address.trim() || currentContact.address === "Address not provided"
-
-    contacts.push({
-      name: currentContact.name || "Unknown Contact",
-      phone: currentContact.phone || "Not provided",
-      email: currentContact.email || "Not provided",
-      company: currentContact.company || "",
-      address: currentContact.address || "Address not provided",
-      status: status,
-      lastInteraction: lastInteraction,
-      priority: priority,
-      nextActionDate: new Date().toISOString(),
-      needsAttention: needsAttention,
-      notes: notes.length > 0 ? notes : [{
-        id: Date.now().toString(),
-        text: "Imported from CSV - no interaction history",
-        timestamp: new Date().toISOString(),
-        type: "note" as const,
-      }],
-    })
   }
+
+  // Find the most recent date from notes for lastInteraction (NOT import date!)
+  let lastInteraction = "2024-10-01" // Default to start of our timeframe
+  if (notes.length > 0) {
+    const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
+    if (dates.length > 0) {
+      const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
+      lastInteraction = mostRecentDate.toISOString().split("T")[0]
+    }
+  }
+
+  // Check if this contact needs attention
+  const needsAttention = !name.trim() || name === "Unknown Contact" || 
+                        !address.trim() || address === "Address not provided"
+
+  return {
+    name: name,
+    phone: phone || "Not provided",
+    email: email || "Not provided",
+    company: row.company || row.business || row.organization || "",
+    address: address || "Address not provided",
+    status: status,
+    lastInteraction: lastInteraction,
+    priority: priority,
+    nextActionDate: new Date().toISOString(),
+    needsAttention: needsAttention,
+    notes: notes.length > 0 ? notes : [{
+      id: Date.now().toString(),
+      text: "Imported from CSV - no interaction history",
+      timestamp: new Date("2024-10-01").toISOString(),
+      type: "note" as const,
+    }],
+  }
+}
+
+// Helper function to detect if a name is likely a company
+const isCompanyName = (name: string): boolean => {
+  if (!name) return false
   
-  return contacts
+  const companyIndicators = [
+    "real estate", "realty", "properties", "group", "team", "associates", "brokers", 
+    "homes", "land", "development", "investment", "llc", "inc", "partners", 
+    "sotheby's", "compass", "keller williams", "berkshire hathaway", "hall & hall", 
+    "best choice", "mccann", "summit", "purewest", "era", "corcoran", "houlihan lawrence",
+    "the dow group", "upside", "premier", "edina", "real broker", "toll brothers",
+    "keystone construction", "axis realty", "realtypath", "summit sotheby's", 
+    "compass real estate", "the big sky real estate co", "big sky sotheby's", 
+    "era landmark", "purewest real estate", "hall & hall partners", "best choice realty",
+    "tom evans & ashley diprisco real estate", "berkshire hathaway homeservices alaska realty",
+    "keller williams realty alaska group", "real broker alaska", "premier commercial realty",
+    "edina realty", "houlihan lawrence", "construction", "builders", "reality", "co"
+  ]
+  
+  const lowerName = name.toLowerCase()
+  return companyIndicators.some(indicator => lowerName.includes(indicator))
 }
 
 export function CSVImport({ isOpen, onClose, onImport }: CSVImportProps) {
