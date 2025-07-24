@@ -251,14 +251,14 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             <Button
               onClick={() => toggleGroup(urgency as "high" | "medium")}
               variant="ghost"
-              className={`w-full justify-between p-4 h-auto rounded-2xl transition-all duration-300 ${
+              className={`w-full justify-between p-4 h-auto rounded-2xl border-2 transition-all duration-300 ${
                 expandedGroup === urgency 
-                  ? getGroupColor(urgency) 
-                  : "bg-black/10 backdrop-blur-sm border border-white/10 hover:bg-black/20"
+                  ? `${getGroupColor(urgency)} border-white/20` 
+                  : "bg-black/10 backdrop-blur-sm border-white/10 hover:bg-black/20"
               }`}
             >
               <div className="flex items-center gap-3">
-                <Badge className="bg-black/20 text-white border-2 border-white/50 rounded-full px-4 py-1.5 font-body flex items-center gap-2">
+                <Badge className="bg-black/20 text-white border-2 border-white/10 rounded-full px-4 py-1.5 font-body flex items-center gap-2">
                   <div
                     className="w-2 h-2 rounded-full"
                     style={{ 
@@ -299,7 +299,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                           transition={{ duration: 0.3 }}
                         >
                           <Card
-                            className="bg-black/20 backdrop-blur-xl border-white/10 hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
+                            className="bg-black/20 backdrop-blur-xl border-2 border-white/20 hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
                             onClick={() => onLeadSelect(item.lead)}
                           >
                             <CardContent className="p-3">
@@ -308,18 +308,6 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                                   <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
                                   <p className="text-xs text-gray-400 font-body mt-1">{item.reason}</p>
                                 </div>
-                                                              <div className="flex items-center gap-1 ml-2">
-                                <UrgencyIcon className="h-3 w-3 text-purple-400" />
-                                <Badge className="bg-black/20 text-white border border-white/50 rounded-full px-2 py-0.5 font-body text-xs flex items-center gap-1">
-                                  <div
-                                    className="w-1.5 h-1.5 rounded-full"
-                                    style={{ 
-                                      backgroundColor: item.urgency === "high" ? "#22c55e" : "#eab308"
-                                    }}
-                                  />
-                                  {item.urgency}
-                                </Badge>
-                              </div>
                               </div>
 
                               <div className="flex items-center gap-2">
