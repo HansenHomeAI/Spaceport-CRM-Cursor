@@ -99,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: demoAccount.name,
           email: demoAccount.email,
           accessToken: "demo-token",
+          idToken: "demo-id-token",  // Add ID token for demo
           refreshToken: "demo-refresh",
           isDemo: true,
         }
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: account.name,
           email: account.email,
           accessToken: "dev-token",
+          idToken: "dev-id-token",  // Add ID token for dev
           refreshToken: "dev-refresh",
           isDemo: false,
         }
@@ -172,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: newAccount.name,
         email: newAccount.email,
         accessToken: "dev-token",
+        idToken: "dev-id-token",  // Add ID token for new user
         refreshToken: "dev-refresh",
         isDemo: false,
       }
@@ -226,6 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: "Demo User",
       email: "demo@spaceport.com",
       accessToken: "demo-token",
+      idToken: "demo-id-token",  // Add ID token for demo
       refreshToken: "demo-refresh",
       isDemo: true,
     }

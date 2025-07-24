@@ -48,8 +48,8 @@ class ApiClient {
   }
 
   private async getAuthToken(): Promise<string | null> {
-    // Get token from Cognito auth
-    const token = cognitoAuth.getAccessToken()
+    // Get ID token from Cognito auth (CRITICAL FIX - use ID token not access token)
+    const token = cognitoAuth.getIdToken()
     
     // Check if we're in production mode
     const isProductionMode = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
@@ -100,8 +100,8 @@ class ApiClient {
         if (currentUser?.refreshToken) {
           const refreshResult = await cognitoAuth.refreshToken(currentUser.refreshToken)
           if (refreshResult.success && refreshResult.user) {
-            // Retry the request with new token
-            headers.Authorization = `Bearer ${refreshResult.user.accessToken}`
+            // Retry the request with new ID token (CRITICAL FIX)
+            headers.Authorization = `Bearer ${refreshResult.user.idToken}`
             const retryResponse = await fetch(url, {
               ...options,
               headers: headers as HeadersInit,

@@ -16,6 +16,7 @@ export interface AuthUser {
   name: string
   email: string
   accessToken: string
+  idToken: string  // Add ID token field
   refreshToken: string
   isDemo?: boolean
 }
@@ -187,6 +188,7 @@ class CognitoAuth {
             name: email.split('@')[0], // Fallback name
             email: email,
             accessToken: result.getAccessToken().getJwtToken(),
+            idToken: result.getIdToken().getJwtToken(),  // Add ID token
             refreshToken: result.getRefreshToken().getToken(),
           }
 
@@ -248,6 +250,7 @@ class CognitoAuth {
           const user: AuthUser = {
             ...this.currentUser!,
             accessToken: session.getAccessToken().getJwtToken(),
+            idToken: session.getIdToken().getJwtToken(),  // Add ID token refresh
             refreshToken: session.getRefreshToken().getToken(),
           }
           
@@ -283,6 +286,12 @@ class CognitoAuth {
     return user?.accessToken || null
   }
 
+  // Get ID token for API Gateway Cognito authorization (CRITICAL FIX)
+  getIdToken(): string | null {
+    const user = this.getCurrentUser()
+    return user?.idToken || null
+  }
+
   // Demo mode fallback
   signInDemo(): AuthUser {
     const demoUser: AuthUser = {
@@ -290,6 +299,7 @@ class CognitoAuth {
       name: 'Demo User',
       email: 'demo@spaceport.com',
       accessToken: 'demo-token',
+      idToken: 'demo-id-token', // Add ID token for demo
       refreshToken: 'demo-refresh',
       isDemo: true,
     }
