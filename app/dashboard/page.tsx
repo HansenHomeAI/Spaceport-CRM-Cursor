@@ -21,9 +21,9 @@ import { awsConfig } from "@/lib/aws-config"
 import Image from "next/image"
 
 export default function DashboardPage() {
-  const { user, loading, signOut } = useAuth()
   const router = useRouter()
-  const [leads, setLeads] = useState<Lead[]>([]) // Start with empty array
+  const { user, loading, signOut } = useAuth()
+  const [leads, setLeads] = useState<Lead[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
@@ -37,8 +37,56 @@ export default function DashboardPage() {
   const [databaseConnectionStatus, setDatabaseConnectionStatus] = useState<'connected' | 'fallback' | 'error' | 'unknown'>('unknown')
   const [connectionError, setConnectionError] = useState<string | null>(null)
 
+  // Helper function to migrate old status values to new ones
+  const migrateLeadStatuses = async () => {
+    const statusMap: Record<string, string> = {
+      "cold": "Not Interested",
+      "contacted": "Contacted", 
+      "interested": "Interested",
+      "closed": "Not Interested",
+      "dormant": "Needs Follow-Up",
+      "left voicemail": "Left Voicemail"
+    }
+
+    const updatedLeads = leads.map(lead => {
+      const newStatus = statusMap[lead.status]
+      if (newStatus && newStatus !== lead.status) {
+        return { ...lead, status: newStatus as Lead["status"] }
+      }
+      return lead
+    }).filter(lead => {
+      // Only update leads that actually changed
+      const originalLead = leads.find(l => l.id === lead.id)
+      return originalLead?.status !== lead.status
+    })
+
+    if (updatedLeads.length > 0) {
+      console.log(`🔄 Migrating ${updatedLeads.length} leads to new status format...`)
+      
+      // Update each lead
+      for (const lead of updatedLeads) {
+        await handleLeadUpdate(lead.id, { status: lead.status })
+      }
+      
+      console.log(`✅ Migration complete! Updated ${updatedLeads.length} leads.`)
+    } else {
+      console.log("✅ No leads need migration - all statuses are up to date!")
+    }
+  }
+
+  // Expose migration function for development/troubleshooting
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).migrateLeadStatuses = migrateLeadStatuses
+    }
+  }, [leads])
+
   // Check if we're in production mode (explicitly set or have AWS config)
-  const isProductionMode = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
+  const isProductionMode = useMemo(() => {
+    return process.env.NODE_ENV === 'production' || 
+           process.env.NEXT_PUBLIC_DEV_MODE === 'false' ||
+           (awsConfig.region && awsConfig.userPoolId && awsConfig.userPoolClientId)
+  }, [])
 
   // Load leads from API on mount
   useEffect(() => {
@@ -161,15 +209,32 @@ export default function DashboardPage() {
           bValue = parseInt(b.id)
           break
         case 'interestLevel':
-          const interestOrder = { 
+          const interestOrder: Record<string, number> = { 
             "Interested": 5, 
             "Contacted": 4, 
             "Needs Follow-Up": 3, 
             "Left Voicemail": 2, 
             "Not Interested": 1 
           }
-          aValue = interestOrder[a.status]
-          bValue = interestOrder[b.status]
+          // Helper function to normalize status values
+          const normalizeStatus = (status: string): string => {
+            const statusMap: Record<string, string> = {
+              "cold": "Not Interested",
+              "contacted": "Contacted", 
+              "interested": "Interested",
+              "closed": "Not Interested",
+              "dormant": "Needs Follow-Up",
+              "left voicemail": "Left Voicemail",
+              "Left Voicemail": "Left Voicemail",
+              "Contacted": "Contacted",
+              "Interested": "Interested", 
+              "Not Interested": "Not Interested",
+              "Needs Follow-Up": "Needs Follow-Up"
+            }
+            return statusMap[status] || "Contacted"
+          }
+          aValue = interestOrder[normalizeStatus(a.status)] || 1
+          bValue = interestOrder[normalizeStatus(b.status)] || 1
           break
         default:
           return 0

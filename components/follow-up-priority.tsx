@@ -34,6 +34,26 @@ const urgencyIcons = {
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
   const [expandedGroup, setExpandedGroup] = useState<"high" | "medium" | null>("high")
 
+  // Helper function to normalize old status values to new ones
+  const normalizeStatus = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      "cold": "Not Interested",
+      "contacted": "Contacted", 
+      "interested": "Interested",
+      "closed": "Not Interested",
+      "dormant": "Needs Follow-Up",
+      "left voicemail": "Left Voicemail",
+      // New statuses (already correct)
+      "Left Voicemail": "Left Voicemail",
+      "Contacted": "Contacted",
+      "Interested": "Interested", 
+      "Not Interested": "Not Interested",
+      "Needs Follow-Up": "Needs Follow-Up"
+    }
+    
+    return statusMap[status] || "Contacted"
+  }
+
   // Calculate follow-up priorities based on new status system
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
@@ -41,6 +61,9 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     const followUps: FollowUpItem[] = []
 
     leads.forEach((lead) => {
+      // Normalize the status to handle old data
+      const normalizedStatus = normalizeStatus(lead.status)
+      
       const lastInteraction = lead.notes.sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )[0]
@@ -105,15 +128,15 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: "Contacted" and "Interested" leads
-      if (lead.status === "Contacted" || lead.status === "Interested") {
+      // High priority: "Contacted" and "Interested" leads (using normalized status)
+      if (normalizedStatus === "Contacted" || normalizedStatus === "Interested") {
         if (daysSinceLastContact > 28) {
           followUps.push({
             lead,
             urgency: "medium",
             nextAction: "call",
             daysOverdue: 0,
-            reason: `${lead.status} lead - no action in over 4 weeks`,
+            reason: `${normalizedStatus} lead - no action in over 4 weeks`,
           })
         } else {
           followUps.push({
@@ -121,14 +144,14 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             urgency: "high",
             nextAction: "call",
             daysOverdue: 0,
-            reason: `${lead.status} lead`,
+            reason: `${normalizedStatus} lead`,
           })
         }
         return
       }
 
-      // Medium priority: "Needs Follow-Up" and "Left Voicemail" leads
-      if (lead.status === "Needs Follow-Up" || lead.status === "Left Voicemail") {
+      // Medium priority: "Needs Follow-Up" and "Left Voicemail" leads (using normalized status)
+      if (normalizedStatus === "Needs Follow-Up" || normalizedStatus === "Left Voicemail") {
         if (daysSinceLastContact > 30) {
           return // Don't include very old leads
         }

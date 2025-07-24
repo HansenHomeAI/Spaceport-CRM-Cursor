@@ -33,6 +33,26 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   const [customReminderDate, setCustomReminderDate] = useState("")
   const [reminderFeedback, setReminderFeedback] = useState<string | null>(null)
 
+  // Helper function to normalize old status values
+  const normalizeStatus = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      "cold": "Not Interested",
+      "contacted": "Contacted", 
+      "interested": "Interested",
+      "closed": "Not Interested",
+      "dormant": "Needs Follow-Up",
+      "left voicemail": "Left Voicemail",
+      // New statuses (already correct)
+      "Left Voicemail": "Left Voicemail",
+      "Contacted": "Contacted",
+      "Interested": "Interested", 
+      "Not Interested": "Not Interested",
+      "Needs Follow-Up": "Needs Follow-Up"
+    }
+    
+    return statusMap[status] || "Contacted"
+  }
+
   const progress = useMemo(() => {
     if (!lead) return null
     return calculateCadenceProgress(lead.notes)
@@ -131,9 +151,11 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     setEditingNoteDate("")
   }
 
-  if (!lead) return null
+  if (!isOpen || !lead) return null
 
-  const statusColor = colors.status[lead.status]
+  // Get colors for the normalized status
+  const normalizedStatus = normalizeStatus(lead.status)
+  const statusColor = colors.status[normalizedStatus as keyof typeof colors.status] || colors.status["Contacted"]
 
   return (
     <AnimatePresence>
@@ -374,7 +396,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           <Badge
                             className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-4 py-1.5 font-body`}
                           >
-                            {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                            {normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}
                           </Badge>
                           <Button
                             variant="ghost"

@@ -63,6 +63,26 @@ interface LeadsTableProps {
 
 const columnHelper = createColumnHelper<Lead>()
 
+// Helper function to normalize old status values to new ones
+const normalizeStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    "cold": "Not Interested",
+    "contacted": "Contacted", 
+    "interested": "Interested",
+    "closed": "Not Interested",
+    "dormant": "Needs Follow-Up",
+    "left voicemail": "Left Voicemail",
+    // New statuses (already correct)
+    "Left Voicemail": "Left Voicemail",
+    "Contacted": "Contacted",
+    "Interested": "Interested", 
+    "Not Interested": "Not Interested",
+    "Needs Follow-Up": "Needs Follow-Up"
+  }
+  
+  return statusMap[status] || "Contacted"
+}
+
 export function LeadsTable({
   leads,
   onLeadUpdate,
@@ -87,8 +107,8 @@ export function LeadsTable({
           bValue = b.name.toLowerCase()
           break
         case 'status':
-          aValue = a.status
-          bValue = b.status
+          aValue = normalizeStatus(a.status)
+          bValue = normalizeStatus(b.status)
           break
         case 'lastContact':
           const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
@@ -102,15 +122,15 @@ export function LeadsTable({
           bValue = parseInt(b.id)
           break
         case 'interestLevel':
-          const interestOrder = { 
+          const interestOrder: Record<string, number> = { 
             "Interested": 5, 
             "Contacted": 4, 
             "Needs Follow-Up": 3, 
             "Left Voicemail": 2, 
             "Not Interested": 1 
           }
-          aValue = interestOrder[a.status]
-          bValue = interestOrder[b.status]
+          aValue = interestOrder[normalizeStatus(a.status)] || 1
+          bValue = interestOrder[normalizeStatus(b.status)] || 1
           break
         default:
           return 0

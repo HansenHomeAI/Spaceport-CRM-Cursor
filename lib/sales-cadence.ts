@@ -216,9 +216,31 @@ export function calculateCadenceProgress(notes: Array<{ type: string; timestamp:
 
 export function getProgressColor(progress: CadenceProgress, status: string): string {
   if (progress.isDormant) {
-    return colors.status.dormant.icon
+    return "#eab308" // Yellow color for dormant/needs follow-up
   }
   
-  const statusColor = colors.status[status as keyof typeof colors.status]
-  return statusColor?.icon || colors.status.cold.icon
+  // Handle both old and new status formats
+  const normalizedStatus = normalizeStatus(status)
+  const statusColor = colors.status[normalizedStatus as keyof typeof colors.status]
+  return statusColor?.icon || "#60a5fa" // Default to blue
+}
+
+// Helper function to normalize old status values to new ones
+function normalizeStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    "cold": "Not Interested",
+    "contacted": "Contacted", 
+    "interested": "Interested",
+    "closed": "Not Interested", // Map closed to not interested since we removed it
+    "dormant": "Needs Follow-Up",
+    "left voicemail": "Left Voicemail",
+    // New statuses (already correct)
+    "Left Voicemail": "Left Voicemail",
+    "Contacted": "Contacted",
+    "Interested": "Interested", 
+    "Not Interested": "Not Interested",
+    "Needs Follow-Up": "Needs Follow-Up"
+  }
+  
+  return statusMap[status] || "Contacted" // Default fallback
 } 
