@@ -10,7 +10,7 @@ import type { Lead } from "./leads-table"
 
 interface FollowUpItem {
   lead: Lead
-  urgency: "high" | "medium" | "low" | "dormant-interested"
+  urgency: "high" | "medium" | "low"
   nextAction: "call" | "email"
   daysOverdue: number
   reason: string
@@ -34,7 +34,7 @@ const urgencyIcons = {
 }
 
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
-  // Calculate follow-up priorities based on your cadence
+  // Calculate follow-up priorities based on status only
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()) // Start of today
@@ -47,7 +47,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )[0]
 
-      // Check for reminders (both upcoming and overdue)
+      // Check for reminders due today or overdue (highest priority)
       const allReminders = lead.notes.filter(note => note.text.includes("Set reminder:"))
       
       if (allReminders.length > 0) {
@@ -59,7 +59,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         const reminderDate = new Date(mostRecentReminder.timestamp)
         const reminderDay = new Date(reminderDate.getFullYear(), reminderDate.getMonth(), reminderDate.getDate())
         
-        // Check if reminder is due today or overdue
+        // Check if reminder is due today or overdue (highest priority)
         if (reminderDay <= today) {
           // Check if there's been any action since the reminder was set
           const actionsAfterReminder = lead.notes.filter(note => 
@@ -68,20 +68,19 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
           )
           
           if (actionsAfterReminder.length === 0) {
-            // No action taken since reminder was set - high priority
+            // No action taken since reminder was set - highest priority (scheduled for today)
             const daysOverdue = Math.floor((today.getTime() - reminderDay.getTime()) / (1000 * 60 * 60 * 24))
             followUps.push({
               lead,
               urgency: "high",
               nextAction: "call",
               daysOverdue: daysOverdue,
-              reason: daysOverdue === 0 ? "Reminder due today" : `Reminder overdue by ${daysOverdue} day${daysOverdue > 1 ? 's' : ''}`,
+              reason: daysOverdue === 0 ? "Scheduled to contact today" : `Scheduled contact overdue by ${daysOverdue} day${daysOverdue > 1 ? 's' : ''}`,
             })
             return
           }
-          // If there's been action since the reminder, continue to normal priority logic
         } else {
-          // Reminder is in the future - don't include in follow-ups (lowest priority)
+          // Reminder is in the future - don't include in follow-ups
           return
         }
       }
@@ -95,7 +94,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       })
       
       if (futureReminders.length > 0) {
-        // Has future reminders - exclude from follow-ups (lowest priority)
+        // Has future reminders - exclude from follow-ups
         return
       }
 
@@ -115,28 +114,40 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: Interested leads (green) - even if dormant
-      if (lead.status === "interested") {
-        followUps.push({
-          lead,
-          urgency: daysSinceLastContact > 30 ? "dormant-interested" : "high",
-          nextAction: "call",
-          daysOverdue: 0,
-          reason: daysSinceLastContact > 30 ? "Interested lead - dormant" : "Interested lead - high priority",
-        })
+      // High priority: Interested or contacted leads
+      if (lead.status === "interested" || lead.status === "contacted") {
+        // Medium priority if interested but no action in over 4 weeks (28 days)
+        if (daysSinceLastContact > 28) {
+          followUps.push({
+            lead,
+            urgency: "medium",
+            nextAction: "call",
+            daysOverdue: 0,
+            reason: "Interested lead - no action in over 4 weeks",
+          })
+        } else {
+          // High priority for recent interested/contacted leads
+          followUps.push({
+            lead,
+            urgency: "high",
+            nextAction: "call",
+            daysOverdue: 0,
+            reason: lead.status === "interested" ? "Interested lead" : "Contacted lead",
+          })
+        }
         return
       }
 
-      // Only include leads with interactions in the last month (except interested leads)
+      // Only include other leads with interactions in the last month
       if (daysSinceLastContact > 30) {
         return
       }
 
-      // Yellow priority: Past due or needs follow-up
+      // Low priority: Other statuses needing follow-up
       if (daysSinceLastContact > 7) {
         followUps.push({
           lead,
-          urgency: "medium",
+          urgency: "low",
           nextAction: lastInteraction.type === "call" ? "email" : "call",
           daysOverdue: daysSinceLastContact - 7,
           reason: "Past due follow-up",
@@ -148,7 +159,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       if (lastInteraction.type === "call" && daysSinceLastContact >= 2) {
         followUps.push({
           lead,
-          urgency: "medium",
+          urgency: "low",
           nextAction: "email",
           daysOverdue: daysSinceLastContact - 2,
           reason: "Email follow-up after call",
@@ -156,7 +167,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       } else if (lastInteraction.type === "email" && daysSinceLastContact >= 4) {
         followUps.push({
           lead,
-          urgency: "medium",
+          urgency: "low",
           nextAction: "call",
           daysOverdue: daysSinceLastContact - 4,
           reason: "Call follow-up after email",
@@ -165,7 +176,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     })
 
     return followUps.sort((a, b) => {
-      const urgencyOrder = { high: 4, "dormant-interested": 3, medium: 2, low: 1 }
+      const urgencyOrder = { high: 3, medium: 2, low: 1 }
       return urgencyOrder[b.urgency] - urgencyOrder[a.urgency] || b.daysOverdue - a.daysOverdue
     })
   }
@@ -188,12 +199,12 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     switch (urgency) {
       case "high":
         return "bg-green-500/20 text-green-300 border-green-500/30"
-      case "dormant-interested":
-        return "bg-green-700/20 text-green-400 border-green-700/30"
       case "medium":
         return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-      default:
+      case "low":
         return "bg-red-500/20 text-red-300 border-red-500/30"
+      default:
+        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
     }
   }
 
@@ -201,12 +212,12 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     switch (urgency) {
       case "high":
         return "High Priority"
-      case "dormant-interested":
-        return "Dormant Interested"
       case "medium":
-        return "Needs Follow-up"
-      default:
+        return "Medium Priority"
+      case "low":
         return "Low Priority"
+      default:
+        return "Other"
     }
   }
 
@@ -228,7 +239,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {items.slice(0, 6).map((item) => {
-                const UrgencyIcon = urgencyIcons[item.urgency === "dormant-interested" ? "high" : item.urgency]
+                const UrgencyIcon = urgencyIcons[item.urgency]
 
                 return (
                   <motion.div
@@ -251,7 +262,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                           <div className="flex items-center gap-1 ml-2">
                             <UrgencyIcon className="h-3 w-3 text-purple-400" />
                             <Badge className={`${getGroupColor(urgency)} text-xs rounded-full px-2 py-0.5`}>
-                              {item.urgency === "dormant-interested" ? "Dormant" : item.urgency}
+                              {item.urgency}
                             </Badge>
                           </div>
                         </div>

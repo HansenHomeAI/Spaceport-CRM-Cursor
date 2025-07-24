@@ -31,7 +31,6 @@ export interface Lead {
   lastInteraction: string
   ownerId?: string
   ownerName?: string
-  priority: "high" | "medium" | "low" | "dormant"
   nextActionDate: string
   needsAttention?: boolean
   notes: Array<{
@@ -53,84 +52,16 @@ interface LeadsTableProps {
   onLeadUpdate: (leadId: string, updates: Partial<Lead>) => void
   onLeadSelect: (lead: Lead) => void
   sortConfig?: {
-    field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
+    field: 'name' | 'status' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
   }
   onSortChange?: (config: {
-    field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
+    field: 'name' | 'status' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
   }) => void
 }
 
 const columnHelper = createColumnHelper<Lead>()
-
-// Sales cadence logic
-const calculatePriority = (lead: Lead): { priority: Lead["priority"]; nextActionDate: string; reason: string } => {
-  const now = new Date()
-  const lastNote = lead.notes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-
-  if (!lastNote) {
-    return {
-      priority: "high",
-      nextActionDate: new Date().toISOString(),
-      reason: "No initial contact made",
-    }
-  }
-
-  const daysSinceLastContact = Math.floor(
-    (now.getTime() - new Date(lastNote.timestamp).getTime()) / (1000 * 60 * 60 * 24),
-  )
-
-  // Over 30 days = dormant
-  if (daysSinceLastContact > 30) {
-    return {
-      priority: "dormant",
-      nextActionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Next week
-      reason: "Dormant - follow up when convenient",
-    }
-  }
-
-  // Sales cadence based on last interaction type and status
-  if (lead.status === "interested") {
-    if (daysSinceLastContact >= 2) {
-      return {
-        priority: "high",
-        nextActionDate: new Date().toISOString(),
-        reason: "Interested lead needs immediate follow-up",
-      }
-    }
-  }
-
-  if (lastNote.type === "call" && daysSinceLastContact >= 3) {
-    return {
-      priority: "medium",
-      nextActionDate: new Date().toISOString(),
-      reason: "Email follow-up after call",
-    }
-  }
-
-  if (lastNote.type === "email" && daysSinceLastContact >= 5) {
-    return {
-      priority: "medium",
-      nextActionDate: new Date().toISOString(),
-      reason: "Call follow-up after email",
-    }
-  }
-
-  if (daysSinceLastContact >= 7) {
-    return {
-      priority: "low",
-      nextActionDate: new Date().toISOString(),
-      reason: "Weekly check-in",
-    }
-  }
-
-  return {
-    priority: "low",
-    nextActionDate: new Date(Date.now() + (7 - daysSinceLastContact) * 24 * 60 * 60 * 1000).toISOString(),
-    reason: "On schedule",
-  }
-}
 
 export function LeadsTable({
   leads,
@@ -158,11 +89,6 @@ export function LeadsTable({
         case 'status':
           aValue = a.status
           bValue = b.status
-          break
-        case 'priority':
-          const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
-          aValue = priorityOrder[a.priority]
-          bValue = priorityOrder[b.priority]
           break
         case 'lastContact':
           const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
@@ -192,42 +118,11 @@ export function LeadsTable({
     return sorted
   }, [leads, sortConfig])
 
-  // Calculate priorities for all leads
-  const leadsWithPriority = useMemo(() => {
-    return leads.map((lead) => {
-      const { priority, nextActionDate, reason } = calculatePriority(lead)
-      return { ...lead, priority, nextActionDate, priorityReason: reason }
-    })
-  }, [leads])
-
   // Filter and sort leads
   const filteredAndSortedLeads = useMemo(() => {
     let filtered = sortedLeads
-
-    // Filter by dormant status
-    // if (!showDormant) { // This line is removed as per the edit hint
-    //   filtered = filtered.filter((lead) => lead.priority !== "dormant")
-    // }
-
-    // Sort by priority and recency
-    // if (sortByRecent) { // This line is removed as per the edit hint
-    //   filtered.sort((a, b) => {
-    //     // First by priority
-    //     const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
-    //     const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority]
-    //     if (priorityDiff !== 0) return priorityDiff
-
-    //     // Then by most recent interaction
-    //     const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
-    //     const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
-    //     const aTime = aLastNote ? new Date(aLastNote.timestamp).getTime() : 0
-    //     const bTime = bLastNote ? new Date(bLastNote.timestamp).getTime() : 0
-    //     return bTime - aTime
-    //   })
-    // }
-
     return filtered
-  }, [sortedLeads]) // Removed sortByRecent and showDormant from dependencies
+  }, [sortedLeads])
 
   const handleClaimLead = (leadId: string) => {
     if (!user) return
@@ -242,32 +137,6 @@ export function LeadsTable({
       ownerId: undefined,
       ownerName: undefined,
     })
-  }
-
-  const getPriorityIcon = (priority: Lead["priority"]) => {
-    switch (priority) {
-      case "high":
-        return <AlertTriangle className="h-3 w-3 text-red-400" />
-      case "medium":
-        return <Clock className="h-3 w-3 text-yellow-400" />
-      case "low":
-        return <Clock className="h-3 w-3 text-green-400" />
-      case "dormant":
-        return <Clock className="h-3 w-3 text-gray-400" />
-    }
-  }
-
-  const getPriorityColor = (priority: Lead["priority"]) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-500/10 text-red-300 border-red-500/20"
-      case "medium":
-        return "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
-      case "low":
-        return "bg-green-500/10 text-green-300 border-green-500/20"
-      case "dormant":
-        return "bg-gray-500/10 text-gray-300 border-gray-500/20"
-    }
   }
 
   const columns = useMemo<ColumnDef<Lead, any>[]>(
@@ -291,7 +160,6 @@ export function LeadsTable({
                   {[
                     { value: 'name', label: 'Name', icon: '👤' },
                     { value: 'status', label: 'Status', icon: '📊' },
-                    { value: 'priority', label: 'Priority', icon: '⚡' },
                     { value: 'lastContact', label: 'Last Contact', icon: '📞' },
                     { value: 'dateAdded', label: 'Date Added', icon: '📅' },
                     { value: 'interestLevel', label: 'Interest Level', icon: '🎯' }
@@ -358,7 +226,7 @@ export function LeadsTable({
         cell: ({ getValue, row, column }) => {
           const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
           const value = getValue()
-          const lead = row.original as Lead & { priorityReason?: string }
+          const lead = row.original
 
           if (isEditing) {
             return (
@@ -383,7 +251,6 @@ export function LeadsTable({
           return (
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                {getPriorityIcon(lead.priority)}
                 <div
                   className="text-white font-title cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200"
                   onDoubleClick={() => setEditingCell({ rowId: row.id, columnId: column.id })}
@@ -406,7 +273,6 @@ export function LeadsTable({
               <div className="text-gray-400 font-body text-sm">{row.original.email}</div>
               <div className="text-gray-400 font-body text-sm">{row.original.phone}</div>
               {lead.company && <div className="text-gray-500 font-body text-xs">{lead.company}</div>}
-              {lead.priorityReason && <div className="text-xs text-gray-500 italic">{lead.priorityReason}</div>}
             </div>
           )
         },
@@ -482,28 +348,6 @@ export function LeadsTable({
                 ))}
               </SelectContent>
             </Select>
-          )
-        },
-      }),
-      columnHelper.accessor("priority", {
-        header: "Priority",
-        cell: ({ getValue, row }) => {
-          const priority = getValue()
-          const lead = row.original as Lead & { priorityReason?: string }
-
-          return (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge className={`${getPriorityColor(priority)} rounded-pill px-3 py-1 font-body cursor-help`}>
-                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
-                  <p className="font-body">{lead.priorityReason}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           )
         },
       }),

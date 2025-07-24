@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
   const [sortConfig, setSortConfig] = useState<{
-    field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
+    field: 'name' | 'status' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
   }>({ field: 'lastContact', direction: 'desc' })
   // Add new state for database connection status
@@ -129,8 +129,8 @@ export default function DashboardPage() {
   const responsesReceived = leads.filter((lead) => lead.status === "interested" || lead.status === "closed").length
   const myLeads = leads.filter((lead) => lead.ownerId === user?.id).length
   const unclaimedLeads = leads.filter((lead) => !lead.ownerId).length
-  const dormantLeads = leads.filter((lead) => lead.priority === "dormant").length
-  const highPriorityLeads = leads.filter((lead) => lead.priority === "high").length
+  const interestedLeads = leads.filter((lead) => lead.status === "interested").length
+  const contactedLeads = leads.filter((lead) => lead.status === "contacted").length
   const needsAttentionLeads = leads.filter((lead) => lead.needsAttention).length
 
   // Sort leads based on current configuration
@@ -148,11 +148,7 @@ export default function DashboardPage() {
           aValue = a.status
           bValue = b.status
           break
-        case 'priority':
-          const priorityOrder = { high: 4, medium: 3, low: 2, dormant: 1 }
-          aValue = priorityOrder[a.priority]
-          bValue = priorityOrder[b.priority]
-          break
+
         case 'lastContact':
           const aLastNote = a.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
           const bLastNote = b.notes.sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())[0]
@@ -561,11 +557,11 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-400 font-body text-sm">High Priority</p>
-                    <p className="text-3xl font-title text-primary-hierarchy">{highPriorityLeads}</p>
+                    <p className="text-gray-400 font-body text-sm">Interested Leads</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{interestedLeads}</p>
                   </div>
-                  <div className="h-12 w-12 bg-red-500/20 rounded-full flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-red-400" />
+                  <div className="h-12 w-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-green-400" />
                   </div>
                 </div>
               </CardContent>

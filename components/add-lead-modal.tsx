@@ -140,7 +140,6 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       email: formData.email || "Not provided",
       address: formData.address || "Address not provided",
       company: formData.company || "",
-      priority: "medium" as const,
       nextActionDate: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

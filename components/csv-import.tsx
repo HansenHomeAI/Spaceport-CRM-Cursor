@@ -312,26 +312,7 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
     status = "left voicemail"
   }
 
-  // Determine priority based on notes and status
-  let priority: "high" | "medium" | "low" | "dormant" = "medium"
-  if (status === "interested") {
-    priority = "high"
-  } else if (status === "cold") {
-    priority = "low"
-  } else if (lowerNotes.includes("dormant") || lowerNotes.includes("spring")) {
-    priority = "dormant"
-  } else if (status === "left voicemail") {
-    // Check if they should be high priority (recent contact but no response)
-    const recentNotes = notes.filter(note => {
-      const noteDate = new Date(note.timestamp)
-      const now = new Date()
-      const daysDiff = (now.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24)
-      return daysDiff <= 14 // Within last 2 weeks
-    })
-    if (recentNotes.length > 0) {
-      priority = "high"
-    }
-  }
+
 
   // Find the most recent date from notes for lastInteraction (NOT import date!)
   let lastInteraction = "2024-10-01" // Default to start of our timeframe
@@ -355,7 +336,6 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
     address: address || "Address not provided",
     status: status,
     lastInteraction: lastInteraction,
-    priority: priority,
     nextActionDate: new Date().toISOString(),
     needsAttention: needsAttention,
     notes: notes.length > 0 ? notes : [{
@@ -364,6 +344,8 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
       timestamp: new Date("2024-10-01").toISOString(),
       type: "note" as const,
     }],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   }
 }
 

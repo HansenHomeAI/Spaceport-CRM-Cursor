@@ -12,7 +12,6 @@ export interface Lead {
   lastInteraction: string
   ownerId?: string
   ownerName?: string
-  priority: "high" | "medium" | "low" | "dormant"
   nextActionDate: string
   needsAttention?: boolean
   notes: Array<{
