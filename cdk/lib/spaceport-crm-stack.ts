@@ -85,8 +85,13 @@ export class SpaceportCrmStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       code: lambda.Code.fromInline(`
-        const AWS = require('aws-sdk');
-        const dynamodb = new AWS.DynamoDB.DocumentClient();
+        // Use AWS SDK v3 instead of deprecated aws-sdk
+        const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+        const { DynamoDBDocumentClient, ScanCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+        
+        // Initialize DynamoDB client with v3 SDK
+        const client = new DynamoDBClient({});
+        const dynamodb = DynamoDBDocumentClient.from(client);
         
         const corsHeaders = {
           'Access-Control-Allow-Origin': '*',
@@ -134,10 +139,10 @@ export class SpaceportCrmStack extends cdk.Stack {
               case 'GET':
                 if (pathParameters && pathParameters.id) {
                   // Get single lead
-                  const result = await dynamodb.get({
+                  const result = await dynamodb.send(new GetCommand({
                     TableName: leadsTableName,
                     Key: { id: pathParameters.id }
-                  }).promise();
+                  }));
                   
                   return {
                     statusCode: 200,
@@ -146,9 +151,9 @@ export class SpaceportCrmStack extends cdk.Stack {
                   };
                 } else {
                   // Get all leads
-                  const result = await dynamodb.scan({
+                  const result = await dynamodb.send(new ScanCommand({
                     TableName: leadsTableName
-                  }).promise();
+                  }));
                   
                   return {
                     statusCode: 200,
@@ -160,14 +165,8 @@ export class SpaceportCrmStack extends cdk.Stack {
               case 'POST':
                 const newLead = JSON.parse(body);
                 newLead.id = \`lead_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;
-                newLead.createdAt = new Date().toISOString();
-                newLead.updatedAt = new Date().toISOString();
-                newLead.notes = newLead.notes || [];
-                newLead.lastInteraction = newLead.lastInteraction || new Date().toISOString();
-                newLead.nextActionDate = newLead.nextActionDate || new Date().toISOString();
-                newLead.priority = newLead.priority || 'medium';
-                newLead.status = newLead.status || 'contacted';
-                newLead.needsAttention = newLead.needsAttention || false;
+                newLead.dateAdded = new Date().toISOString();
+                newLead.lastContact = newLead.lastContact || new Date().toISOString();
                 
                 // Add user attribution
                 if (user) {
@@ -175,10 +174,10 @@ export class SpaceportCrmStack extends cdk.Stack {
                   newLead.createdByName = user.name;
                 }
                 
-                await dynamodb.put({
+                await dynamodb.send(new PutCommand({
                   TableName: leadsTableName,
                   Item: newLead
-                }).promise();
+                }));
                 
                 return {
                   statusCode: 201,
@@ -187,70 +186,92 @@ export class SpaceportCrmStack extends cdk.Stack {
                 };
               
               case 'PUT':
-                const updatedLead = JSON.parse(body);
-                updatedLead.updatedAt = new Date().toISOString();
-                
-                // Add user attribution for updates
-                if (user) {
-                  updatedLead.lastUpdatedBy = user.id;
-                  updatedLead.lastUpdatedByName = user.name;
-                }
-                
-                await dynamodb.put({
-                  TableName: leadsTableName,
-                  Item: updatedLead
-                }).promise();
-                
-                return {
-                  statusCode: 200,
-                  headers: corsHeaders,
-                  body: JSON.stringify(updatedLead)
-                };
-              
-              case 'DELETE':
                 if (!pathParameters || !pathParameters.id) {
                   return {
                     statusCode: 400,
                     headers: corsHeaders,
-                    body: JSON.stringify({ error: 'Lead ID is required' })
+                    body: JSON.stringify({ error: 'Lead ID required' })
                   };
                 }
                 
-                // Check if this is a reset request
-                if (pathParameters.id === 'reset') {
-                  // Delete all leads
-                  const scanResult = await dynamodb.scan({
-                    TableName: leadsTableName
-                  }).promise();
+                const updateData = JSON.parse(body);
+                delete updateData.id; // Don't allow ID updates
+                
+                // Add user attribution for updates
+                if (user) {
+                  updateData.lastModifiedBy = user.id;
+                  updateData.lastModifiedByName = user.name;
+                  updateData.lastModified = new Date().toISOString();
+                }
+                
+                // Build update expression
+                const updateExpression = [];
+                const expressionAttributeValues = {};
+                const expressionAttributeNames = {};
+                
+                Object.keys(updateData).forEach((key, index) => {
+                  const attrName = \`#attr\${index}\`;
+                  const attrValue = \`:val\${index}\`;
+                  updateExpression.push(\`\${attrName} = \${attrValue}\`);
+                  expressionAttributeNames[attrName] = key;
+                  expressionAttributeValues[attrValue] = updateData[key];
+                });
+                
+                const result = await dynamodb.send(new UpdateCommand({
+                  TableName: leadsTableName,
+                  Key: { id: pathParameters.id },
+                  UpdateExpression: \`SET \${updateExpression.join(', ')}\`,
+                  ExpressionAttributeNames: expressionAttributeNames,
+                  ExpressionAttributeValues: expressionAttributeValues,
+                  ReturnValues: 'ALL_NEW'
+                }));
+                
+                return {
+                  statusCode: 200,
+                  headers: corsHeaders,
+                  body: JSON.stringify(result.Attributes)
+                };
+              
+              case 'DELETE':
+                if (pathParameters && pathParameters.id === 'reset') {
+                  // Reset/clear all leads (special endpoint)
+                  const scanResult = await dynamodb.send(new ScanCommand({
+                    TableName: leadsTableName,
+                    ProjectionExpression: 'id'
+                  }));
                   
-                  if (scanResult.Items && scanResult.Items.length > 0) {
-                    const deletePromises = scanResult.Items.map(item => 
-                      dynamodb.delete({
-                        TableName: leadsTableName,
-                        Key: { id: item.id }
-                      }).promise()
-                    );
-                    
-                    await Promise.all(deletePromises);
+                  // Delete all items
+                  for (const item of scanResult.Items || []) {
+                    await dynamodb.send(new DeleteCommand({
+                      TableName: leadsTableName,
+                      Key: { id: item.id }
+                    }));
                   }
                   
                   return {
                     statusCode: 200,
                     headers: corsHeaders,
-                    body: JSON.stringify({ message: 'Database reset successfully' })
+                    body: JSON.stringify({ message: \`Deleted \${scanResult.Items?.length || 0} leads\` })
+                  };
+                } else if (pathParameters && pathParameters.id) {
+                  // Delete single lead
+                  await dynamodb.send(new DeleteCommand({
+                    TableName: leadsTableName,
+                    Key: { id: pathParameters.id }
+                  }));
+                  
+                  return {
+                    statusCode: 204,
+                    headers: corsHeaders,
+                    body: ''
+                  };
+                } else {
+                  return {
+                    statusCode: 400,
+                    headers: corsHeaders,
+                    body: JSON.stringify({ error: 'Lead ID required' })
                   };
                 }
-                
-                await dynamodb.delete({
-                  TableName: leadsTableName,
-                  Key: { id: pathParameters.id }
-                }).promise();
-                
-                return {
-                  statusCode: 204,
-                  headers: corsHeaders,
-                  body: ''
-                };
               
               default:
                 return {
@@ -286,8 +307,13 @@ export class SpaceportCrmStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       code: lambda.Code.fromInline(`
-        const AWS = require('aws-sdk');
-        const dynamodb = new AWS.DynamoDB.DocumentClient();
+        // Use AWS SDK v3 instead of deprecated aws-sdk
+        const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+        const { DynamoDBDocumentClient, ScanCommand, QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+        
+        // Initialize DynamoDB client with v3 SDK
+        const client = new DynamoDBClient({});
+        const dynamodb = DynamoDBDocumentClient.from(client);
         
         const corsHeaders = {
           'Access-Control-Allow-Origin': '*',
@@ -335,7 +361,7 @@ export class SpaceportCrmStack extends cdk.Stack {
               case 'GET':
                 if (queryStringParameters && queryStringParameters.leadId) {
                   // Get activities for a specific lead
-                  const result = await dynamodb.query({
+                  const result = await dynamodb.send(new QueryCommand({
                     TableName: activitiesTableName,
                     IndexName: 'LeadIdIndex',
                     KeyConditionExpression: 'leadId = :leadId',
@@ -343,7 +369,7 @@ export class SpaceportCrmStack extends cdk.Stack {
                       ':leadId': queryStringParameters.leadId
                     },
                     ScanIndexForward: false // Most recent first
-                  }).promise();
+                  }));
                   
                   return {
                     statusCode: 200,
@@ -352,9 +378,9 @@ export class SpaceportCrmStack extends cdk.Stack {
                   };
                 } else {
                   // Get all activities
-                  const result = await dynamodb.scan({
+                  const result = await dynamodb.send(new ScanCommand({
                     TableName: activitiesTableName
-                  }).promise();
+                  }));
                   
                   return {
                     statusCode: 200,
@@ -375,10 +401,10 @@ export class SpaceportCrmStack extends cdk.Stack {
                   newActivity.createdByName = user.name;
                 }
                 
-                await dynamodb.put({
+                await dynamodb.send(new PutCommand({
                   TableName: activitiesTableName,
                   Item: newActivity
-                }).promise();
+                }));
                 
                 return {
                   statusCode: 201,

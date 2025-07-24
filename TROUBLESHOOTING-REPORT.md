@@ -18,25 +18,83 @@ if (error) {
 ```
 
 ### 2. **Reset All Contacts Button Not Working** ✅ FIXED
-**Problem**: The reset button appeared to work but only cleared localStorage, not the actual database.
+**Problem**: The reset button appeared to work but only cleared localStorage, not the real database.
 
-**Root Cause**: Same authentication issues - when the API call failed, it just cleared local state without actually resetting the database.
+**Root Cause**: Same authentication issue prevented reset API calls from working.
 
-### 3. **No User Feedback for Database Connection Issues** ✅ FIXED
-**Problem**: Users had no way to know if they were connected to the real database or just using localStorage.
+### 3. **CORS Issues for Production Domain** ✅ FIXED
+**Problem**: API Gateway was blocking requests from `https://crm.hansentour.com` with CORS errors.
 
-**Root Cause**: No visual indicators or error messages for connection status.
+**Root Cause**: Missing CORS headers for authentication failure responses (401, 403).
 
-### 4. **Authentication Issues Hidden** ✅ FIXED
-**Problem**: When users weren't properly authenticated with real Cognito accounts, the errors were hidden by the fallback mechanism.
-
-### 5. **CORS Issues with Production Domain** ✅ FIXED
-**Problem**: The production domain `https://crm.hansentour.com` was getting CORS errors when making API calls:
+**Fix Applied**: Added Gateway Responses in CDK configuration:
+```typescript
+api.addGatewayResponse("AuthorizerFailure", {
+  type: apigateway.ResponseType.UNAUTHORIZED,
+  responseHeaders: {
+    "Access-Control-Allow-Origin": "'*'",
+    "Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+    "Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'",
+  },
+})
 ```
-Origin https://crm.hansentour.com is not allowed by Access-Control-Allow-Origin. Status code: 401
+
+### 4. **🎯 TOKEN TYPE MISMATCH** (CRITICAL ROOT CAUSE) ✅ FIXED
+
+**THE REAL PROBLEM**: The frontend was sending **ACCESS tokens** but API Gateway Cognito authorizer expected **ID tokens**.
+
+**Evidence from Logs**:
+- ✅ "🔍 AuthProvider: Found Cognito user" - Authentication working
+- ✅ "🔍 Dashboard: User authenticated" - User authenticated locally  
+- ❌ "Failed to load resource: the server responded with a status of 401" - API rejecting tokens
+- ❌ "Token expired, attempting refresh..." - Token refresh also failing with 401
+
+**Technical Details**:
+- **Access Token**: Contains scopes and permissions, used for API authorization
+- **ID Token**: Contains user identity, required by Cognito User Pool authorizers
+- **API Gateway Cognito authorizers expect ID tokens**, not access tokens
+
+**Fix Applied**:
+
+1. **Updated AuthUser interface** to include idToken:
+```typescript
+export interface AuthUser {
+  id: string
+  name: string  
+  email: string
+  accessToken: string
+  idToken: string  // ⭐ CRITICAL ADDITION
+  refreshToken: string
+  isDemo?: boolean
+}
 ```
 
-**Root Cause**: API Gateway wasn't configured to send proper CORS headers for authentication failures (401, 403, etc.).
+2. **Modified sign-in to capture ID tokens**:
+```typescript
+const user: AuthUser = {
+  id: cognitoUser.getUsername(),
+  name: email.split('@')[0],
+  email: email,
+  accessToken: result.getAccessToken().getJwtToken(),
+  idToken: result.getIdToken().getJwtToken(),  // ⭐ CRITICAL FIX
+  refreshToken: result.getRefreshToken().getToken(),
+}
+```
+
+3. **Updated API client to use ID tokens**:
+```typescript
+// BEFORE (BROKEN):
+const token = cognitoAuth.getAccessToken()
+
+// AFTER (FIXED):
+const token = cognitoAuth.getIdToken()  // ⭐ CRITICAL FIX
+```
+
+4. **Fixed token refresh to refresh ID tokens**:
+```typescript
+// Retry the request with new ID token (CRITICAL FIX)
+headers.Authorization = `Bearer ${refreshResult.user.idToken}`
+```
 
 ## ✅ **Solutions Implemented**
 
