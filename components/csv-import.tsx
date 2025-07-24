@@ -298,18 +298,18 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
   // Parse notes and extract interaction history
   const notes = parseNotes(notesText)
   
-  // Determine status based on notes content
-  let status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail" = "contacted"
+    // Determine status based on notes content
+  let status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up" = "Contacted"
   const lowerNotes = notesText.toLowerCase()
-  
+
   if (lowerNotes.includes("interested") || lowerNotes.includes("wants to see") || lowerNotes.includes("sounded interested")) {
-    status = "interested"
+    status = "Interested"
   } else if (lowerNotes.includes("not interested") || lowerNotes.includes("said no") || lowerNotes.includes("isn't interested")) {
-    status = "cold"
-  } else if (lowerNotes.includes("closed") || lowerNotes.includes("sold")) {
-    status = "closed"
+    status = "Not Interested"
+  } else if (lowerNotes.includes("follow up") || lowerNotes.includes("callback") || lowerNotes.includes("try again")) {
+    status = "Needs Follow-Up"
   } else if (lowerNotes.includes("voicemail") && !lowerNotes.includes("talked") && !lowerNotes.includes("picked up")) {
-    status = "left voicemail"
+    status = "Left Voicemail"
   }
 
 

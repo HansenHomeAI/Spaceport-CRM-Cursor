@@ -121,7 +121,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     email: "",
     address: "",
     company: "",
-    status: "contacted" as Lead["status"],
+    status: "Contacted" as Lead["status"],
     lastInteraction: new Date().toISOString().split("T")[0],
   })
 
@@ -152,7 +152,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       email: "",
       address: "",
       company: "",
-      status: "contacted",
+      status: "Contacted",
       lastInteraction: new Date().toISOString().split("T")[0],
     })
     setSmartParseText("")

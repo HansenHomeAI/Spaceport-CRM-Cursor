@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Clock, AlertTriangle, Phone, Mail } from "lucide-react"
+import { Clock, AlertTriangle, Phone, Mail, ChevronDown, ChevronRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import type { Lead } from "./leads-table"
 
 interface FollowUpItem {
   lead: Lead
-  urgency: "high" | "medium" | "low"
+  urgency: "high" | "medium"
   nextAction: "call" | "email"
   daysOverdue: number
   reason: string
@@ -22,27 +22,25 @@ interface FollowUpPriorityProps {
 }
 
 const urgencyColors = {
-  high: "bg-red-500/10 text-red-300 border-red-500/20",
+  high: "bg-green-500/10 text-green-300 border-green-500/20",
   medium: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
-  low: "bg-green-500/10 text-green-300 border-green-500/20",
 }
 
 const urgencyIcons = {
   high: AlertTriangle,
   medium: Clock,
-  low: Clock,
 }
 
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
-  // Calculate follow-up priorities based on status only
+  const [expandedGroup, setExpandedGroup] = useState<"high" | "medium" | null>("high")
+
+  // Calculate follow-up priorities based on new status system
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()) // Start of today
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const followUps: FollowUpItem[] = []
 
     leads.forEach((lead) => {
-      if (lead.status === "closed") return
-
       const lastInteraction = lead.notes.sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )[0]
@@ -51,7 +49,6 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       const allReminders = lead.notes.filter(note => note.text.includes("Set reminder:"))
       
       if (allReminders.length > 0) {
-        // Find the most recent reminder
         const mostRecentReminder = allReminders.sort((a, b) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         )[0]
@@ -59,16 +56,13 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         const reminderDate = new Date(mostRecentReminder.timestamp)
         const reminderDay = new Date(reminderDate.getFullYear(), reminderDate.getMonth(), reminderDate.getDate())
         
-        // Check if reminder is due today or overdue (highest priority)
         if (reminderDay <= today) {
-          // Check if there's been any action since the reminder was set
           const actionsAfterReminder = lead.notes.filter(note => 
             !note.text.includes("Set reminder:") && 
             new Date(note.timestamp) > reminderDate
           )
           
           if (actionsAfterReminder.length === 0) {
-            // No action taken since reminder was set - highest priority (scheduled for today)
             const daysOverdue = Math.floor((today.getTime() - reminderDay.getTime()) / (1000 * 60 * 60 * 24))
             followUps.push({
               lead,
@@ -80,12 +74,11 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             return
           }
         } else {
-          // Reminder is in the future - don't include in follow-ups
-          return
+          return // Future reminders - exclude from follow-ups
         }
       }
 
-      // Check for any future reminders that would override normal priority
+      // Check for future reminders
       const futureReminders = lead.notes.filter(note => {
         if (!note.text.includes("Set reminder:")) return false
         const reminderDate = new Date(note.timestamp)
@@ -94,12 +87,10 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       })
       
       if (futureReminders.length > 0) {
-        // Has future reminders - exclude from follow-ups
-        return
+        return // Has future reminders - exclude from follow-ups
       }
 
       if (!lastInteraction) {
-        // No interaction yet - high priority
         followUps.push({
           lead,
           urgency: "high",
@@ -114,69 +105,70 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: Interested or contacted leads
-      if (lead.status === "interested" || lead.status === "contacted") {
-        // Medium priority if interested but no action in over 4 weeks (28 days)
+      // High priority: "Contacted" and "Interested" leads
+      if (lead.status === "Contacted" || lead.status === "Interested") {
         if (daysSinceLastContact > 28) {
           followUps.push({
             lead,
             urgency: "medium",
             nextAction: "call",
             daysOverdue: 0,
-            reason: "Interested lead - no action in over 4 weeks",
+            reason: `${lead.status} lead - no action in over 4 weeks`,
           })
         } else {
-          // High priority for recent interested/contacted leads
           followUps.push({
             lead,
             urgency: "high",
             nextAction: "call",
             daysOverdue: 0,
-            reason: lead.status === "interested" ? "Interested lead" : "Contacted lead",
+            reason: `${lead.status} lead`,
           })
         }
         return
       }
 
-      // Only include other leads with interactions in the last month
-      if (daysSinceLastContact > 30) {
-        return
+      // Medium priority: "Needs Follow-Up" and "Left Voicemail" leads
+      if (lead.status === "Needs Follow-Up" || lead.status === "Left Voicemail") {
+        if (daysSinceLastContact > 30) {
+          return // Don't include very old leads
+        }
+
+        if (daysSinceLastContact > 7) {
+          followUps.push({
+            lead,
+            urgency: "medium",
+            nextAction: lastInteraction.type === "call" ? "email" : "call",
+            daysOverdue: daysSinceLastContact - 7,
+            reason: "Past due follow-up",
+          })
+          return
+        }
+
+        // Check cadence for medium priority leads
+        if (lastInteraction.type === "call" && daysSinceLastContact >= 2) {
+          followUps.push({
+            lead,
+            urgency: "medium",
+            nextAction: "email",
+            daysOverdue: daysSinceLastContact - 2,
+            reason: "Email follow-up after call",
+          })
+        } else if (lastInteraction.type === "email" && daysSinceLastContact >= 4) {
+          followUps.push({
+            lead,
+            urgency: "medium",
+            nextAction: "call",
+            daysOverdue: daysSinceLastContact - 4,
+            reason: "Call follow-up after email",
+          })
+        }
       }
 
-      // Low priority: Other statuses needing follow-up
-      if (daysSinceLastContact > 7) {
-        followUps.push({
-          lead,
-          urgency: "low",
-          nextAction: lastInteraction.type === "call" ? "email" : "call",
-          daysOverdue: daysSinceLastContact - 7,
-          reason: "Past due follow-up",
-        })
-        return
-      }
-
-      // Check if they're on cadence and need immediate action
-      if (lastInteraction.type === "call" && daysSinceLastContact >= 2) {
-        followUps.push({
-          lead,
-          urgency: "low",
-          nextAction: "email",
-          daysOverdue: daysSinceLastContact - 2,
-          reason: "Email follow-up after call",
-        })
-      } else if (lastInteraction.type === "email" && daysSinceLastContact >= 4) {
-        followUps.push({
-          lead,
-          urgency: "low",
-          nextAction: "call",
-          daysOverdue: daysSinceLastContact - 4,
-          reason: "Call follow-up after email",
-        })
-      }
+      // "Not Interested" leads are excluded from follow-ups
     })
 
     return followUps.sort((a, b) => {
-      const urgencyOrder = { high: 3, medium: 2, low: 1 }
+      const urgencyOrder = { high: 2, medium: 1 }
       return urgencyOrder[b.urgency] - urgencyOrder[a.urgency] || b.daysOverdue - a.daysOverdue
     })
   }
@@ -201,8 +193,6 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         return "bg-green-500/20 text-green-300 border-green-500/30"
       case "medium":
         return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-      case "low":
-        return "bg-red-500/20 text-red-300 border-red-500/30"
       default:
         return "bg-gray-500/20 text-gray-300 border-gray-500/30"
     }
@@ -214,11 +204,13 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         return "High Priority"
       case "medium":
         return "Medium Priority"
-      case "low":
-        return "Low Priority"
       default:
         return "Other"
     }
+  }
+
+  const toggleGroup = (urgency: "high" | "medium") => {
+    setExpandedGroup(expandedGroup === urgency ? null : urgency)
   }
 
   return (
@@ -229,60 +221,91 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       className="mb-8"
     >
       <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Priority Follow-ups</h2>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {Object.entries(groupedFollowUps).map(([urgency, items]) => (
-          <div key={urgency} className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge className={`${getGroupColor(urgency)} rounded-full px-3 py-1`}>
-                {getGroupTitle(urgency)} ({items.length})
-              </Badge>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-              {items.slice(0, 6).map((item) => {
-                const UrgencyIcon = urgencyIcons[item.urgency]
+          <div key={urgency} className="space-y-3">
+            {/* Accordion Header */}
+            <Button
+              onClick={() => toggleGroup(urgency as "high" | "medium")}
+              variant="ghost"
+              className={`w-full justify-between p-4 h-auto rounded-2xl transition-all duration-300 ${
+                expandedGroup === urgency 
+                  ? getGroupColor(urgency) 
+                  : "bg-black/10 backdrop-blur-sm border border-white/10 hover:bg-black/20"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Badge className={`${getGroupColor(urgency)} rounded-full px-3 py-1`}>
+                  {getGroupTitle(urgency)} ({items.length})
+                </Badge>
+              </div>
+              {expandedGroup === urgency ? (
+                <ChevronDown className="h-5 w-5 text-white" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-white" />
+              )}
+            </Button>
 
-                return (
-                  <motion.div
-                    key={item.lead.id}
-                    layout
-                    className="relative"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Card
-                      className="bg-black/20 backdrop-blur-xl border-system hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
-                      onClick={() => onLeadSelect(item.lead)}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
-                          </div>
-                          <div className="flex items-center gap-1 ml-2">
-                            <UrgencyIcon className="h-3 w-3 text-purple-400" />
-                            <Badge className={`${getGroupColor(urgency)} text-xs rounded-full px-2 py-0.5`}>
-                              {item.urgency}
-                            </Badge>
-                          </div>
-                        </div>
+            {/* Accordion Content */}
+            <AnimatePresence>
+              {expandedGroup === urgency && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 pt-2">
+                    {items.map((item) => {
+                      const UrgencyIcon = urgencyIcons[item.urgency]
 
-                        <div className="flex items-center gap-2">
-                          {item.nextAction === "call" ? (
-                            <Phone className="h-3 w-3 text-purple-400" />
-                          ) : (
-                            <Mail className="h-3 w-3 text-purple-400" />
-                          )}
-                          <span className="text-medium-hierarchy font-body text-xs">
-                            {item.nextAction === "call" ? "Call" : "Email"}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </div>
+                      return (
+                        <motion.div
+                          key={item.lead.id}
+                          layout
+                          className="relative"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Card
+                            className="bg-black/20 backdrop-blur-xl border-white/10 hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
+                            onClick={() => onLeadSelect(item.lead)}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
+                                  <p className="text-xs text-gray-400 font-body mt-1">{item.reason}</p>
+                                </div>
+                                <div className="flex items-center gap-1 ml-2">
+                                  <UrgencyIcon className="h-3 w-3 text-purple-400" />
+                                  <Badge className={`${getGroupColor(urgency)} text-xs rounded-full px-2 py-0.5`}>
+                                    {item.urgency}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {item.nextAction === "call" ? (
+                                  <Phone className="h-3 w-3 text-purple-400" />
+                                ) : (
+                                  <Mail className="h-3 w-3 text-purple-400" />
+                                )}
+                                <span className="text-medium-hierarchy font-body text-xs">
+                                  {item.nextAction === "call" ? "Call" : "Email"}
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ))}
       </div>

@@ -126,11 +126,11 @@ export default function DashboardPage() {
 
   // Calculate metrics
   const callsMade = leads.reduce((acc, lead) => acc + lead.notes.filter((note) => note.type === "call").length, 0)
-  const responsesReceived = leads.filter((lead) => lead.status === "interested" || lead.status === "closed").length
+  const responsesReceived = leads.filter((lead) => lead.status === "Interested").length
   const myLeads = leads.filter((lead) => lead.ownerId === user?.id).length
   const unclaimedLeads = leads.filter((lead) => !lead.ownerId).length
-  const interestedLeads = leads.filter((lead) => lead.status === "interested").length
-  const contactedLeads = leads.filter((lead) => lead.status === "contacted").length
+  const interestedLeads = leads.filter((lead) => lead.status === "Interested").length
+  const contactedLeads = leads.filter((lead) => lead.status === "Contacted").length
   const needsAttentionLeads = leads.filter((lead) => lead.needsAttention).length
 
   // Sort leads based on current configuration
@@ -161,7 +161,13 @@ export default function DashboardPage() {
           bValue = parseInt(b.id)
           break
         case 'interestLevel':
-          const interestOrder = { interested: 4, contacted: 3, 'left voicemail': 2, cold: 1, dormant: 0, closed: 5 }
+          const interestOrder = { 
+            "Interested": 5, 
+            "Contacted": 4, 
+            "Needs Follow-Up": 3, 
+            "Left Voicemail": 2, 
+            "Not Interested": 1 
+          }
           aValue = interestOrder[a.status]
           bValue = interestOrder[b.status]
           break

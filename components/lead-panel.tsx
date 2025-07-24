@@ -327,40 +327,44 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-black/90 backdrop-blur-xl border-system rounded-3xl">
-                            <SelectItem value="cold" className="rounded-full font-body">
+                            <SelectItem value="Left Voicemail" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className={`w-2 h-2 rounded-full ${statusColor.bg}`}
-                                  style={{ backgroundColor: colors.status.cold.icon }}
+                                  className="w-2 h-2 rounded-full bg-orange-500"
                                 />
-                                Cold
+                                Left Voicemail
                               </div>
                             </SelectItem>
-                            <SelectItem value="contacted" className="rounded-full font-body">
+                            <SelectItem value="Contacted" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: colors.status.contacted.icon }}
+                                  className="w-2 h-2 rounded-full bg-blue-500"
                                 />
                                 Contacted
                               </div>
                             </SelectItem>
-                            <SelectItem value="interested" className="rounded-full font-body">
+                            <SelectItem value="Interested" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: colors.status.interested.icon }}
+                                  className="w-2 h-2 rounded-full bg-green-500"
                                 />
                                 Interested
                               </div>
                             </SelectItem>
-                            <SelectItem value="closed" className="rounded-full font-body">
+                            <SelectItem value="Not Interested" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: colors.status.closed.icon }}
+                                  className="w-2 h-2 rounded-full bg-red-500"
                                 />
-                                Closed
+                                Not Interested
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Needs Follow-Up" className="rounded-full font-body">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full bg-yellow-500"
+                                />
+                                Needs Follow-Up
                               </div>
                             </SelectItem>
                           </SelectContent>

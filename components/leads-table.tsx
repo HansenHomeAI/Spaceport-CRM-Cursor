@@ -27,7 +27,7 @@ export interface Lead {
   email: string
   address: string
   company?: string
-  status: "cold" | "contacted" | "interested" | "closed" | "dormant" | "left voicemail"
+  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up"
   lastInteraction: string
   ownerId?: string
   ownerName?: string
@@ -102,7 +102,13 @@ export function LeadsTable({
           bValue = parseInt(b.id)
           break
         case 'interestLevel':
-          const interestOrder = { interested: 4, contacted: 3, 'left voicemail': 2, cold: 1, dormant: 0, closed: 5 }
+          const interestOrder = { 
+            "Interested": 5, 
+            "Contacted": 4, 
+            "Needs Follow-Up": 3, 
+            "Left Voicemail": 2, 
+            "Not Interested": 1 
+          }
           aValue = interestOrder[a.status]
           bValue = interestOrder[b.status]
           break
