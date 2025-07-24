@@ -17,7 +17,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::975050048887:role/cdk-hnb659fds-deploy-role-975050048887-us-west-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::975050048887:role/cdk-hnb659fds-cfn-exec-role-975050048887-us-west-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-975050048887-us-west-2/bc03a599646c35728926090b9952f4f0a7e58ae41546f6a4d1fe69aace1b480a.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-975050048887-us-west-2/55e618e399f8fef2270de001d2d4b2ac79ea96dff85dfc41ad466860fafa0b9f.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -118,7 +118,7 @@
         "/SpaceportCrmStack/SpaceportCrmApi/Deployment/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa"
+            "data": "SpaceportCrmApiDeployment5F566CD21bd92511e75941bfaf9e2e61a36cf4c3"
           }
         ],
         "/SpaceportCrmStack/SpaceportCrmApi/DeploymentStage.prod/Resource": [
@@ -299,6 +299,30 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "SpaceportCrmApiactivitiesPOST2AF63FB6"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/AuthorizerFailure/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiAuthorizerFailureB662D40E"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/AuthorizerConfigurationError/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiAuthorizerConfigurationErrorDF33F056"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/AuthorizerResultTtlInSecondsFailure/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiAuthorizerResultTtlInSecondsFailure92FF730E"
+          }
+        ],
+        "/SpaceportCrmStack/SpaceportCrmApi/AccessDenied/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SpaceportCrmApiAccessDenied539AA9B7"
           }
         ],
         "/SpaceportCrmStack/CognitoAuthorizer/Resource": [

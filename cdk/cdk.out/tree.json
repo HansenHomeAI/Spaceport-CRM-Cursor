@@ -631,7 +631,7 @@
                           "Ref": "SpaceportCrmApi889610B4"
                         },
                         "deploymentId": {
-                          "Ref": "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa"
+                          "Ref": "SpaceportCrmApiDeployment5F566CD21bd92511e75941bfaf9e2e61a36cf4c3"
                         },
                         "stageName": "prod"
                       }
@@ -1000,6 +1000,15 @@
                                     "methodResponses": [
                                       {
                                         "statusCode": "200"
+                                      },
+                                      {
+                                        "statusCode": "401"
+                                      },
+                                      {
+                                        "statusCode": "403"
+                                      },
+                                      {
+                                        "statusCode": "500"
                                       }
                                     ]
                                   }
@@ -1128,6 +1137,15 @@
                                     "methodResponses": [
                                       {
                                         "statusCode": "200"
+                                      },
+                                      {
+                                        "statusCode": "401"
+                                      },
+                                      {
+                                        "statusCode": "403"
+                                      },
+                                      {
+                                        "statusCode": "500"
                                       }
                                     ]
                                   }
@@ -1256,6 +1274,15 @@
                                     "methodResponses": [
                                       {
                                         "statusCode": "200"
+                                      },
+                                      {
+                                        "statusCode": "401"
+                                      },
+                                      {
+                                        "statusCode": "403"
+                                      },
+                                      {
+                                        "statusCode": "500"
                                       }
                                     ]
                                   }
@@ -1390,6 +1417,15 @@
                                 "methodResponses": [
                                   {
                                     "statusCode": "200"
+                                  },
+                                  {
+                                    "statusCode": "401"
+                                  },
+                                  {
+                                    "statusCode": "403"
+                                  },
+                                  {
+                                    "statusCode": "500"
                                   }
                                 ]
                               }
@@ -1518,6 +1554,15 @@
                                 "methodResponses": [
                                   {
                                     "statusCode": "200"
+                                  },
+                                  {
+                                    "statusCode": "401"
+                                  },
+                                  {
+                                    "statusCode": "403"
+                                  },
+                                  {
+                                    "statusCode": "500"
                                   }
                                 ]
                               }
@@ -1737,6 +1782,15 @@
                                 "methodResponses": [
                                   {
                                     "statusCode": "200"
+                                  },
+                                  {
+                                    "statusCode": "401"
+                                  },
+                                  {
+                                    "statusCode": "403"
+                                  },
+                                  {
+                                    "statusCode": "500"
                                   }
                                 ]
                               }
@@ -1865,6 +1919,15 @@
                                 "methodResponses": [
                                   {
                                     "statusCode": "200"
+                                  },
+                                  {
+                                    "statusCode": "401"
+                                  },
+                                  {
+                                    "statusCode": "403"
+                                  },
+                                  {
+                                    "statusCode": "500"
                                   }
                                 ]
                               }
@@ -1889,6 +1952,134 @@
                 },
                 "constructInfo": {
                   "fqn": "aws-cdk-lib.aws_apigateway.ResourceBase",
+                  "version": "2.87.0"
+                }
+              },
+              "AuthorizerFailure": {
+                "id": "AuthorizerFailure",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerFailure",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerFailure/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::ApiGateway::GatewayResponse",
+                      "aws:cdk:cloudformation:props": {
+                        "responseType": "UNAUTHORIZED",
+                        "restApiId": {
+                          "Ref": "SpaceportCrmApi889610B4"
+                        },
+                        "responseParameters": {
+                          "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+                          "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                          "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.CfnGatewayResponse",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.GatewayResponse",
+                  "version": "2.87.0"
+                }
+              },
+              "AuthorizerConfigurationError": {
+                "id": "AuthorizerConfigurationError",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerConfigurationError",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerConfigurationError/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::ApiGateway::GatewayResponse",
+                      "aws:cdk:cloudformation:props": {
+                        "responseType": "AUTHORIZER_CONFIGURATION_ERROR",
+                        "restApiId": {
+                          "Ref": "SpaceportCrmApi889610B4"
+                        },
+                        "responseParameters": {
+                          "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+                          "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                          "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.CfnGatewayResponse",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.GatewayResponse",
+                  "version": "2.87.0"
+                }
+              },
+              "AuthorizerResultTtlInSecondsFailure": {
+                "id": "AuthorizerResultTtlInSecondsFailure",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerResultTtlInSecondsFailure",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerResultTtlInSecondsFailure/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::ApiGateway::GatewayResponse",
+                      "aws:cdk:cloudformation:props": {
+                        "responseType": "AUTHORIZER_FAILURE",
+                        "restApiId": {
+                          "Ref": "SpaceportCrmApi889610B4"
+                        },
+                        "responseParameters": {
+                          "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+                          "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                          "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.CfnGatewayResponse",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.GatewayResponse",
+                  "version": "2.87.0"
+                }
+              },
+              "AccessDenied": {
+                "id": "AccessDenied",
+                "path": "SpaceportCrmStack/SpaceportCrmApi/AccessDenied",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "SpaceportCrmStack/SpaceportCrmApi/AccessDenied/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::ApiGateway::GatewayResponse",
+                      "aws:cdk:cloudformation:props": {
+                        "responseType": "ACCESS_DENIED",
+                        "restApiId": {
+                          "Ref": "SpaceportCrmApi889610B4"
+                        },
+                        "responseParameters": {
+                          "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+                          "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                          "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_apigateway.CfnGatewayResponse",
+                      "version": "2.87.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_apigateway.GatewayResponse",
                   "version": "2.87.0"
                 }
               }

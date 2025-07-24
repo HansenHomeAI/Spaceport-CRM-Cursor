@@ -423,7 +423,7 @@
     "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Account"
    }
   },
-  "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa": {
+  "SpaceportCrmApiDeployment5F566CD21bd92511e75941bfaf9e2e61a36cf4c3": {
    "Type": "AWS::ApiGateway::Deployment",
    "Properties": {
     "RestApiId": {
@@ -433,6 +433,10 @@
    },
    "DependsOn": [
     "CognitoAuthorizerF3215DBC",
+    "SpaceportCrmApiAccessDenied539AA9B7",
+    "SpaceportCrmApiAuthorizerConfigurationErrorDF33F056",
+    "SpaceportCrmApiAuthorizerFailureB662D40E",
+    "SpaceportCrmApiAuthorizerResultTtlInSecondsFailure92FF730E",
     "SpaceportCrmApiactivitiesGET5EACBAA6",
     "SpaceportCrmApiactivitiesOPTIONS02414625",
     "SpaceportCrmApiactivitiesPOST2AF63FB6",
@@ -459,7 +463,7 @@
      "Ref": "SpaceportCrmApi889610B4"
     },
     "DeploymentId": {
-     "Ref": "SpaceportCrmApiDeployment5F566CD2f7f8f9dfcf4fe943e8b6c8d2f3c0c6fa"
+     "Ref": "SpaceportCrmApiDeployment5F566CD21bd92511e75941bfaf9e2e61a36cf4c3"
     },
     "StageName": "prod"
    },
@@ -731,6 +735,15 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
@@ -834,6 +847,15 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
@@ -937,6 +959,15 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
@@ -1040,6 +1071,15 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
@@ -1143,6 +1183,15 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
@@ -1307,6 +1356,15 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
@@ -1410,11 +1468,88 @@
     "MethodResponses": [
      {
       "StatusCode": "200"
+     },
+     {
+      "StatusCode": "401"
+     },
+     {
+      "StatusCode": "403"
+     },
+     {
+      "StatusCode": "500"
      }
     ]
    },
    "Metadata": {
     "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/Default/activities/POST/Resource"
+   }
+  },
+  "SpaceportCrmApiAuthorizerFailureB662D40E": {
+   "Type": "AWS::ApiGateway::GatewayResponse",
+   "Properties": {
+    "ResponseType": "UNAUTHORIZED",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ResponseParameters": {
+     "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+     "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+     "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerFailure/Resource"
+   }
+  },
+  "SpaceportCrmApiAuthorizerConfigurationErrorDF33F056": {
+   "Type": "AWS::ApiGateway::GatewayResponse",
+   "Properties": {
+    "ResponseType": "AUTHORIZER_CONFIGURATION_ERROR",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ResponseParameters": {
+     "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+     "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+     "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerConfigurationError/Resource"
+   }
+  },
+  "SpaceportCrmApiAuthorizerResultTtlInSecondsFailure92FF730E": {
+   "Type": "AWS::ApiGateway::GatewayResponse",
+   "Properties": {
+    "ResponseType": "AUTHORIZER_FAILURE",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ResponseParameters": {
+     "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+     "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+     "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/AuthorizerResultTtlInSecondsFailure/Resource"
+   }
+  },
+  "SpaceportCrmApiAccessDenied539AA9B7": {
+   "Type": "AWS::ApiGateway::GatewayResponse",
+   "Properties": {
+    "ResponseType": "ACCESS_DENIED",
+    "RestApiId": {
+     "Ref": "SpaceportCrmApi889610B4"
+    },
+    "ResponseParameters": {
+     "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+     "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+     "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "SpaceportCrmStack/SpaceportCrmApi/AccessDenied/Resource"
    }
   },
   "CognitoAuthorizerF3215DBC": {
@@ -1442,7 +1577,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/1WRTU/DMAyGfwv3LIxd2LUMcUNUA84oTUzxlsRVPphKlf9O2rSjnPzYb/zGTnZ8f8+3N+LiN1KdNxobPrwGIc8slz4G1VthSOXim2g0sMOnnSAxSa3FQHx49+BqIj1qV17goBFsWEulkhgKw4cjFc8p1qRR9mNaKDEtTKMEH56ilQHJjtqaa3AGvc9ZYqLDVgS4iD7bgg9Vh5PzH1ZSUszDPEKnqTfzXKss791O4xTIrRSdhAfhgT1D+CI1ijMt6nzJzOVRll19FfNZhz/gpgGuWUr/+l9i6GJYOyVmSQE/+dvv3Zbf7fMXnTzixuUF0AA/lvgLfcBoTL4BAAA="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/2WRQU/EIBCFf4t3iute3Gtdoydjs+rZUDrW2QWmKeCmNvx3KbRrjSe+Ny/MvIEt393yzZU420I2p0JhzccXJ+SJxdL72AxGaGpi8VXUCtj+wyQITFJr0BEf3yz0FZGavAsvsFcIxq2tXAkMhebjgXLPdFakUA6TzBSYErpuBB8fvJEOyUzemivoNVobVWCiw1Y4OIshtgXryg5T518spSQfw9xDp2jQc66Vinu3KU6GeJV8L+FOWGBP4D6pmcyZFncekvkxJ4i6I2OT96+U3215Dlv62K7Hb+hTxosK4c+IZ+8679bDAjPUAD/a66/tht/s4i8eLWLRxx1RAz/k8weMIXuv4QEAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "SpaceportCrmStack/CDKMetadata/Default"

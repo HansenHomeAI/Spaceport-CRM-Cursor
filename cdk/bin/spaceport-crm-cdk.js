@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("source-map-support/register");
+const cdk = require("aws-cdk-lib");
+const spaceport_crm_stack_1 = require("../lib/spaceport-crm-stack");
+const app = new cdk.App();
+new spaceport_crm_stack_1.SpaceportCrmStack(app, "SpaceportCrmStack", {
+    env: {
+        account: process.env.CDK_DEFAULT_ACCOUNT || "975050048887",
+        region: process.env.CDK_DEFAULT_REGION || "us-west-2",
+    },
+    description: "Spaceport CRM - Luxury CRM application with AWS backend",
+});
+app.synth();
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3BhY2Vwb3J0LWNybS1jZGsuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJzcGFjZXBvcnQtY3JtLWNkay50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFDQSx1Q0FBb0M7QUFDcEMsbUNBQWtDO0FBQ2xDLG9FQUE4RDtBQUU5RCxNQUFNLEdBQUcsR0FBRyxJQUFJLEdBQUcsQ0FBQyxHQUFHLEVBQUUsQ0FBQTtBQUV6QixJQUFJLHVDQUFpQixDQUFDLEdBQUcsRUFBRSxtQkFBbUIsRUFBRTtJQUM5QyxHQUFHLEVBQUU7UUFDSCxPQUFPLEVBQUUsT0FBTyxDQUFDLEdBQUcsQ0FBQyxtQkFBbUIsSUFBSSxjQUFjO1FBQzFELE1BQU0sRUFBRSxPQUFPLENBQUMsR0FBRyxDQUFDLGtCQUFrQixJQUFJLFdBQVc7S0FDdEQ7SUFDRCxXQUFXLEVBQUUseURBQXlEO0NBQ3ZFLENBQUMsQ0FBQTtBQUVGLEdBQUcsQ0FBQyxLQUFLLEVBQUUsQ0FBQSIsInNvdXJjZXNDb250ZW50IjpbIiMhL3Vzci9iaW4vZW52IG5vZGVcbmltcG9ydCBcInNvdXJjZS1tYXAtc3VwcG9ydC9yZWdpc3RlclwiXG5pbXBvcnQgKiBhcyBjZGsgZnJvbSBcImF3cy1jZGstbGliXCJcbmltcG9ydCB7IFNwYWNlcG9ydENybVN0YWNrIH0gZnJvbSBcIi4uL2xpYi9zcGFjZXBvcnQtY3JtLXN0YWNrXCJcblxuY29uc3QgYXBwID0gbmV3IGNkay5BcHAoKVxuXG5uZXcgU3BhY2Vwb3J0Q3JtU3RhY2soYXBwLCBcIlNwYWNlcG9ydENybVN0YWNrXCIsIHtcbiAgZW52OiB7XG4gICAgYWNjb3VudDogcHJvY2Vzcy5lbnYuQ0RLX0RFRkFVTFRfQUNDT1VOVCB8fCBcIjk3NTA1MDA0ODg4N1wiLFxuICAgIHJlZ2lvbjogcHJvY2Vzcy5lbnYuQ0RLX0RFRkFVTFRfUkVHSU9OIHx8IFwidXMtd2VzdC0yXCIsXG4gIH0sXG4gIGRlc2NyaXB0aW9uOiBcIlNwYWNlcG9ydCBDUk0gLSBMdXh1cnkgQ1JNIGFwcGxpY2F0aW9uIHdpdGggQVdTIGJhY2tlbmRcIixcbn0pXG5cbmFwcC5zeW50aCgpXG4iXX0=

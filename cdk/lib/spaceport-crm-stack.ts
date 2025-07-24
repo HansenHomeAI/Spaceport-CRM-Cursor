@@ -456,6 +456,30 @@ export class SpaceportCrmStack extends cdk.Stack {
             "Access-Control-Allow-Methods": true,
           },
         },
+        {
+          statusCode: "401", 
+          responseHeaders: {
+            "Access-Control-Allow-Origin": true,
+            "Access-Control-Allow-Headers": true,
+            "Access-Control-Allow-Methods": true,
+          },
+        },
+        {
+          statusCode: "403",
+          responseHeaders: {
+            "Access-Control-Allow-Origin": true,
+            "Access-Control-Allow-Headers": true,
+            "Access-Control-Allow-Methods": true,
+          },
+        },
+        {
+          statusCode: "500",
+          responseHeaders: {
+            "Access-Control-Allow-Origin": true,
+            "Access-Control-Allow-Headers": true,
+            "Access-Control-Allow-Methods": true,
+          },
+        },
       ],
     }
 
@@ -467,6 +491,43 @@ export class SpaceportCrmStack extends cdk.Stack {
 
     activitiesResource.addMethod("GET", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
     activitiesResource.addMethod("POST", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
+
+    // Add Gateway Responses for CORS support on authentication failures
+    api.addGatewayResponse("AuthorizerFailure", {
+      type: apigateway.ResponseType.UNAUTHORIZED,
+      responseHeaders: {
+        "Access-Control-Allow-Origin": "'*'",
+        "Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'",
+      },
+    })
+
+    api.addGatewayResponse("AuthorizerConfigurationError", {
+      type: apigateway.ResponseType.AUTHORIZER_CONFIGURATION_ERROR,
+      responseHeaders: {
+        "Access-Control-Allow-Origin": "'*'",
+        "Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'",
+      },
+    })
+
+    api.addGatewayResponse("AuthorizerResultTtlInSecondsFailure", {
+      type: apigateway.ResponseType.AUTHORIZER_FAILURE,
+      responseHeaders: {
+        "Access-Control-Allow-Origin": "'*'",
+        "Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'",
+      },
+    })
+
+    api.addGatewayResponse("AccessDenied", {
+      type: apigateway.ResponseType.ACCESS_DENIED,
+      responseHeaders: {
+        "Access-Control-Allow-Origin": "'*'",
+        "Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+        "Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'",
+      },
+    })
 
     // Outputs
     new cdk.CfnOutput(this, "ApiUrl", {
