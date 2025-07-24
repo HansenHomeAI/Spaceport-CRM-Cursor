@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -18,6 +18,7 @@ import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
+import { useActivityRefresh } from "@/hooks/use-activity-refresh"
 import Image from "next/image"
 
 export default function DashboardPage() {
@@ -36,9 +37,10 @@ export default function DashboardPage() {
   // Add new state for database connection status
   const [databaseConnectionStatus, setDatabaseConnectionStatus] = useState<'connected' | 'fallback' | 'error' | 'unknown'>('unknown')
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
 
   // Helper function to migrate old status values to new ones
-  const migrateLeadStatuses = async () => {
+  const migrateLeadStatuses = useCallback(async () => {
     const statusMap: Record<string, string> = {
       "cold": "Not Interested",
       "contacted": "Contacted", 
@@ -84,10 +86,10 @@ export default function DashboardPage() {
     } else {
       console.log(`⚠️ Migration completed with issues: ${successCount} successful, ${errorCount} failed.`)
     }
-  }
+  }, [leads])
 
   // Helper function to check migration status
-  const checkMigrationStatus = () => {
+  const checkMigrationStatus = useCallback(() => {
     const statusMap: Record<string, string> = {
       "cold": "Not Interested",
       "contacted": "Contacted", 
@@ -117,7 +119,7 @@ export default function DashboardPage() {
       migrated: newStatusLeads.length,
       needsMigration: oldStatusLeads.length
     }
-  }
+  }, [leads])
 
   // Expose migration functions for development/troubleshooting
   useEffect(() => {
@@ -128,7 +130,7 @@ export default function DashboardPage() {
       console.log("  • migrateLeadStatuses() - Update all leads to new status format")
       console.log("  • checkMigrationStatus() - Check how many leads need migration")
     }
-  }, [leads.length])
+  }, [leads, migrateLeadStatuses, checkMigrationStatus])
 
   // Check if we're in production mode (explicitly set or have AWS config)
   const isProductionMode = useMemo(() => {
@@ -136,6 +138,37 @@ export default function DashboardPage() {
            process.env.NEXT_PUBLIC_DEV_MODE === 'false' ||
            (awsConfig.region && awsConfig.userPoolId && awsConfig.userPoolClientId)
   }, [])
+
+  // Background refresh function for activity-triggered updates
+  const handleBackgroundRefresh = useCallback(async () => {
+    if (!user || !isProductionMode) return
+
+    setIsBackgroundRefreshing(true)
+    try {
+      console.log("🔄 Performing background refresh...")
+      const { data, error } = await apiClient.getLeads()
+      if (error) {
+        console.warn("Background refresh failed:", error)
+        // Don't update connection status for background failures
+      } else if (data) {
+        console.log(`✅ Background refresh loaded ${data.length} leads`)
+        setLeads(data)
+        setDatabaseConnectionStatus('connected')
+        setConnectionError(null)
+      }
+    } catch (error) {
+      console.warn("Background refresh error:", error)
+    } finally {
+      setIsBackgroundRefreshing(false)
+    }
+  }, [user, isProductionMode])
+
+  // Activity refresh hook - triggers refresh on user activity after 15 minutes
+  const { markAsRefreshed } = useActivityRefresh({
+    refreshThresholdMs: 15 * 60 * 1000, // 15 minutes
+    onRefresh: handleBackgroundRefresh,
+    isEnabled: Boolean(isProductionMode && databaseConnectionStatus === 'connected')
+  })
 
   // Load leads from API on mount
   useEffect(() => {
@@ -171,6 +204,7 @@ export default function DashboardPage() {
             console.log("🔍 Dashboard: Loaded leads from API:", data.length)
             setDatabaseConnectionStatus('connected')
             setLeads(data)
+            markAsRefreshed() // Mark initial load as refresh time
           }
         } else {
           // Development mode - load from localStorage
@@ -304,10 +338,12 @@ export default function DashboardPage() {
     const updatedLead = { 
       ...existingLead, 
       ...updates,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      lastUpdatedBy: user?.id,
+      lastUpdatedByName: user?.name
     }
     
-    // Update local state immediately for UI responsiveness
+    // Update local state immediately for UI responsiveness (optimistic update)
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)))
 
     // Update selected lead if it's the same one
@@ -315,20 +351,29 @@ export default function DashboardPage() {
       setSelectedLead(updatedLead)
     }
 
-    // Save to API in production mode
+    // Auto-save to API in production mode (immediate save, no manual save required)
     if (isProductionMode) {
       try {
+        console.log(`💾 Auto-saving lead update for ${updatedLead.name}...`)
         const { error } = await apiClient.updateLead(updatedLead)
         if (error) {
-          console.error("Error updating lead:", error)
+          console.error("❌ Auto-save failed:", error)
           // Revert local state on error
           setLeads((prev) => prev.map((lead) => (lead.id === leadId ? existingLead : lead)))
           if (selectedLead?.id === leadId) {
             setSelectedLead(existingLead)
           }
+          // Could show a toast notification here for user feedback
+        } else {
+          console.log(`✅ Auto-saved changes for ${updatedLead.name}`)
         }
       } catch (error) {
-        console.error("Error updating lead:", error)
+        console.error("❌ Auto-save network error:", error)
+        // Revert on network error
+        setLeads((prev) => prev.map((lead) => (lead.id === leadId ? existingLead : lead)))
+        if (selectedLead?.id === leadId) {
+          setSelectedLead(existingLead)
+        }
       }
     }
   }
@@ -604,7 +649,10 @@ export default function DashboardPage() {
                   )}
                   {/* Database connection status indicator */}
                   {databaseConnectionStatus === 'connected' && (
-                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 w-fit">Database Connected</Badge>
+                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 w-fit flex items-center gap-1">
+                      Database Connected
+                      {isBackgroundRefreshing && <RefreshCw className="h-3 w-3 animate-spin" />}
+                    </Badge>
                   )}
                   {databaseConnectionStatus === 'fallback' && (
                     <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 w-fit">Offline Mode</Badge>

@@ -138,10 +138,11 @@ export class SpaceportCrmStack extends cdk.Stack {
             switch (httpMethod) {
               case 'GET':
                 if (pathParameters && pathParameters.id) {
-                  // Get single lead
+                  // Get single lead with strong consistency
                   const result = await dynamodb.send(new GetCommand({
                     TableName: leadsTableName,
-                    Key: { id: pathParameters.id }
+                    Key: { id: pathParameters.id },
+                    ConsistentRead: true // Force strong consistency for immediate read-after-write
                   }));
                   
                   return {
@@ -150,9 +151,10 @@ export class SpaceportCrmStack extends cdk.Stack {
                     body: JSON.stringify(result.Item || null)
                   };
                 } else {
-                  // Get all leads
+                  // Get all leads with strong consistency for immediate read-after-write
                   const result = await dynamodb.send(new ScanCommand({
-                    TableName: leadsTableName
+                    TableName: leadsTableName,
+                    ConsistentRead: true // Force strong consistency to eliminate eventual consistency delays
                   }));
                   
                   return {
