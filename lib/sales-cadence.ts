@@ -119,8 +119,8 @@ export function calculateCadenceProgress(notes: Array<{ type: string; timestamp:
     const hasEmail = sortedNotes.some(note => note.type === "email")
     const hasVoicemail = sortedNotes.some(note => note.text.includes("Left voicemail"))
     
-    // Step 1 is only complete if we have both a successful call AND an email
-    if (hasCall && hasEmail) {
+    // Step 1 is complete if we have either a successful call OR an email (more flexible)
+    if (hasCall || hasEmail) {
       completedSteps.push(1)
       currentStep = 2
     } else if (hasVoicemail) {
@@ -132,7 +132,7 @@ export function calculateCadenceProgress(notes: Array<{ type: string; timestamp:
     if (completedSteps.includes(1)) {
       const spamCheckEmail = sortedNotes.find(note => 
         note.type === "email" && 
-        (note.text.includes("spam check") || note.text.includes("Spam Check"))
+        (note.text.includes("spam check") || note.text.includes("Spam Check") || note.text.includes("follow-up"))
       )
       if (spamCheckEmail) {
         completedSteps.push(2)
@@ -144,7 +144,7 @@ export function calculateCadenceProgress(notes: Array<{ type: string; timestamp:
     if (completedSteps.includes(2)) {
       const secondCall = sortedNotes.find(note => 
         note.type === "call" && 
-        (note.text.includes("second") || note.text.includes("Second") || note.text.includes("tour reference"))
+        (note.text.includes("second") || note.text.includes("Second") || note.text.includes("tour reference") || note.text.includes("follow-up call"))
       )
       if (secondCall) {
         completedSteps.push(3)

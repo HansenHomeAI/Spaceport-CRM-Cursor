@@ -33,6 +33,15 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
           }}
         />
       </div>
+      
+      {/* Progress line showing completed steps */}
+      <div className="absolute h-[2px] left-0 top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+        style={{
+          width: `${(progress.completedSteps.length / (totalSteps - 1)) * 100}%`,
+          background: `linear-gradient(to right, ${statusColor}, ${statusColor})`,
+          boxShadow: `0 0 10px ${statusColor}40`
+        }}
+      />
 
       {/* Step markers */}
       {SALES_CADENCE.map((step, index) => {
@@ -53,20 +62,25 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                   <motion.div
                     initial={false}
                     animate={{
-                      scale: isCurrent ? 1.2 : 1,
+                      scale: isCurrent ? 1.2 : isCompleted ? 1.1 : 1,
                       boxShadow: isCurrent
                         ? `0 0 0 4px ${statusColor}20, 0 0 20px ${statusColor}40`
+                        : isCompleted
+                        ? `0 0 0 2px ${statusColor}40, 0 0 10px ${statusColor}30`
                         : "none"
                     }}
-                    className={`relative w-4 h-4 rounded-full transition-colors duration-200 ${
+                    className={`relative w-4 h-4 rounded-full transition-all duration-300 border-2 ${
                       isCompleted
-                        ? `bg-white shadow-lg`
+                        ? `border-white shadow-lg`
                         : isCurrent
-                        ? `border-2 border-white`
+                        ? `border-white bg-white/20`
                         : isFuture
-                        ? `border-2 border-white/20`
-                        : `border-2 border-white/50`
+                        ? `border-white/20 bg-transparent`
+                        : `border-white/50 bg-transparent`
                     }`}
+                    style={{
+                      backgroundColor: isCompleted ? statusColor : 'transparent'
+                    }}
                   >
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2">
                       <StepIcon

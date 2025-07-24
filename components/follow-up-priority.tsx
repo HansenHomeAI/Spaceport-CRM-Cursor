@@ -101,7 +101,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         }
       }
 
-      // Check for future reminders
+      // Check for future reminders - exclude leads with upcoming scheduled contact
       const futureReminders = lead.notes.filter(note => {
         if (!note.text.includes("Set reminder:")) return false
         const reminderDate = new Date(note.timestamp)
@@ -110,7 +110,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       })
       
       if (futureReminders.length > 0) {
-        return // Has future reminders - exclude from follow-ups
+        return // Has future reminders - exclude from follow-ups to avoid redundancy
       }
 
       if (!lastInteraction) {
@@ -138,13 +138,13 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             daysOverdue: 0,
             reason: `${normalizedStatus} lead - no action in over 4 weeks`,
           })
-        } else {
+        } else if (daysSinceLastContact > 7) {
           followUps.push({
             lead,
             urgency: "high",
             nextAction: "call",
             daysOverdue: 0,
-            reason: `${normalizedStatus} lead`,
+            reason: `${normalizedStatus} lead - ready for follow-up`,
           })
         }
         return
