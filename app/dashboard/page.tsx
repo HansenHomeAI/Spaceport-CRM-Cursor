@@ -33,6 +33,9 @@ export default function DashboardPage() {
     field: 'name' | 'status' | 'priority' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
   }>({ field: 'lastContact', direction: 'desc' })
+  // Add new state for database connection status
+  const [databaseConnectionStatus, setDatabaseConnectionStatus] = useState<'connected' | 'fallback' | 'error' | 'unknown'>('unknown')
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   // Check if we're in production mode (explicitly set or have AWS config)
   const isProductionMode = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
@@ -43,6 +46,8 @@ export default function DashboardPage() {
       if (!user) return
       
       setDataLoading(true)
+      setConnectionError(null)
+      
       try {
         if (isProductionMode) {
           // Production mode - load from API
@@ -50,18 +55,30 @@ export default function DashboardPage() {
           const { data, error } = await apiClient.getLeads()
           if (error) {
             console.error("🔍 Dashboard: Error loading leads:", error)
-            // Fall back to localStorage for demo
-            const savedLeads = localStorage.getItem("spaceport_leads")
-            if (savedLeads) {
-              setLeads(JSON.parse(savedLeads))
+            setConnectionError(error)
+            
+            // Check if it's an authentication error
+            if (error.includes('Unauthorized') || error.includes('authentication') || error.includes('token')) {
+              setDatabaseConnectionStatus('error')
+              // Don't fall back for auth errors - show the user they need to sign in properly
+              setLeads([])
+            } else {
+              // For other errors, fall back to localStorage but inform the user
+              setDatabaseConnectionStatus('fallback')
+              const savedLeads = localStorage.getItem("spaceport_leads")
+              if (savedLeads) {
+                setLeads(JSON.parse(savedLeads))
+              }
             }
           } else if (data) {
             console.log("🔍 Dashboard: Loaded leads from API:", data.length)
+            setDatabaseConnectionStatus('connected')
             setLeads(data)
           }
         } else {
           // Development mode - load from localStorage
           console.log("🔍 Dashboard: Loading leads from localStorage...")
+          setDatabaseConnectionStatus('fallback')
           const savedLeads = localStorage.getItem("spaceport_leads")
           if (savedLeads) {
             setLeads(JSON.parse(savedLeads))
@@ -69,6 +86,8 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("🔍 Dashboard: Error loading leads:", error)
+        setConnectionError(error instanceof Error ? error.message : "Network error")
+        setDatabaseConnectionStatus('error')
       } finally {
         setDataLoading(false)
       }
@@ -355,11 +374,33 @@ export default function DashboardPage() {
 
     try {
       if (isProductionMode) {
+        // Check database connection status first
+        if (databaseConnectionStatus === 'error') {
+          alert("❌ Cannot reset database: Not connected to database. Please check your authentication and try again.")
+          return
+        }
+        
+        if (databaseConnectionStatus === 'fallback') {
+          alert("❌ Cannot reset database: Currently in offline mode. Please reconnect to the database first.")
+          return
+        }
+        
         const { error } = await apiClient.resetDatabase()
         if (error) {
           console.error("Error resetting database:", error)
-          alert("Failed to reset database: " + error)
+          if (error.includes('Unauthorized') || error.includes('authentication') || error.includes('token')) {
+            alert("❌ Failed to reset database: Authentication required. Please sign out and sign back in with a valid account.")
+          } else {
+            alert(`❌ Failed to reset database: ${error}`)
+          }
           return
+        }
+        
+        // If successful, also reload the leads to confirm the reset worked
+        const { data: updatedLeads, error: loadError } = await apiClient.getLeads()
+        if (!loadError && updatedLeads) {
+          setLeads(updatedLeads)
+          setDatabaseConnectionStatus('connected')
         }
       }
       
@@ -368,10 +409,10 @@ export default function DashboardPage() {
       setSelectedLead(null)
       setIsPanelOpen(false)
       
-      alert("Database reset successfully!")
+      alert("✅ Database reset successfully!")
     } catch (error) {
       console.error("Error resetting database:", error)
-      alert("Failed to reset database")
+      alert("❌ Failed to reset database: Network error occurred")
     }
   }
 
@@ -445,7 +486,37 @@ export default function DashboardPage() {
                   {!isProductionMode && (
                     <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 w-fit">Development Mode</Badge>
                   )}
+                  {/* Database connection status indicator */}
+                  {databaseConnectionStatus === 'connected' && (
+                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 w-fit">Database Connected</Badge>
+                  )}
+                  {databaseConnectionStatus === 'fallback' && (
+                    <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 w-fit">Offline Mode</Badge>
+                  )}
+                  {databaseConnectionStatus === 'error' && (
+                    <Badge className="bg-red-500/20 text-red-300 border-red-500/30 w-fit">Database Error</Badge>
+                  )}
                 </div>
+                {/* Show connection error message */}
+                {connectionError && databaseConnectionStatus === 'error' && (
+                  <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <p className="text-red-300 text-sm font-body">
+                      <strong>Database Connection Error:</strong> {connectionError}
+                    </p>
+                    <p className="text-red-400 text-xs mt-1">
+                      {connectionError.includes('Unauthorized') || connectionError.includes('authentication') || connectionError.includes('token') 
+                        ? "Please sign out and sign back in with a valid account to access the database."
+                        : "You're currently working offline. Changes will not be saved to the database."}
+                    </p>
+                  </div>
+                )}
+                {databaseConnectionStatus === 'fallback' && isProductionMode && (
+                  <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                    <p className="text-orange-300 text-sm font-body">
+                      <strong>Working Offline:</strong> Cannot connect to database. Changes are only saved locally.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-start gap-4">
