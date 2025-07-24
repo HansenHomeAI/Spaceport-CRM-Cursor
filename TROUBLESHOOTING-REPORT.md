@@ -96,6 +96,46 @@ const token = cognitoAuth.getIdToken()  // ⭐ CRITICAL FIX
 headers.Authorization = `Bearer ${refreshResult.user.idToken}`
 ```
 
+### 5. **🎯 AWS SDK VERSION COMPATIBILITY** (CRITICAL INFRASTRUCTURE ISSUE) ✅ FIXED
+
+**THE FINAL PROBLEM**: Lambda functions were crashing with **502 Bad Gateway** errors because they were trying to import `aws-sdk` module which **doesn't exist in Node.js 18 runtime**.
+
+**Evidence from Lambda Logs**:
+```
+"errorType":"Runtime.ImportModuleError","errorMessage":"Error: Cannot find module 'aws-sdk'"
+```
+
+**Technical Details**:
+- **Node.js 18 runtime** no longer includes AWS SDK v2 (`aws-sdk` package)
+- AWS deprecated `aws-sdk` and requires AWS SDK v3 (`@aws-sdk/*` packages)
+- Lambda functions failed to start, causing 502 errors
+- 502 errors don't trigger proper CORS headers, causing browser blocking
+
+**Fix Applied**:
+
+**BEFORE (BROKEN)**:
+```typescript
+const AWS = require('aws-sdk');
+const dynamodb = new AWS.DynamoDB.DocumentClient();
+
+const result = await dynamodb.scan({
+  TableName: leadsTableName
+}).promise();
+```
+
+**AFTER (FIXED)**:
+```typescript
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+
+const client = new DynamoDBClient({});
+const dynamodb = DynamoDBDocumentClient.from(client);
+
+const result = await dynamodb.send(new ScanCommand({
+  TableName: leadsTableName
+}));
+```
+
 ## ✅ **Solutions Implemented**
 
 ### 1. **Improved Error Handling**
