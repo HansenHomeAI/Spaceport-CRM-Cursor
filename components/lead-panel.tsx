@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -52,6 +52,17 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     
     return statusMap[status] || "Contacted"
   }
+
+  // Auto-migrate status if it's in old format when panel opens
+  useEffect(() => {
+    if (lead && isOpen) {
+      const normalizedStatus = normalizeStatus(lead.status)
+      if (normalizedStatus !== lead.status) {
+        console.log(`🔄 Auto-migrating status for ${lead.name}: "${lead.status}" → "${normalizedStatus}"`)
+        onUpdateLead(lead.id, { status: normalizedStatus as Lead["status"] })
+      }
+    }
+  }, [lead, isOpen, onUpdateLead])
 
   const progress = useMemo(() => {
     if (!lead) return null
@@ -348,11 +359,12 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-black/90 backdrop-blur-xl border-system rounded-3xl">
+                          <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-3xl">
                             <SelectItem value="Left Voicemail" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full bg-orange-500"
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: colors.status["Left Voicemail"].icon }}
                                 />
                                 Left Voicemail
                               </div>
@@ -360,7 +372,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             <SelectItem value="Contacted" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full bg-blue-500"
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: colors.status["Contacted"].icon }}
                                 />
                                 Contacted
                               </div>
@@ -368,7 +381,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             <SelectItem value="Interested" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full bg-green-500"
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: colors.status["Interested"].icon }}
                                 />
                                 Interested
                               </div>
@@ -376,7 +390,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             <SelectItem value="Not Interested" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full bg-red-500"
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: colors.status["Not Interested"].icon }}
                                 />
                                 Not Interested
                               </div>
@@ -384,7 +399,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             <SelectItem value="Needs Follow-Up" className="rounded-full font-body">
                               <div className="flex items-center gap-2">
                                 <div
-                                  className="w-2 h-2 rounded-full bg-yellow-500"
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: colors.status["Needs Follow-Up"].icon }}
                                 />
                                 Needs Follow-Up
                               </div>
@@ -394,9 +410,13 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                       ) : (
                         <div className="flex items-center gap-2">
                           <Badge
-                            className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-4 py-1.5 font-body`}
+                            className="bg-black/20 text-white border-2 border-white/50 rounded-full px-4 py-1.5 font-body flex items-center gap-2"
                           >
-                            {normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: statusColor.icon }}
+                            />
+                            {normalizedStatus}
                           </Badge>
                           <Button
                             variant="ghost"

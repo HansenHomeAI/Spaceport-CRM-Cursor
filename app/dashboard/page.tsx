@@ -48,38 +48,87 @@ export default function DashboardPage() {
       "left voicemail": "Left Voicemail"
     }
 
-    const updatedLeads = leads.map(lead => {
+    console.log(`🔍 Checking ${leads.length} leads for status migration...`)
+
+    const leadsToUpdate = leads.filter(lead => {
       const newStatus = statusMap[lead.status]
-      if (newStatus && newStatus !== lead.status) {
-        return { ...lead, status: newStatus as Lead["status"] }
-      }
-      return lead
-    }).filter(lead => {
-      // Only update leads that actually changed
-      const originalLead = leads.find(l => l.id === lead.id)
-      return originalLead?.status !== lead.status
+      return newStatus && newStatus !== lead.status
     })
 
-    if (updatedLeads.length > 0) {
-      console.log(`🔄 Migrating ${updatedLeads.length} leads to new status format...`)
-      
-      // Update each lead
-      for (const lead of updatedLeads) {
-        await handleLeadUpdate(lead.id, { status: lead.status })
+    if (leadsToUpdate.length === 0) {
+      console.log("✅ All leads are already using the new status format!")
+      return
+    }
+
+    console.log(`🔄 Found ${leadsToUpdate.length} leads that need migration:`)
+    leadsToUpdate.forEach(lead => {
+      console.log(`  • ${lead.name}: "${lead.status}" → "${statusMap[lead.status]}"`)
+    })
+
+    let successCount = 0
+    let errorCount = 0
+
+    for (const lead of leadsToUpdate) {
+      try {
+        await handleLeadUpdate(lead.id, { status: statusMap[lead.status] as Lead["status"] })
+        successCount++
+        console.log(`✅ Updated ${lead.name}`)
+      } catch (error) {
+        errorCount++
+        console.error(`❌ Failed to update ${lead.name}:`, error)
       }
-      
-      console.log(`✅ Migration complete! Updated ${updatedLeads.length} leads.`)
+    }
+
+    if (errorCount === 0) {
+      console.log(`🎉 Migration complete! Successfully updated ${successCount} leads.`)
     } else {
-      console.log("✅ No leads need migration - all statuses are up to date!")
+      console.log(`⚠️ Migration completed with issues: ${successCount} successful, ${errorCount} failed.`)
     }
   }
 
-  // Expose migration function for development/troubleshooting
+  // Helper function to check migration status
+  const checkMigrationStatus = () => {
+    const statusMap: Record<string, string> = {
+      "cold": "Not Interested",
+      "contacted": "Contacted", 
+      "interested": "Interested",
+      "closed": "Not Interested",
+      "dormant": "Needs Follow-Up",
+      "left voicemail": "Left Voicemail"
+    }
+
+    const oldStatusLeads = leads.filter(lead => statusMap[lead.status])
+    const newStatusLeads = leads.filter(lead => !statusMap[lead.status])
+
+    console.log("📊 Migration Status Report:")
+    console.log(`  • Total leads: ${leads.length}`)
+    console.log(`  • Using new status format: ${newStatusLeads.length}`)
+    console.log(`  • Using old status format: ${oldStatusLeads.length}`)
+    
+    if (oldStatusLeads.length > 0) {
+      console.log("  • Leads needing migration:")
+      oldStatusLeads.forEach(lead => {
+        console.log(`    - ${lead.name}: "${lead.status}"`)
+      })
+    }
+
+    return {
+      total: leads.length,
+      migrated: newStatusLeads.length,
+      needsMigration: oldStatusLeads.length
+    }
+  }
+
+  // Expose migration functions for development/troubleshooting
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).migrateLeadStatuses = migrateLeadStatuses
+      (window as any).checkMigrationStatus = checkMigrationStatus
+      console.log("🛠️ Migration tools available:")
+      console.log("  • migrateLeadStatuses() - Update all leads to new status format")
+      console.log("  • checkMigrationStatus() - Check how many leads need migration")
     }
-  }, [leads])
+  }, [leads.length])
 
   // Check if we're in production mode (explicitly set or have AWS config)
   const isProductionMode = useMemo(() => {

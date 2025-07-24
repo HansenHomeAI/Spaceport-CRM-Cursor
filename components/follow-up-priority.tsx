@@ -258,7 +258,13 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
               }`}
             >
               <div className="flex items-center gap-3">
-                <Badge className={`${getGroupColor(urgency)} rounded-full px-3 py-1`}>
+                <Badge className="bg-black/20 text-white border-2 border-white/50 rounded-full px-4 py-1.5 font-body flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ 
+                      backgroundColor: urgency === "high" ? "#22c55e" : "#eab308" // Green for high, yellow for medium
+                    }}
+                  />
                   {getGroupTitle(urgency)} ({items.length})
                 </Badge>
               </div>
@@ -302,12 +308,18 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                                   <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
                                   <p className="text-xs text-gray-400 font-body mt-1">{item.reason}</p>
                                 </div>
-                                <div className="flex items-center gap-1 ml-2">
-                                  <UrgencyIcon className="h-3 w-3 text-purple-400" />
-                                  <Badge className={`${getGroupColor(urgency)} text-xs rounded-full px-2 py-0.5`}>
-                                    {item.urgency}
-                                  </Badge>
-                                </div>
+                                                              <div className="flex items-center gap-1 ml-2">
+                                <UrgencyIcon className="h-3 w-3 text-purple-400" />
+                                <Badge className="bg-black/20 text-white border border-white/50 rounded-full px-2 py-0.5 font-body text-xs flex items-center gap-1">
+                                  <div
+                                    className="w-1.5 h-1.5 rounded-full"
+                                    style={{ 
+                                      backgroundColor: item.urgency === "high" ? "#22c55e" : "#eab308"
+                                    }}
+                                  />
+                                  {item.urgency}
+                                </Badge>
+                              </div>
                               </div>
 
                               <div className="flex items-center gap-2">

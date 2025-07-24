@@ -344,23 +344,35 @@ export function LeadsTable({
         header: "Status",
         cell: ({ getValue, row }) => {
           const status = getValue()
-          const statusColor = colors.status[status as keyof typeof colors.status] || {
+          const normalizedStatus = normalizeStatus(status)
+          const statusColor = colors.status[normalizedStatus as keyof typeof colors.status] || {
             bg: "bg-gray-500/10",
             text: "text-gray-300",
             border: "border-gray-500/20",
             icon: "#6b7280",
           }
 
+          // Auto-migrate status if needed
+          if (normalizedStatus !== status) {
+            setTimeout(() => {
+              onLeadUpdate(row.original.id, { status: normalizedStatus as Lead["status"] })
+            }, 0)
+          }
+
           return (
             <Select
-              value={status}
+              value={normalizedStatus}
               onValueChange={(newStatus) => onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })}
             >
-              <SelectTrigger className="w-32 bg-transparent border-none p-0">
+              <SelectTrigger className="w-40 bg-transparent border-none p-0">
                 <Badge
-                  className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-pill px-4 py-1.5 font-body`}
+                  className="bg-black/20 text-white border-2 border-white/50 rounded-full px-4 py-1.5 font-body flex items-center gap-2"
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: statusColor.icon }}
+                  />
+                  {normalizedStatus}
                 </Badge>
               </SelectTrigger>
               <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
@@ -368,7 +380,7 @@ export function LeadsTable({
                   <SelectItem key={key} value={key} className="rounded-lg font-body">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color.icon }} />
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                      {key}
                     </div>
                   </SelectItem>
                 ))}
