@@ -27,7 +27,7 @@ export interface Lead {
   email: string
   address: string
   company?: string
-  status: "NOT INTERESTED" | "VOICEMAIL" | "CONTACTED" | "INTERESTED" | "CLOSED"
+  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up" | "Closed"
   lastInteraction: string
   ownerId?: string
   ownerName?: string
@@ -66,26 +66,22 @@ const columnHelper = createColumnHelper<Lead>()
 // Helper function to normalize old status values to new ones
 const normalizeStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
-    "cold": "NOT INTERESTED",
-    "contacted": "CONTACTED", 
-    "interested": "INTERESTED",
-    "closed": "CLOSED",
-    "dormant": "VOICEMAIL",
-    "left voicemail": "VOICEMAIL",
+    "cold": "Not Interested",
+    "contacted": "Contacted", 
+    "interested": "Interested",
+    "closed": "Closed",
+    "dormant": "Needs Follow-Up",
+    "left voicemail": "Left Voicemail",
     // New statuses (already correct)
-    "Left Voicemail": "VOICEMAIL",
-    "Contacted": "CONTACTED",
-    "Interested": "INTERESTED", 
-    "Not Interested": "NOT INTERESTED",
-    "Needs Follow-Up": "VOICEMAIL",
-    "VOICEMAIL": "VOICEMAIL",
-    "CONTACTED": "CONTACTED",
-    "INTERESTED": "INTERESTED",
-    "NOT INTERESTED": "NOT INTERESTED",
-    "CLOSED": "CLOSED"
+    "Left Voicemail": "Left Voicemail",
+    "Contacted": "Contacted",
+    "Interested": "Interested", 
+    "Not Interested": "Not Interested",
+    "Needs Follow-Up": "Needs Follow-Up",
+    "Closed": "Closed"
   }
   
-  return statusMap[status] || "CONTACTED"
+  return statusMap[status] || "Contacted"
 }
 
 export function LeadsTable({

@@ -3,11 +3,12 @@
 import { motion } from "framer-motion"
 import { Phone, Mail, Video, Users } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { CadenceProgress } from "@/lib/sales-cadence"
+import { getCadenceSteps, type CadenceProgress } from "@/lib/sales-cadence"
 
 interface SalesProgressProps {
   progress: CadenceProgress
   statusColor: string
+  leadStatus: string
 }
 
 const stepIcons = {
@@ -17,22 +18,24 @@ const stepIcons = {
   social: Users,
 }
 
-export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
-  // Use the status-specific cadence steps instead of universal SALES_CADENCE
-  const cadenceSteps = progress.statusCadence?.steps || []
+export function SalesProgress({ progress, statusColor, leadStatus }: SalesProgressProps) {
+  const cadenceSteps = getCadenceSteps(leadStatus)
   const totalSteps = cadenceSteps.length
   
-  if (totalSteps === 0) {
+  // Don't show progress for statuses without cadences
+  if (totalSteps === 0 || leadStatus === "Not Interested" || leadStatus === "Needs Follow-Up") {
     return (
       <div className="relative py-6 px-2">
         <div className="text-center text-gray-400 text-sm">
-          No cadence defined for current status
+          {leadStatus === "Not Interested" ? "No follow-up cadence - lead not interested" :
+           leadStatus === "Needs Follow-Up" ? "Manual follow-up required" :
+           "No cadence defined for this status"}
         </div>
       </div>
     )
   }
-
-  const stepWidth = totalSteps > 1 ? 100 / (totalSteps - 1) : 0 // percentage width between steps
+  
+  const stepWidth = 100 / (totalSteps - 1) // percentage width between steps
 
   return (
     <div className="relative py-6 px-2">
@@ -50,7 +53,7 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
       {/* Progress line showing completed steps */}
       <div className="absolute h-[2px] left-0 top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
         style={{
-          width: totalSteps > 1 ? `${(progress.completedSteps.length / (totalSteps - 1)) * 100}%` : "100%",
+          width: totalSteps > 1 ? `${(progress.completedSteps.length / (totalSteps - 1)) * 100}%` : "0%",
           background: `linear-gradient(to right, ${statusColor}, ${statusColor})`,
           boxShadow: `0 0 10px ${statusColor}40`
         }}
@@ -62,7 +65,7 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
         const isCompleted = progress.completedSteps.includes(step.id)
         const isCurrent = progress.currentStep === step.id
         const isFuture = step.id > progress.currentStep
-        const position = totalSteps > 1 ? `${index * stepWidth}%` : "50%"
+        const position = `${index * stepWidth}%`
 
         return (
           <TooltipProvider key={step.id}>
@@ -113,7 +116,7 @@ export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
                   <div className="font-semibold mb-1">{step.action}</div>
                   <div className="text-gray-400">{step.description}</div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {step.dayOffset === 0 ? "Immediate" : `Day ${step.dayOffset}`}
+                    {step.dayOffset === 0 ? "Immediate" : `+${step.dayOffset} business days`}
                   </div>
                   {isFuture && (
                     <div className="text-xs text-gray-600 mt-1">Not yet due</div>

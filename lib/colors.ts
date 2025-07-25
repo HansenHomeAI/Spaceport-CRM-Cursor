@@ -2,42 +2,11 @@
 export const colors = {
   // Status colors - distinct and meaningful
   status: {
-    "NOT INTERESTED": {
-      bg: "bg-red-500/10",
-      text: "text-red-300",
-      border: "border-red-500/20",
-      icon: "#ef4444", // Red-500
-    },
-    "VOICEMAIL": {
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-300",
-      border: "border-yellow-500/20",
-      icon: "#eab308", // Yellow-500
-    },
-    "CONTACTED": {
-      bg: "bg-blue-500/10",
-      text: "text-blue-300",
-      border: "border-blue-500/20",
-      icon: "#60a5fa", // Blue-400
-    },
-    "INTERESTED": {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-300",
-      border: "border-emerald-500/20",
-      icon: "#34d399", // Emerald-400
-    },
-    "CLOSED": {
-      bg: "bg-purple-500/10",
-      text: "text-purple-300",
-      border: "border-purple-500/20",
-      icon: "#a855f7", // Purple-500
-    },
-    // Legacy status support for migration
     "Left Voicemail": {
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-300",
-      border: "border-yellow-500/20",
-      icon: "#eab308", // Yellow-500
+      bg: "bg-orange-500/10",
+      text: "text-orange-300",
+      border: "border-orange-500/20",
+      icon: "#f97316", // Orange-500
     },
     "Contacted": {
       bg: "bg-blue-500/10",
@@ -62,6 +31,12 @@ export const colors = {
       text: "text-yellow-300",
       border: "border-yellow-500/20",
       icon: "#eab308", // Yellow-500
+    },
+    "Closed": {
+      bg: "bg-purple-500/10",
+      text: "text-purple-300",
+      border: "border-purple-500/20",
+      icon: "#a855f7", // Purple-500
     },
   },
 

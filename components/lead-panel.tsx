@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
-import { calculateCadenceProgress, getProgressColor, suggestStatusTransition } from "@/lib/sales-cadence"
+import { getCadenceSteps, calculateCadenceProgress, getProgressColor } from "@/lib/sales-cadence"
 import { SalesProgress } from "./sales-progress"
 import type { Lead } from "./leads-table"
 
@@ -36,26 +36,21 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   // Helper function to normalize old status values
   const normalizeStatus = (status: string): string => {
     const statusMap: Record<string, string> = {
-      "cold": "NOT INTERESTED",
-      "contacted": "CONTACTED", 
-      "interested": "INTERESTED",
-      "closed": "CLOSED",
-      "dormant": "VOICEMAIL",
-      "left voicemail": "VOICEMAIL",
+      "cold": "Not Interested",
+      "contacted": "Contacted", 
+      "interested": "Interested",
+      "closed": "Not Interested",
+      "dormant": "Needs Follow-Up",
+      "left voicemail": "Left Voicemail",
       // New statuses (already correct)
-      "Left Voicemail": "VOICEMAIL",
-      "Contacted": "CONTACTED",
-      "Interested": "INTERESTED", 
-      "Not Interested": "NOT INTERESTED",
-      "Needs Follow-Up": "VOICEMAIL",
-      "VOICEMAIL": "VOICEMAIL",
-      "CONTACTED": "CONTACTED",
-      "INTERESTED": "INTERESTED",
-      "NOT INTERESTED": "NOT INTERESTED",
-      "CLOSED": "CLOSED"
+      "Left Voicemail": "Left Voicemail",
+      "Contacted": "Contacted",
+      "Interested": "Interested", 
+      "Not Interested": "Not Interested",
+      "Needs Follow-Up": "Needs Follow-Up"
     }
     
-    return statusMap[status] || "CONTACTED"
+    return statusMap[status] || "Contacted"
   }
 
   // Auto-migrate status if it's in old format when panel opens
@@ -71,19 +66,14 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   const progress = useMemo(() => {
     if (!lead) return null
-    return calculateCadenceProgress(lead.notes, lead.status, lead.createdAt)
-  }, [lead?.notes, lead?.status, lead?.createdAt])
+    return calculateCadenceProgress(lead.notes, normalizeStatus(lead.status), lead.id)
+  }, [lead?.notes, lead?.status, lead?.id])
 
   const currentStep = useMemo(() => {
-    if (!progress || progress.isDormant || !progress.statusCadence) return null
-    return progress.statusCadence.steps.find(step => step.id === progress.currentStep)
-  }, [progress])
-
-  // Check for suggested status transitions
-  const statusSuggestion = useMemo(() => {
-    if (!lead || !lead.notes.length) return null
-    return suggestStatusTransition(lead.status, lead.notes)
-  }, [lead?.status, lead?.notes])
+    if (!progress || progress.isDormant || !lead) return null
+    const cadenceSteps = getCadenceSteps(normalizeStatus(lead.status))
+    return cadenceSteps.find(step => step.id === progress.currentStep)
+  }, [progress, lead?.status])
 
   const handleQuickAction = (type: "call" | "email" | "video" | "social" | "note", description: string) => {
     if (!lead || !currentStep) return
@@ -177,7 +167,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   // Get colors for the normalized status
   const normalizedStatus = normalizeStatus(lead.status)
-  const statusColor = colors.status[normalizedStatus as keyof typeof colors.status] || colors.status["CONTACTED"]
+  const statusColor = colors.status[normalizedStatus as keyof typeof colors.status] || colors.status["Contacted"]
 
   return (
     <AnimatePresence>
@@ -217,6 +207,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     <SalesProgress
                       progress={progress}
                       statusColor={getProgressColor(progress, lead.status)}
+                      leadStatus={normalizeStatus(lead.status)}
                     />
                     
                     {currentStep && (
@@ -224,7 +215,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
                           <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
-                            {currentStep.dayOffset === 0 ? "Immediate" : `Day ${currentStep.dayOffset}`}
+                            {currentStep.dayOffset === 0 ? "Immediate" : `+${currentStep.dayOffset} days`}
                           </Badge>
                         </div>
                         <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
@@ -371,47 +362,56 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
-                            <SelectItem value="VOICEMAIL" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <SelectItem value="Left Voicemail" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["VOICEMAIL"].icon }}
+                                  style={{ backgroundColor: colors.status["Left Voicemail"].icon }}
                                 />
                                 <span className="text-white font-body">Left Voicemail</span>
                               </div>
                             </SelectItem>
-                            <SelectItem value="CONTACTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <SelectItem value="Contacted" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["CONTACTED"].icon }}
+                                  style={{ backgroundColor: colors.status["Contacted"].icon }}
                                 />
                                 <span className="text-white font-body">Contacted</span>
                               </div>
                             </SelectItem>
-                            <SelectItem value="INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <SelectItem value="Interested" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["INTERESTED"].icon }}
+                                  style={{ backgroundColor: colors.status["Interested"].icon }}
                                 />
                                 <span className="text-white font-body">Interested</span>
                               </div>
                             </SelectItem>
-                            <SelectItem value="NOT INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <SelectItem value="Not Interested" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["NOT INTERESTED"].icon }}
+                                  style={{ backgroundColor: colors.status["Not Interested"].icon }}
                                 />
                                 <span className="text-white font-body">Not Interested</span>
                               </div>
                             </SelectItem>
-                            <SelectItem value="CLOSED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <SelectItem value="Needs Follow-Up" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["CLOSED"].icon }}
+                                  style={{ backgroundColor: colors.status["Needs Follow-Up"].icon }}
+                                />
+                                <span className="text-white font-body">Needs Follow-Up</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Closed" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full"
+                                  style={{ backgroundColor: colors.status["Closed"].icon }}
                                 />
                                 <span className="text-white font-body">Closed</span>
                               </div>
@@ -634,453 +634,6 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
               </Card>
             </div>
           </motion.div>
-
-          {/* Status Transition Suggestion */}
-          {statusSuggestion && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-6"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-blue-300 font-title text-sm mb-1">Status Update Suggested</h4>
-                  <p className="text-gray-300 text-sm">{statusSuggestion.reason}</p>
-                </div>
-                <Button
-                  onClick={() => handleStatusChange(statusSuggestion.suggested as Lead["status"])}
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4 py-2 text-sm"
-                >
-                  Change to {statusSuggestion.suggested}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          <AnimatePresence mode="wait">
-            {/* Sales Progress */}
-            {progress && (
-              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
-                <CardContent className="p-6 pt-8">
-                  <SalesProgress
-                    progress={progress}
-                    statusColor={getProgressColor(progress, lead.status)}
-                  />
-                  
-                  {currentStep && (
-                    <div className="mt-6">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
-                        <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
-                          {currentStep.dayOffset === 0 ? "Immediate" : `Day ${currentStep.dayOffset}`}
-                        </Badge>
-                      </div>
-                      <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {currentStep.type === "call" && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("call", "Made call")}
-                              className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
-                            >
-                              <Phone className="h-3 w-3 mr-1" />
-                              Made Call
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("call", "Left voicemail")}
-                              className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
-                            >
-                              <Check className="h-3 w-3 mr-1" />
-                              Left Voicemail
-                            </Button>
-                          </>
-                        )}
-                        {currentStep.type === "email" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleQuickAction("email", "Sent follow-up email")}
-                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                          >
-                            <Mail className="h-3 w-3 mr-1" />
-                            Sent Email
-                          </Button>
-                        )}
-                        {currentStep.type === "video" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleQuickAction("video", "Sent video message")}
-                            className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
-                          >
-                            <Video className="h-3 w-3 mr-1" />
-                            Sent Video
-                          </Button>
-                        )}
-                        {currentStep.type === "social" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
-                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                          >
-                            <Users className="h-3 w-3 mr-1" />
-                            Connected
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Contact Reminder */}
-            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-              <CardHeader>
-                <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {reminderFeedback && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="bg-green-500/20 text-green-300 border border-green-500/30 rounded-xl p-3 text-sm"
-                  >
-                    ✓ {reminderFeedback}
-                  </motion.div>
-                )}
-                
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleSetReminder("2weeks")}
-                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                  >
-                    <Calendar className="h-3 w-3 mr-1" />
-                    2 Weeks
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSetReminder("1month")}
-                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                  >
-                    <Calendar className="h-3 w-3 mr-1" />
-                    1 Month
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowCustomReminder(!showCustomReminder)}
-                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                  >
-                    <Calendar className="h-3 w-3 mr-1" />
-                    Custom
-                  </Button>
-                </div>
-
-                {showCustomReminder && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-3 pt-3 border-t border-white/10"
-                  >
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={customReminderDate}
-                        onChange={(e) => setCustomReminderDate(e.target.value)}
-                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleSetReminder("custom")}
-                        disabled={!customReminderDate}
-                        className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
-                      >
-                        Set
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Existing lead details card */}
-            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-primary-hierarchy font-title">{lead.name}</CardTitle>
-                  <div className="flex items-center gap-2">
-                    {isEditingStatus ? (
-                      <Select value={lead.status} onValueChange={handleStatusChange}>
-                        <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
-                          <SelectItem value="VOICEMAIL" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: colors.status["VOICEMAIL"].icon }}
-                              />
-                              <span className="text-white font-body">Left Voicemail</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="CONTACTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: colors.status["CONTACTED"].icon }}
-                              />
-                              <span className="text-white font-body">Contacted</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: colors.status["INTERESTED"].icon }}
-                              />
-                              <span className="text-white font-body">Interested</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="NOT INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: colors.status["NOT INTERESTED"].icon }}
-                              />
-                              <span className="text-white font-body">Not Interested</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="CLOSED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: colors.status["CLOSED"].icon }}
-                              />
-                              <span className="text-white font-body">Closed</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          className="bg-black/20 text-white border-2 border-white/10 rounded-full px-4 py-1.5 font-body flex items-center gap-2"
-                        >
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: statusColor.icon }}
-                          />
-                          {normalizedStatus}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsEditingStatus(true)}
-                          className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
-                  <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
-                    <div className="text-primary-hierarchy font-body leading-tight">{lead.address}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                  <Phone className="h-4 w-4" style={{ color: colors.interaction.call.icon }} />
-                  <span>{lead.phone}</span>
-                </div>
-                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                  <Mail className="h-4 w-4" style={{ color: colors.interaction.email.icon }} />
-                  <span>{lead.email}</span>
-                </div>
-                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                  <Calendar className="h-4 w-4 text-purple-400" />
-                  <span>Last interaction: {lead.lastInteraction}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
-              <CardHeader>
-                <CardTitle className="text-primary-hierarchy font-title text-lg">Add Note</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  {(["note", "call", "email"] as const).map((type) => {
-                    const typeColor = colors.interaction[type]
-                    return (
-                      <Button
-                        key={type}
-                        variant={noteType === type ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setNoteType(type)}
-                        className={
-                          noteType === type
-                            ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body`
-                            : `bg-black/20 ${typeColor.text} border-system hover:bg-white/10 rounded-full font-body`
-                        }
-                      >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Button>
-                    )
-                  })}
-                </div>
-                <Textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Enter your note..."
-                  className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-2xl"
-                  rows={3}
-                />
-                <Button
-                  onClick={handleAddNote}
-                  className={`w-full bg-gradient-to-r ${colors.primary.gradient} hover:from-purple-700 hover:to-purple-800 text-white rounded-full font-body`}
-                  disabled={!newNote.trim()}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Note
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
-              <CardHeader>
-                <CardTitle className="text-primary-hierarchy font-title text-lg">Interaction History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Upcoming Reminders */}
-                  {lead.notes.filter(note => note.text.includes("Set reminder:")).length > 0 && (
-                    <div className="mb-6">
-                      <h4 className="text-primary-hierarchy font-title text-sm mb-3">Upcoming Reminders</h4>
-                      <div className="space-y-2">
-                        {lead.notes
-                          .filter(note => note.text.includes("Set reminder:"))
-                          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                          .map((note) => (
-                            <motion.div
-                              key={note.id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
-                              style={{ borderLeftColor: colors.interaction.note.icon }}
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
-                                  Reminder
-                                </Badge>
-                                <span className="text-xs text-medium-hierarchy font-body">
-                                  {new Date(note.timestamp).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
-                            </motion.div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Past Interactions */}
-                  {lead.notes.filter(note => !note.text.includes("Set reminder:")).length === 0 ? (
-                    <p className="text-medium-hierarchy font-body text-sm">No interactions yet</p>
-                  ) : (
-                    lead.notes
-                      .filter(note => !note.text.includes("Set reminder:"))
-                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                      .map((note) => {
-                        const noteColor = colors.interaction[note.type]
-                        const isEditing = editingNoteId === note.id
-                        
-                        return (
-                          <motion.div
-                            key={note.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="border-l-2 pl-4 py-3 bg-white/5 rounded-r-2xl"
-                            style={{ borderLeftColor: noteColor.icon }}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
-                                >
-                                  {note.type}
-                                </Badge>
-                                {isEditing ? (
-                                  <input
-                                    type="date"
-                                    value={editingNoteDate}
-                                    onChange={(e) => setEditingNoteDate(e.target.value)}
-                                    className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
-                                  />
-                                ) : (
-                                  <span className="text-xs text-medium-hierarchy font-body">
-                                    {new Date(note.timestamp).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {isEditing ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={handleSaveNoteEdit}
-                                      className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700 rounded-full"
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={handleCancelNoteEdit}
-                                      className="h-6 px-2 text-xs border-white/20 text-white hover:bg-white/10 rounded-full"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleStartEditNote(note)}
-                                    className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
-                                  >
-                                    <Edit3 className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            {isEditing ? (
-                              <Textarea
-                                value={editingNoteText}
-                                onChange={(e) => setEditingNoteText(e.target.value)}
-                                className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
-                                rows={2}
-                              />
-                            ) : (
-                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
-                            )}
-                          </motion.div>
-                        )
-                      })
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </AnimatePresence>
         </>
       )}
     </AnimatePresence>
