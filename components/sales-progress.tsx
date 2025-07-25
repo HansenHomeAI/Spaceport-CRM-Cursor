@@ -1,134 +1,132 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Phone, Mail, Video, Users, MessageSquare, CheckCircle2, Clock } from "lucide-react"
+import { Phone, Mail, Video, Users } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { 
-  STATUS_WORKFLOWS, 
-  type StatusProgress, 
-  type LeadStatus,
-  getStatusColor
-} from "@/lib/sales-cadence"
+import { CadenceProgress } from "@/lib/sales-cadence"
 
 interface SalesProgressProps {
-  progress: StatusProgress
-  statusColor?: string
+  progress: CadenceProgress
+  statusColor: string
 }
 
-const actionIcons = {
+const stepIcons = {
   call: Phone,
   email: Mail,
   video: Video,
   social: Users,
-  text: MessageSquare,
-}
-
-// Legacy fallback for old CadenceProgress
-interface LegacyCadenceProgress {
-  currentStep: number
-  completedSteps: number[]
-  lastActionDate: string
-  nextActionDate: string
-  isDormant: boolean
-}
-
-function isStatusProgress(progress: any): progress is StatusProgress {
-  return 'status' in progress && 'availableActions' in progress
 }
 
 export function SalesProgress({ progress, statusColor }: SalesProgressProps) {
-  // Handle legacy progress format
-  if (!isStatusProgress(progress)) {
+  // Use the status-specific cadence steps instead of universal SALES_CADENCE
+  const cadenceSteps = progress.statusCadence?.steps || []
+  const totalSteps = cadenceSteps.length
+  
+  if (totalSteps === 0) {
     return (
-      <div className="relative py-4 px-2">
-        <div className="text-center text-sm text-gray-400">
-          Please update lead status to use new workflow
+      <div className="relative py-6 px-2">
+        <div className="text-center text-gray-400 text-sm">
+          No cadence defined for current status
         </div>
       </div>
     )
   }
 
-  const workflow = STATUS_WORKFLOWS[progress.status]
-  const totalActions = workflow.actions.length
-  const statusProgressColor = statusColor || getStatusColor(progress.status)
-
-  // Handle empty workflow (like NOT INTERESTED)
-  if (totalActions === 0) {
-    return (
-      <div className="relative py-4 px-2">
-        <div className="text-center space-y-3">
-          <div 
-            className="w-8 h-8 rounded-full mx-auto flex items-center justify-center border"
-            style={{ 
-              borderColor: statusProgressColor,
-              color: statusProgressColor
-            }}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-          </div>
-          <div className="text-sm text-gray-300">{workflow.description}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const completionPercentage = (progress.completedActions.length / totalActions) * 100
-  const nextAction = progress.availableActions[0] // Only show the most important next action
+  const stepWidth = totalSteps > 1 ? 100 / (totalSteps - 1) : 0 // percentage width between steps
 
   return (
-    <div className="space-y-4">
-      {/* Clean status header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div 
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: statusProgressColor }}
-          />
-          <span className="text-sm font-medium text-white">{progress.status}</span>
-        </div>
-        <div className="text-xs text-gray-400">
-          Day {progress.daysInStatus}
-        </div>
+    <div className="relative py-6 px-2">
+      {/* Base line with gradient and glow */}
+      <div className="absolute h-[2px] left-0 right-0 top-1/2 -translate-y-1/2">
+        <div
+          className="h-full rounded-full"
+          style={{
+            background: `linear-gradient(to right, white, ${statusColor})`,
+            boxShadow: `0 0 10px rgba(255, 255, 255, 0.2), 0 0 20px ${statusColor}40`
+          }}
+        />
       </div>
+      
+      {/* Progress line showing completed steps */}
+      <div className="absolute h-[2px] left-0 top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+        style={{
+          width: totalSteps > 1 ? `${(progress.completedSteps.length / (totalSteps - 1)) * 100}%` : "100%",
+          background: `linear-gradient(to right, ${statusColor}, ${statusColor})`,
+          boxShadow: `0 0 10px ${statusColor}40`
+        }}
+      />
 
-      {/* Simple progress bar */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-400">Progress</span>
-          <span className="text-xs text-gray-400">
-            {progress.completedActions.length}/{totalActions}
-          </span>
-        </div>
-        <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full rounded-full"
-            style={{ backgroundColor: statusProgressColor }}
-            initial={{ width: 0 }}
-            animate={{ width: `${completionPercentage}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          />
-        </div>
-      </div>
+      {/* Step markers */}
+      {cadenceSteps.map((step, index) => {
+        const StepIcon = stepIcons[step.type]
+        const isCompleted = progress.completedSteps.includes(step.id)
+        const isCurrent = progress.currentStep === step.id
+        const isFuture = step.id > progress.currentStep
+        const position = totalSteps > 1 ? `${index * stepWidth}%` : "50%"
 
-      {/* Next action - clean and minimal */}
-      {nextAction && (
-        <div 
-          className="p-3 rounded-lg border border-gray-800 bg-gray-900/50"
-          style={{ borderLeftColor: statusProgressColor, borderLeftWidth: '2px' }}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            {(() => {
-              const Icon = actionIcons[nextAction.type]
-              return <Icon className="w-3 h-3 text-gray-400" />
-            })()}
-            <span className="text-sm font-medium text-white">{nextAction.action}</span>
-            {nextAction.priority === "high" && (
-              <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-            )}
-          </div>
-          <p className="text-xs text-gray-400">{nextAction.description}</p>
-        </div>
-      )}
+        return (
+          <TooltipProvider key={step.id}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="absolute top-1/2 -translate-y-1/2"
+                  style={{ left: position }}
+                >
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      scale: isCurrent ? 1.2 : isCompleted ? 1.1 : 1,
+                      boxShadow: isCurrent
+                        ? `0 0 0 4px ${statusColor}20, 0 0 20px ${statusColor}40`
+                        : isCompleted
+                        ? `0 0 0 2px ${statusColor}40, 0 0 10px ${statusColor}30`
+                        : "none"
+                    }}
+                    className={`relative w-4 h-4 rounded-full transition-all duration-300 border-2 ${
+                      isCompleted
+                        ? `border-white shadow-lg`
+                        : isCurrent
+                        ? `border-white bg-white/20`
+                        : isFuture
+                        ? `border-white/20 bg-transparent`
+                        : `border-white/50 bg-transparent`
+                    }`}
+                    style={{
+                      backgroundColor: isCompleted ? statusColor : 'transparent'
+                    }}
+                  >
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+                      <StepIcon
+                        className={`w-4 h-4 ${
+                          isCompleted || isCurrent ? "text-white" : isFuture ? "text-white/20" : "text-white/50"
+                        }`}
+                      />
+                    </div>
+                  </motion.div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl"
+              >
+                <div className="text-sm font-body">
+                  <div className="font-semibold mb-1">{step.action}</div>
+                  <div className="text-gray-400">{step.description}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {step.dayOffset === 0 ? "Immediate" : `Day ${step.dayOffset}`}
+                  </div>
+                  {isFuture && (
+                    <div className="text-xs text-gray-600 mt-1">Not yet due</div>
+                  )}
+                  {isCurrent && !isCompleted && (
+                    <div className="text-xs text-yellow-400 mt-1">In progress</div>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      })}
     </div>
   )
 } 

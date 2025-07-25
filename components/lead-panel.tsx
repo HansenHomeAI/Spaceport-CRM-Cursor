@@ -2,20 +2,14 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, MessageSquare, Check, ArrowRight } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
-import { 
-  STATUS_WORKFLOWS, 
-  calculateStatusProgress, 
-  getStatusColor,
-  type LeadStatus,
-  type StatusProgress,
-  type StatusAction
-} from "@/lib/sales-cadence"
+import { calculateCadenceProgress, getProgressColor, suggestStatusTransition } from "@/lib/sales-cadence"
 import { SalesProgress } from "./sales-progress"
 import type { Lead } from "./leads-table"
 
@@ -23,27 +17,32 @@ interface LeadPanelProps {
   lead: Lead | null
   isOpen: boolean
   onClose: () => void
-  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" | "text" }) => void
+  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => void
   onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
 }
 
 export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead }: LeadPanelProps) {
   const [newNote, setNewNote] = useState("")
+  const [noteType, setNoteType] = useState<"call" | "email" | "note" | "video" | "social">("note")
   const [isEditingStatus, setIsEditingStatus] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editingNoteText, setEditingNoteText] = useState("")
   const [editingNoteDate, setEditingNoteDate] = useState("")
+  const [showCustomReminder, setShowCustomReminder] = useState(false)
+  const [customReminderDate, setCustomReminderDate] = useState("")
+  const [reminderFeedback, setReminderFeedback] = useState<string | null>(null)
 
-  // Convert old status to new status
-  const normalizeStatus = (status: string): LeadStatus => {
-    const statusMap: Record<string, LeadStatus> = {
+  // Helper function to normalize old status values
+  const normalizeStatus = (status: string): string => {
+    const statusMap: Record<string, string> = {
       "cold": "NOT INTERESTED",
       "contacted": "CONTACTED", 
       "interested": "INTERESTED",
       "closed": "CLOSED",
       "dormant": "VOICEMAIL",
       "left voicemail": "VOICEMAIL",
+      // New statuses (already correct)
       "Left Voicemail": "VOICEMAIL",
       "Contacted": "CONTACTED",
       "Interested": "INTERESTED", 
@@ -62,56 +61,91 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   // Auto-migrate status if it's in old format when panel opens
   useEffect(() => {
     if (lead && isOpen) {
-      const normalizedStatus = normalizeStatus(lead.status as string)
-      if (normalizedStatus !== (lead.status as string)) {
-        onUpdateLead(lead.id, { status: normalizedStatus as any })
+      const normalizedStatus = normalizeStatus(lead.status)
+      if (normalizedStatus !== lead.status) {
+        console.log(`🔄 Auto-migrating status for ${lead.name}: "${lead.status}" → "${normalizedStatus}"`)
+        onUpdateLead(lead.id, { status: normalizedStatus as Lead["status"] })
       }
     }
   }, [lead, isOpen, onUpdateLead])
 
-  const currentStatus = useMemo(() => {
-    if (!lead) return "CONTACTED"
-    return normalizeStatus(lead.status as string)
-  }, [lead?.status])
-
-  const progress = useMemo((): StatusProgress | null => {
+  const progress = useMemo(() => {
     if (!lead) return null
-    return calculateStatusProgress(currentStatus, lead.notes)
-  }, [lead?.notes, currentStatus])
+    return calculateCadenceProgress(lead.notes, lead.status, lead.createdAt)
+  }, [lead?.notes, lead?.status, lead?.createdAt])
 
-  const handleQuickAction = (action: StatusAction, actionText: string) => {
-    if (!lead || !progress) return
+  const currentStep = useMemo(() => {
+    if (!progress || progress.isDormant || !progress.statusCadence) return null
+    return progress.statusCadence.steps.find(step => step.id === progress.currentStep)
+  }, [progress])
+
+  // Check for suggested status transitions
+  const statusSuggestion = useMemo(() => {
+    if (!lead || !lead.notes.length) return null
+    return suggestStatusTransition(lead.status, lead.notes)
+  }, [lead?.status, lead?.notes])
+
+  const handleQuickAction = (type: "call" | "email" | "video" | "social" | "note", description: string) => {
+    if (!lead || !currentStep) return
 
     onAddNote(lead.id, {
-      text: `${action.action}: ${actionText}`,
-      type: action.type === "text" ? "note" : action.type,
+      text: `${currentStep.action}: ${description}`,
+      type: type === "social" ? "note" : type,
     })
-
-    // Handle simple status transitions
-    if (actionText.includes("Phone Answered") && currentStatus === "VOICEMAIL") {
-      onUpdateLead(lead.id, { status: "CONTACTED" as any })
-    } else if (actionText.includes("Showed Interest") && currentStatus === "CONTACTED") {
-      onUpdateLead(lead.id, { status: "INTERESTED" as any })
-    } else if (actionText.includes("Closed") && currentStatus === "INTERESTED") {
-      onUpdateLead(lead.id, { status: "CLOSED" as any })
-    } else if (actionText.includes("Not Interested")) {
-      onUpdateLead(lead.id, { status: "NOT INTERESTED" as any })
-    }
   }
 
-  const handleStatusTransition = (newStatus: LeadStatus) => {
+  const handleSetReminder = (timeframe: string) => {
     if (!lead) return
-    onUpdateLead(lead.id, { status: newStatus as any })
-    setIsEditingStatus(false)
+
+    let reminderDate: Date
+    let reminderText: string
+
+    switch (timeframe) {
+      case "2weeks":
+        reminderDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        reminderText = "Set reminder: Follow up in 2 weeks"
+        break
+      case "1month":
+        reminderDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        reminderText = "Set reminder: Follow up in 1 month"
+        break
+      case "custom":
+        if (!customReminderDate) return
+        reminderDate = new Date(customReminderDate)
+        reminderText = `Set reminder: Follow up on ${new Date(customReminderDate).toLocaleDateString()}`
+        break
+      default:
+        return
+    }
+
+    onAddNote(lead.id, {
+      text: reminderText,
+      type: "note",
+    })
+
+    // Show feedback
+    setReminderFeedback(`Reminder set for ${reminderDate.toLocaleDateString()}`)
+    setTimeout(() => setReminderFeedback(null), 3000)
+
+    // Reset custom reminder form
+    setShowCustomReminder(false)
+    setCustomReminderDate("")
   }
 
   const handleAddNote = () => {
     if (!lead || !newNote.trim()) return
+
     onAddNote(lead.id, {
       text: newNote,
-      type: "note",
+      type: noteType,
     })
     setNewNote("")
+  }
+
+  const handleStatusChange = (newStatus: Lead["status"]) => {
+    if (!lead) return
+    onUpdateLead(lead.id, { status: newStatus })
+    setIsEditingStatus(false)
   }
 
   const handleStartEditNote = (note: any) => {
@@ -122,10 +156,12 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   const handleSaveNoteEdit = () => {
     if (!lead || !editingNoteId) return
+    
     onUpdateNote(lead.id, editingNoteId, {
       text: editingNoteText,
       timestamp: new Date(editingNoteDate).toISOString()
     })
+    
     setEditingNoteId(null)
     setEditingNoteText("")
     setEditingNoteDate("")
@@ -139,8 +175,9 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   if (!isOpen || !lead) return null
 
-  const statusColor = getStatusColor(currentStatus)
-  const nextAction = progress?.availableActions[0] // Only show the most important action
+  // Get colors for the normalized status
+  const normalizedStatus = normalizeStatus(lead.status)
+  const statusColor = colors.status[normalizedStatus as keyof typeof colors.status] || colors.status["CONTACTED"]
 
   return (
     <AnimatePresence>
@@ -158,17 +195,16 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-full max-w-md bg-black/90 backdrop-blur-xl border-l border-gray-800 z-50 overflow-y-auto"
+            className="fixed right-0 top-0 h-full w-full max-w-md bg-black/90 backdrop-blur-xl border-l border-system z-50 overflow-y-auto"
           >
-            <div className="p-6 space-y-6">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">{lead.name}</h2>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-title text-primary-hierarchy">Lead Details</h2>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg h-8 w-8 p-0"
+                  className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -176,129 +212,294 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
               {/* Sales Progress */}
               {progress && (
-                <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
-                  <CardContent className="p-4">
-                    <SalesProgress progress={progress} statusColor={statusColor} />
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Next Action - Simple and Clean */}
-              {nextAction && (
-                <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-white">Next Action</h3>
-                      {nextAction.priority === "high" && (
-                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                      )}
-                    </div>
+                <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
+                  <CardContent className="p-6 pt-8">
+                    <SalesProgress
+                      progress={progress}
+                      statusColor={getProgressColor(progress, lead.status)}
+                    />
                     
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-300">{nextAction.action}</p>
-                      <p className="text-xs text-gray-400">{nextAction.description}</p>
-                    </div>
-
-                    {/* Simple action buttons */}
-                    <div className="flex gap-2">
-                      {nextAction.quickActions?.slice(0, 2).map((quickAction) => (
-                        <Button
-                          key={quickAction}
-                          size="sm"
-                          onClick={() => handleQuickAction(nextAction, quickAction)}
-                          className="bg-gray-800 hover:bg-gray-700 text-white border-gray-700 rounded-lg text-xs"
-                        >
-                          {nextAction.type === "call" && <Phone className="h-3 w-3 mr-1" />}
-                          {nextAction.type === "email" && <Mail className="h-3 w-3 mr-1" />}
-                          {nextAction.type === "text" && <MessageSquare className="h-3 w-3 mr-1" />}
-                          {quickAction}
-                        </Button>
-                      ))}
-                    </div>
+                    {currentStep && (
+                      <div className="mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
+                          <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
+                            {currentStep.dayOffset === 0 ? "Immediate" : `Day ${currentStep.dayOffset}`}
+                          </Badge>
+                        </div>
+                        <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {currentStep.type === "call" && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleQuickAction("call", "Made call")}
+                                className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
+                              >
+                                <Phone className="h-3 w-3 mr-1" />
+                                Made Call
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleQuickAction("call", "Left voicemail")}
+                                className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                Left Voicemail
+                              </Button>
+                            </>
+                          )}
+                          {currentStep.type === "email" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("email", "Sent follow-up email")}
+                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                            >
+                              <Mail className="h-3 w-3 mr-1" />
+                              Sent Email
+                            </Button>
+                          )}
+                          {currentStep.type === "video" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("video", "Sent video message")}
+                              className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
+                            >
+                              <Video className="h-3 w-3 mr-1" />
+                              Sent Video
+                            </Button>
+                          )}
+                          {currentStep.type === "social" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
+                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                            >
+                              <Users className="h-3 w-3 mr-1" />
+                              Connected
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
 
-              {/* Status */}
-              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: statusColor }}
-                      />
-                      <span className="text-sm text-white">{currentStatus}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditingStatus(!isEditingStatus)}
-                      className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg h-6 w-6 p-0"
+              {/* Contact Reminder */}
+              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {reminderFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="bg-green-500/20 text-green-300 border border-green-500/30 rounded-xl p-3 text-sm"
                     >
-                      <Edit3 className="h-3 w-3" />
+                      ✓ {reminderFeedback}
+                    </motion.div>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSetReminder("2weeks")}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      2 Weeks
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSetReminder("1month")}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      1 Month
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowCustomReminder(!showCustomReminder)}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      Custom
                     </Button>
                   </div>
 
-                  {isEditingStatus && (
-                    <div className="mt-3">
-                      <Select value={currentStatus} onValueChange={(value) => handleStatusTransition(value as LeadStatus)}>
-                        <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700 rounded-lg">
-                          {Object.keys(STATUS_WORKFLOWS).map((status) => (
-                            <SelectItem key={status} value={status} className="text-white hover:bg-gray-700">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{ backgroundColor: getStatusColor(status as LeadStatus) }}
-                                />
-                                {status}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  {showCustomReminder && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-3 pt-3 border-t border-white/10"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={customReminderDate}
+                          onChange={(e) => setCustomReminderDate(e.target.value)}
+                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleSetReminder("custom")}
+                          disabled={!customReminderDate}
+                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
+                        >
+                          Set
+                        </Button>
+                      </div>
+                    </motion.div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Contact Info */}
-              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
-                <CardContent className="p-4 space-y-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-3 w-3 text-gray-400" />
-                      <span className="text-gray-300">{lead.phone}</span>
+              {/* Existing lead details card */}
+              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-primary-hierarchy font-title">{lead.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      {isEditingStatus ? (
+                        <Select value={lead.status} onValueChange={handleStatusChange}>
+                          <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
+                            <SelectItem value="VOICEMAIL" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full"
+                                  style={{ backgroundColor: colors.status["VOICEMAIL"].icon }}
+                                />
+                                <span className="text-white font-body">Left Voicemail</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="CONTACTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full"
+                                  style={{ backgroundColor: colors.status["CONTACTED"].icon }}
+                                />
+                                <span className="text-white font-body">Contacted</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full"
+                                  style={{ backgroundColor: colors.status["INTERESTED"].icon }}
+                                />
+                                <span className="text-white font-body">Interested</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="NOT INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full"
+                                  style={{ backgroundColor: colors.status["NOT INTERESTED"].icon }}
+                                />
+                                <span className="text-white font-body">Not Interested</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="CLOSED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full"
+                                  style={{ backgroundColor: colors.status["CLOSED"].icon }}
+                                />
+                                <span className="text-white font-body">Closed</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className="bg-black/20 text-white border-2 border-white/10 rounded-full px-4 py-1.5 font-body flex items-center gap-2"
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: statusColor.icon }}
+                            />
+                            {normalizedStatus}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsEditingStatus(true)}
+                            className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-3 w-3 text-gray-400" />
-                      <span className="text-gray-300">{lead.email}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
+                    <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
+                      <div className="text-primary-hierarchy font-body leading-tight">{lead.address}</div>
                     </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-300">{lead.address}</span>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                    <Phone className="h-4 w-4" style={{ color: colors.interaction.call.icon }} />
+                    <span>{lead.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                    <Mail className="h-4 w-4" style={{ color: colors.interaction.email.icon }} />
+                    <span>{lead.email}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                    <Calendar className="h-4 w-4 text-purple-400" />
+                    <span>Last interaction: {lead.lastInteraction}</span>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Add Note */}
-              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
-                <CardContent className="p-4 space-y-3">
-                  <h3 className="text-sm font-medium text-white">Add Note</h3>
+              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-primary-hierarchy font-title text-lg">Add Note</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    {(["note", "call", "email"] as const).map((type) => {
+                      const typeColor = colors.interaction[type]
+                      return (
+                        <Button
+                          key={type}
+                          variant={noteType === type ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setNoteType(type)}
+                          className={
+                            noteType === type
+                              ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body`
+                              : `bg-black/20 ${typeColor.text} border-system hover:bg-white/10 rounded-full font-body`
+                          }
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Button>
+                      )
+                    })}
+                  </div>
                   <Textarea
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     placeholder="Enter your note..."
-                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 rounded-lg"
+                    className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-2xl"
                     rows={3}
                   />
                   <Button
                     onClick={handleAddNote}
-                    className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-lg"
+                    className={`w-full bg-gradient-to-r ${colors.primary.gradient} hover:from-purple-700 hover:to-purple-800 text-white rounded-full font-body`}
                     disabled={!newNote.trim()}
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -307,72 +508,124 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </CardContent>
               </Card>
 
-              {/* Notes History */}
-              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-white mb-3">Recent Activity</h3>
-                  <div className="space-y-3">
-                    {lead.notes.length === 0 ? (
-                      <p className="text-sm text-gray-400">No activity yet</p>
-                    ) : (
-                      lead.notes
-                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                        .slice(0, 5) // Only show last 5 notes
-                        .map((note) => {
-                          const isEditing = editingNoteId === note.id
-                          
-                          return (
-                            <div
-                              key={note.id}
-                              className="p-3 bg-gray-800/50 rounded-lg border-l-2"
-                              style={{ borderLeftColor: statusColor }}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-400 capitalize">{note.type}</span>
-                                  <span className="text-xs text-gray-500">
+              <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-primary-hierarchy font-title text-lg">Interaction History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Upcoming Reminders */}
+                    {lead.notes.filter(note => note.text.includes("Set reminder:")).length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-primary-hierarchy font-title text-sm mb-3">Upcoming Reminders</h4>
+                        <div className="space-y-2">
+                          {lead.notes
+                            .filter(note => note.text.includes("Set reminder:"))
+                            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                            .map((note) => (
+                              <motion.div
+                                key={note.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
+                                style={{ borderLeftColor: colors.interaction.note.icon }}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
+                                    Reminder
+                                  </Badge>
+                                  <span className="text-xs text-medium-hierarchy font-body">
                                     {new Date(note.timestamp).toLocaleDateString()}
                                   </span>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleStartEditNote(note)}
-                                  className="text-gray-400 hover:text-white hover:bg-gray-700 rounded h-6 w-6 p-0"
-                                >
-                                  <Edit3 className="h-3 w-3" />
-                                </Button>
+                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                              </motion.div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Past Interactions */}
+                    {lead.notes.filter(note => !note.text.includes("Set reminder:")).length === 0 ? (
+                      <p className="text-medium-hierarchy font-body text-sm">No interactions yet</p>
+                    ) : (
+                      lead.notes
+                        .filter(note => !note.text.includes("Set reminder:"))
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .map((note) => {
+                          const noteColor = colors.interaction[note.type]
+                          const isEditing = editingNoteId === note.id
+                          
+                          return (
+                            <motion.div
+                              key={note.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="border-l-2 pl-4 py-3 bg-white/5 rounded-r-2xl"
+                              style={{ borderLeftColor: noteColor.icon }}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
+                                  >
+                                    {note.type}
+                                  </Badge>
+                                  {isEditing ? (
+                                    <input
+                                      type="date"
+                                      value={editingNoteDate}
+                                      onChange={(e) => setEditingNoteDate(e.target.value)}
+                                      className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-medium-hierarchy font-body">
+                                      {new Date(note.timestamp).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {isEditing ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={handleSaveNoteEdit}
+                                        className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700 rounded-full"
+                                      >
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleCancelNoteEdit}
+                                        className="h-6 px-2 text-xs border-white/20 text-white hover:bg-white/10 rounded-full"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleStartEditNote(note)}
+                                      className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
+                                    >
+                                      <Edit3 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                               {isEditing ? (
-                                <div className="space-y-2">
-                                  <Textarea
-                                    value={editingNoteText}
-                                    onChange={(e) => setEditingNoteText(e.target.value)}
-                                    className="bg-gray-800 border-gray-700 text-white rounded-lg text-sm"
-                                    rows={2}
-                                  />
-                                  <div className="flex gap-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={handleSaveNoteEdit}
-                                      className="bg-green-600 hover:bg-green-700 text-white rounded h-6 px-2 text-xs"
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={handleCancelNoteEdit}
-                                      className="border-gray-600 text-gray-300 hover:bg-gray-700 rounded h-6 px-2 text-xs"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </div>
-                                </div>
+                                <Textarea
+                                  value={editingNoteText}
+                                  onChange={(e) => setEditingNoteText(e.target.value)}
+                                  className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
+                                  rows={2}
+                                />
                               ) : (
-                                <p className="text-sm text-gray-300">{note.text}</p>
+                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
                               )}
-                            </div>
+                            </motion.div>
                           )
                         })
                     )}
@@ -381,6 +634,453 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
               </Card>
             </div>
           </motion.div>
+
+          {/* Status Transition Suggestion */}
+          {statusSuggestion && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-blue-300 font-title text-sm mb-1">Status Update Suggested</h4>
+                  <p className="text-gray-300 text-sm">{statusSuggestion.reason}</p>
+                </div>
+                <Button
+                  onClick={() => handleStatusChange(statusSuggestion.suggested as Lead["status"])}
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4 py-2 text-sm"
+                >
+                  Change to {statusSuggestion.suggested}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          <AnimatePresence mode="wait">
+            {/* Sales Progress */}
+            {progress && (
+              <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
+                <CardContent className="p-6 pt-8">
+                  <SalesProgress
+                    progress={progress}
+                    statusColor={getProgressColor(progress, lead.status)}
+                  />
+                  
+                  {currentStep && (
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
+                        <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
+                          {currentStep.dayOffset === 0 ? "Immediate" : `Day ${currentStep.dayOffset}`}
+                        </Badge>
+                      </div>
+                      <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {currentStep.type === "call" && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("call", "Made call")}
+                              className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
+                            >
+                              <Phone className="h-3 w-3 mr-1" />
+                              Made Call
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleQuickAction("call", "Left voicemail")}
+                              className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Left Voicemail
+                            </Button>
+                          </>
+                        )}
+                        {currentStep.type === "email" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQuickAction("email", "Sent follow-up email")}
+                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                          >
+                            <Mail className="h-3 w-3 mr-1" />
+                            Sent Email
+                          </Button>
+                        )}
+                        {currentStep.type === "video" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQuickAction("video", "Sent video message")}
+                            className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
+                          >
+                            <Video className="h-3 w-3 mr-1" />
+                            Sent Video
+                          </Button>
+                        )}
+                        {currentStep.type === "social" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
+                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                          >
+                            <Users className="h-3 w-3 mr-1" />
+                            Connected
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Contact Reminder */}
+            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+              <CardHeader>
+                <CardTitle className="text-primary-hierarchy font-title text-lg">Contact Reminder</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {reminderFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-green-500/20 text-green-300 border border-green-500/30 rounded-xl p-3 text-sm"
+                  >
+                    ✓ {reminderFeedback}
+                  </motion.div>
+                )}
+                
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleSetReminder("2weeks")}
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    2 Weeks
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSetReminder("1month")}
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    1 Month
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowCustomReminder(!showCustomReminder)}
+                    className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Custom
+                  </Button>
+                </div>
+
+                {showCustomReminder && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 pt-3 border-t border-white/10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={customReminderDate}
+                        onChange={(e) => setCustomReminderDate(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleSetReminder("custom")}
+                        disabled={!customReminderDate}
+                        className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
+                      >
+                        Set
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Existing lead details card */}
+            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-primary-hierarchy font-title">{lead.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    {isEditingStatus ? (
+                      <Select value={lead.status} onValueChange={handleStatusChange}>
+                        <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
+                          <SelectItem value="VOICEMAIL" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: colors.status["VOICEMAIL"].icon }}
+                              />
+                              <span className="text-white font-body">Left Voicemail</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="CONTACTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: colors.status["CONTACTED"].icon }}
+                              />
+                              <span className="text-white font-body">Contacted</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: colors.status["INTERESTED"].icon }}
+                              />
+                              <span className="text-white font-body">Interested</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="NOT INTERESTED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: colors.status["NOT INTERESTED"].icon }}
+                              />
+                              <span className="text-white font-body">Not Interested</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="CLOSED" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: colors.status["CLOSED"].icon }}
+                              />
+                              <span className="text-white font-body">Closed</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          className="bg-black/20 text-white border-2 border-white/10 rounded-full px-4 py-1.5 font-body flex items-center gap-2"
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: statusColor.icon }}
+                          />
+                          {normalizedStatus}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditingStatus(true)}
+                          className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
+                  <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
+                    <div className="text-primary-hierarchy font-body leading-tight">{lead.address}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                  <Phone className="h-4 w-4" style={{ color: colors.interaction.call.icon }} />
+                  <span>{lead.phone}</span>
+                </div>
+                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                  <Mail className="h-4 w-4" style={{ color: colors.interaction.email.icon }} />
+                  <span>{lead.email}</span>
+                </div>
+                <div className="flex items-center gap-3 text-primary-hierarchy font-body">
+                  <Calendar className="h-4 w-4 text-purple-400" />
+                  <span>Last interaction: {lead.lastInteraction}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
+              <CardHeader>
+                <CardTitle className="text-primary-hierarchy font-title text-lg">Add Note</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  {(["note", "call", "email"] as const).map((type) => {
+                    const typeColor = colors.interaction[type]
+                    return (
+                      <Button
+                        key={type}
+                        variant={noteType === type ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setNoteType(type)}
+                        className={
+                          noteType === type
+                            ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body`
+                            : `bg-black/20 ${typeColor.text} border-system hover:bg-white/10 rounded-full font-body`
+                        }
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <Textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Enter your note..."
+                  className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-2xl"
+                  rows={3}
+                />
+                <Button
+                  onClick={handleAddNote}
+                  className={`w-full bg-gradient-to-r ${colors.primary.gradient} hover:from-purple-700 hover:to-purple-800 text-white rounded-full font-body`}
+                  disabled={!newNote.trim()}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Note
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-3xl">
+              <CardHeader>
+                <CardTitle className="text-primary-hierarchy font-title text-lg">Interaction History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Upcoming Reminders */}
+                  {lead.notes.filter(note => note.text.includes("Set reminder:")).length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-primary-hierarchy font-title text-sm mb-3">Upcoming Reminders</h4>
+                      <div className="space-y-2">
+                        {lead.notes
+                          .filter(note => note.text.includes("Set reminder:"))
+                          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                          .map((note) => (
+                            <motion.div
+                              key={note.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
+                              style={{ borderLeftColor: colors.interaction.note.icon }}
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
+                                  Reminder
+                                </Badge>
+                                <span className="text-xs text-medium-hierarchy font-body">
+                                  {new Date(note.timestamp).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                            </motion.div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Past Interactions */}
+                  {lead.notes.filter(note => !note.text.includes("Set reminder:")).length === 0 ? (
+                    <p className="text-medium-hierarchy font-body text-sm">No interactions yet</p>
+                  ) : (
+                    lead.notes
+                      .filter(note => !note.text.includes("Set reminder:"))
+                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                      .map((note) => {
+                        const noteColor = colors.interaction[note.type]
+                        const isEditing = editingNoteId === note.id
+                        
+                        return (
+                          <motion.div
+                            key={note.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="border-l-2 pl-4 py-3 bg-white/5 rounded-r-2xl"
+                            style={{ borderLeftColor: noteColor.icon }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={`${noteColor.bg} ${noteColor.text} ${noteColor.border} text-xs rounded-full font-body`}
+                                >
+                                  {note.type}
+                                </Badge>
+                                {isEditing ? (
+                                  <input
+                                    type="date"
+                                    value={editingNoteDate}
+                                    onChange={(e) => setEditingNoteDate(e.target.value)}
+                                    className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
+                                  />
+                                ) : (
+                                  <span className="text-xs text-medium-hierarchy font-body">
+                                    {new Date(note.timestamp).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {isEditing ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={handleSaveNoteEdit}
+                                      className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700 rounded-full"
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={handleCancelNoteEdit}
+                                      className="h-6 px-2 text-xs border-white/20 text-white hover:bg-white/10 rounded-full"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleStartEditNote(note)}
+                                    className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
+                                  >
+                                    <Edit3 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            {isEditing ? (
+                              <Textarea
+                                value={editingNoteText}
+                                onChange={(e) => setEditingNoteText(e.target.value)}
+                                className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
+                                rows={2}
+                              />
+                            ) : (
+                              <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                            )}
+                          </motion.div>
+                        )
+                      })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>

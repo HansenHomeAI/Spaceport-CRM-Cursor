@@ -42,12 +42,18 @@ export default function DashboardPage() {
   // Helper function to migrate old status values to new ones
   const migrateLeadStatuses = useCallback(async () => {
     const statusMap: Record<string, string> = {
-      "cold": "Not Interested",
-      "contacted": "Contacted", 
-      "interested": "Interested",
-      "closed": "Not Interested",
-      "dormant": "Needs Follow-Up",
-      "left voicemail": "Left Voicemail"
+      "cold": "NOT INTERESTED",
+      "contacted": "CONTACTED", 
+      "interested": "INTERESTED",
+      "closed": "CLOSED",
+      "dormant": "VOICEMAIL",
+      "left voicemail": "VOICEMAIL",
+      // Legacy status mappings
+      "Left Voicemail": "VOICEMAIL",
+      "Contacted": "CONTACTED",
+      "Interested": "INTERESTED",
+      "Not Interested": "NOT INTERESTED",
+      "Needs Follow-Up": "VOICEMAIL"
     }
 
     console.log(`🔍 Checking ${leads.length} leads for status migration...`)

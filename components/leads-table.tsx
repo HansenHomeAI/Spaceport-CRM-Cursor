@@ -23,11 +23,11 @@ import { useAuth } from "@/lib/auth-context"
 export interface Lead {
   id: string
   name: string
-  email: string
   phone: string
+  email: string
   address: string
   company?: string
-  status: "NOT INTERESTED" | "VOICEMAIL" | "CONTACTED" | "INTERESTED" | "CLOSED" | "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up" // Support both old and new formats
+  status: "NOT INTERESTED" | "VOICEMAIL" | "CONTACTED" | "INTERESTED" | "CLOSED"
   lastInteraction: string
   ownerId?: string
   ownerName?: string
@@ -66,21 +66,26 @@ const columnHelper = createColumnHelper<Lead>()
 // Helper function to normalize old status values to new ones
 const normalizeStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
-    "cold": "Not Interested",
-    "contacted": "Contacted", 
-    "interested": "Interested",
-    "closed": "Not Interested",
-    "dormant": "Needs Follow-Up",
-    "left voicemail": "Left Voicemail",
+    "cold": "NOT INTERESTED",
+    "contacted": "CONTACTED", 
+    "interested": "INTERESTED",
+    "closed": "CLOSED",
+    "dormant": "VOICEMAIL",
+    "left voicemail": "VOICEMAIL",
     // New statuses (already correct)
-    "Left Voicemail": "Left Voicemail",
-    "Contacted": "Contacted",
-    "Interested": "Interested", 
-    "Not Interested": "Not Interested",
-    "Needs Follow-Up": "Needs Follow-Up"
+    "Left Voicemail": "VOICEMAIL",
+    "Contacted": "CONTACTED",
+    "Interested": "INTERESTED", 
+    "Not Interested": "NOT INTERESTED",
+    "Needs Follow-Up": "VOICEMAIL",
+    "VOICEMAIL": "VOICEMAIL",
+    "CONTACTED": "CONTACTED",
+    "INTERESTED": "INTERESTED",
+    "NOT INTERESTED": "NOT INTERESTED",
+    "CLOSED": "CLOSED"
   }
   
-  return statusMap[status] || "Contacted"
+  return statusMap[status] || "CONTACTED"
 }
 
 export function LeadsTable({
