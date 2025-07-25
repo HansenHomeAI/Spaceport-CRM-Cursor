@@ -54,12 +54,6 @@ export const colors = {
       border: "border-gray-500/20",
       icon: "#6b7280", // Gray-500
     },
-    text: {
-      bg: "bg-cyan-500/10",
-      text: "text-cyan-300",
-      border: "border-cyan-500/20",
-      icon: "#06b6d4", // Cyan-500
-    },
     video: {
       bg: "bg-purple-500/10",
       text: "text-purple-300",

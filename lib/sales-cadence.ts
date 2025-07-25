@@ -422,9 +422,9 @@ export interface CadenceProgress {
 
 export function calculateCadenceProgress(notes: Array<{ type: string; timestamp: string; text: string }>): CadenceProgress {
   // Legacy fallback - convert to new system
-  return {
-    currentStep: 1,
-    completedSteps: [],
+    return {
+      currentStep: 1,
+      completedSteps: [],
     lastActionDate: notes[0]?.timestamp || "",
     nextActionDate: new Date().toISOString(),
     isDormant: false

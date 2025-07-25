@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Check, ArrowRight } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, MessageSquare, Check, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { colors } from "@/lib/colors"
 import { 
   STATUS_WORKFLOWS, 
   calculateStatusProgress, 
@@ -79,30 +79,34 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     return calculateStatusProgress(currentStatus, lead.notes)
   }, [lead?.notes, currentStatus])
 
-  const handleQuickAction = (actionText: string, type: "call" | "email" | "note" = "note") => {
-    if (!lead) return
+  const handleQuickAction = (action: StatusAction, actionText: string) => {
+    if (!lead || !progress) return
 
     onAddNote(lead.id, {
-      text: actionText,
-      type: type,
+      text: `${action.action}: ${actionText}`,
+      type: action.type === "text" ? "note" : action.type,
     })
+
+    // Handle simple status transitions
+    if (actionText.includes("Phone Answered") && currentStatus === "VOICEMAIL") {
+      onUpdateLead(lead.id, { status: "CONTACTED" as any })
+    } else if (actionText.includes("Showed Interest") && currentStatus === "CONTACTED") {
+      onUpdateLead(lead.id, { status: "INTERESTED" as any })
+    } else if (actionText.includes("Closed") && currentStatus === "INTERESTED") {
+      onUpdateLead(lead.id, { status: "CLOSED" as any })
+    } else if (actionText.includes("Not Interested")) {
+      onUpdateLead(lead.id, { status: "NOT INTERESTED" as any })
+    }
   }
 
   const handleStatusTransition = (newStatus: LeadStatus) => {
     if (!lead) return
-    
-    onAddNote(lead.id, {
-      text: `Status changed to ${newStatus}`,
-      type: "note",
-    })
-    
     onUpdateLead(lead.id, { status: newStatus as any })
     setIsEditingStatus(false)
   }
 
   const handleAddNote = () => {
     if (!lead || !newNote.trim()) return
-
     onAddNote(lead.id, {
       text: newNote,
       type: "note",
@@ -118,12 +122,10 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   const handleSaveNoteEdit = () => {
     if (!lead || !editingNoteId) return
-    
     onUpdateNote(lead.id, editingNoteId, {
       text: editingNoteText,
       timestamp: new Date(editingNoteDate).toISOString()
     })
-    
     setEditingNoteId(null)
     setEditingNoteText("")
     setEditingNoteDate("")
@@ -138,7 +140,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   if (!isOpen || !lead) return null
 
   const statusColor = getStatusColor(currentStatus)
-  const nextAction = progress?.nextAction
+  const nextAction = progress?.availableActions[0] // Only show the most important action
 
   return (
     <AnimatePresence>
@@ -148,107 +150,67 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={onClose}
           />
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-950 border-l border-gray-200 dark:border-gray-800 z-50 overflow-y-auto"
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 h-full w-full max-w-md bg-black/90 backdrop-blur-xl border-l border-gray-800 z-50 overflow-y-auto"
           >
             <div className="p-6 space-y-6">
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{lead.name}</h2>
+                <h2 className="text-lg font-semibold text-white">{lead.name}</h2>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg h-8 w-8 p-0"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
 
-              {/* Status */}
-              <div className="flex items-center justify-between">
-                {isEditingStatus ? (
-                  <Select value={currentStatus} onValueChange={(value) => handleStatusTransition(value as LeadStatus)}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(STATUS_WORKFLOWS).map((status) => (
-                        <SelectItem key={status} value={status}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: getStatusColor(status as LeadStatus) }}
-                            />
-                            {status.replace("_", " ")}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: statusColor }}
-                      />
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {currentStatus.replace("_", " ")}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditingStatus(true)}
-                      className="text-gray-400 hover:text-gray-600 p-1"
-                    >
-                      <Edit3 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
               {/* Sales Progress */}
               {progress && (
-                <Card className="border border-gray-200 dark:border-gray-800">
-                  <SalesProgress progress={progress} statusColor={statusColor} />
+                <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
+                  <CardContent className="p-4">
+                    <SalesProgress progress={progress} statusColor={statusColor} />
+                  </CardContent>
                 </Card>
               )}
 
-              {/* Quick Actions */}
-              {nextAction && progress?.availableActions.length > 0 && (
-                <Card className="border border-gray-200 dark:border-gray-800">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Next Action
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-3">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {nextAction.description}
+              {/* Next Action - Simple and Clean */}
+              {nextAction && (
+                <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-white">Next Action</h3>
+                      {nextAction.priority === "high" && (
+                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                      )}
                     </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-300">{nextAction.action}</p>
+                      <p className="text-xs text-gray-400">{nextAction.description}</p>
+                    </div>
+
+                    {/* Simple action buttons */}
                     <div className="flex gap-2">
                       {nextAction.quickActions?.slice(0, 2).map((quickAction) => (
                         <Button
                           key={quickAction}
                           size="sm"
-                          onClick={() => {
-                            const type = nextAction.type === "call" ? "call" : 
-                                        nextAction.type === "email" ? "email" : "note"
-                            handleQuickAction(`${nextAction.action}: ${quickAction}`, type)
-                          }}
-                          className="flex-1"
+                          onClick={() => handleQuickAction(nextAction, quickAction)}
+                          className="bg-gray-800 hover:bg-gray-700 text-white border-gray-700 rounded-lg text-xs"
                         >
                           {nextAction.type === "call" && <Phone className="h-3 w-3 mr-1" />}
                           {nextAction.type === "email" && <Mail className="h-3 w-3 mr-1" />}
+                          {nextAction.type === "text" && <MessageSquare className="h-3 w-3 mr-1" />}
                           {quickAction}
                         </Button>
                       ))}
@@ -257,43 +219,87 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </Card>
               )}
 
+              {/* Status */}
+              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: statusColor }}
+                      />
+                      <span className="text-sm text-white">{currentStatus}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingStatus(!isEditingStatus)}
+                      className="text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg h-6 w-6 p-0"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  {isEditingStatus && (
+                    <div className="mt-3">
+                      <Select value={currentStatus} onValueChange={(value) => handleStatusTransition(value as LeadStatus)}>
+                        <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-700 rounded-lg">
+                          {Object.keys(STATUS_WORKFLOWS).map((status) => (
+                            <SelectItem key={status} value={status} className="text-white hover:bg-gray-700">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: getStatusColor(status as LeadStatus) }}
+                                />
+                                {status}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Contact Info */}
-              <Card className="border border-gray-200 dark:border-gray-800">
+              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
                 <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">{lead.address}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">{lead.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">{lead.email}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-3 w-3 text-gray-400" />
+                      <span className="text-gray-300">{lead.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-3 w-3 text-gray-400" />
+                      <span className="text-gray-300">{lead.email}</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <span className="text-gray-300">{lead.address}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Add Note */}
-              <Card className="border border-gray-200 dark:border-gray-800">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    Add Note
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
+              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="text-sm font-medium text-white">Add Note</h3>
                   <Textarea
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     placeholder="Enter your note..."
-                    className="resize-none"
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 rounded-lg"
                     rows={3}
                   />
                   <Button
                     onClick={handleAddNote}
+                    className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-lg"
                     disabled={!newNote.trim()}
-                    className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Note
@@ -301,51 +307,55 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </CardContent>
               </Card>
 
-              {/* Recent Notes */}
-              {lead.notes.length > 0 && (
-                <Card className="border border-gray-200 dark:border-gray-800">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Recent Activity
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-3">
-                    {lead.notes
-                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                      .slice(0, 5)
-                      .map((note) => {
-                        const isEditing = editingNoteId === note.id
-                        
-                        return (
-                          <div
-                            key={note.id}
-                            className="border-l-2 border-gray-200 dark:border-gray-700 pl-3 py-2"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {note.type}
-                                </Badge>
-                                {isEditing ? (
-                                  <input
-                                    type="date"
-                                    value={editingNoteDate}
-                                    onChange={(e) => setEditingNoteDate(e.target.value)}
-                                    className="text-xs text-gray-500 bg-transparent border border-gray-300 rounded px-1"
-                                  />
-                                ) : (
+              {/* Notes History */}
+              <Card className="bg-gray-900/50 backdrop-blur border-gray-800 rounded-lg">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-medium text-white mb-3">Recent Activity</h3>
+                  <div className="space-y-3">
+                    {lead.notes.length === 0 ? (
+                      <p className="text-sm text-gray-400">No activity yet</p>
+                    ) : (
+                      lead.notes
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .slice(0, 5) // Only show last 5 notes
+                        .map((note) => {
+                          const isEditing = editingNoteId === note.id
+                          
+                          return (
+                            <div
+                              key={note.id}
+                              className="p-3 bg-gray-800/50 rounded-lg border-l-2"
+                              style={{ borderLeftColor: statusColor }}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-400 capitalize">{note.type}</span>
                                   <span className="text-xs text-gray-500">
                                     {new Date(note.timestamp).toLocaleDateString()}
                                   </span>
-                                )}
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStartEditNote(note)}
+                                  className="text-gray-400 hover:text-white hover:bg-gray-700 rounded h-6 w-6 p-0"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
                               </div>
-                              <div className="flex items-center gap-1">
-                                {isEditing ? (
-                                  <>
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <Textarea
+                                    value={editingNoteText}
+                                    onChange={(e) => setEditingNoteText(e.target.value)}
+                                    className="bg-gray-800 border-gray-700 text-white rounded-lg text-sm"
+                                    rows={2}
+                                  />
+                                  <div className="flex gap-2">
                                     <Button
                                       size="sm"
                                       onClick={handleSaveNoteEdit}
-                                      className="h-6 px-2 text-xs"
+                                      className="bg-green-600 hover:bg-green-700 text-white rounded h-6 px-2 text-xs"
                                     >
                                       Save
                                     </Button>
@@ -353,41 +363,22 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                       size="sm"
                                       variant="outline"
                                       onClick={handleCancelNoteEdit}
-                                      className="h-6 px-2 text-xs"
+                                      className="border-gray-600 text-gray-300 hover:bg-gray-700 rounded h-6 px-2 text-xs"
                                     >
                                       Cancel
                                     </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleStartEditNote(note)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Edit3 className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-300">{note.text}</p>
+                              )}
                             </div>
-                            {isEditing ? (
-                              <Textarea
-                                value={editingNoteText}
-                                onChange={(e) => setEditingNoteText(e.target.value)}
-                                className="text-sm resize-none"
-                                rows={2}
-                              />
-                            ) : (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                                {note.text}
-                              </p>
-                            )}
-                          </div>
-                        )
-                      })}
-                  </CardContent>
-                </Card>
-              )}
+                          )
+                        })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </motion.div>
         </>
