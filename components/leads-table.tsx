@@ -23,11 +23,11 @@ import { useAuth } from "@/lib/auth-context"
 export interface Lead {
   id: string
   name: string
-  phone: string
   email: string
+  phone: string
   address: string
   company?: string
-  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up"
+  status: "NOT INTERESTED" | "VOICEMAIL" | "CONTACTED" | "INTERESTED" | "CLOSED" | "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up" // Support both old and new formats
   lastInteraction: string
   ownerId?: string
   ownerName?: string

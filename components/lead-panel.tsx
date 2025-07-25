@@ -2,14 +2,21 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check, MessageSquare, Clock, Zap, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
-import { SALES_CADENCE, calculateCadenceProgress, getProgressColor } from "@/lib/sales-cadence"
+import { 
+  STATUS_WORKFLOWS, 
+  calculateStatusProgress, 
+  getStatusColor,
+  type LeadStatus,
+  type StatusProgress,
+  type StatusAction
+} from "@/lib/sales-cadence"
 import { SalesProgress } from "./sales-progress"
 import type { Lead } from "./leads-table"
 
@@ -17,14 +24,14 @@ interface LeadPanelProps {
   lead: Lead | null
   isOpen: boolean
   onClose: () => void
-  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => void
+  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" | "text" }) => void
   onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
 }
 
 export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead }: LeadPanelProps) {
   const [newNote, setNewNote] = useState("")
-  const [noteType, setNoteType] = useState<"call" | "email" | "note" | "video" | "social">("note")
+  const [noteType, setNoteType] = useState<"call" | "email" | "note" | "video" | "social" | "text">("note")
   const [isEditingStatus, setIsEditingStatus] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [editingNoteText, setEditingNoteText] = useState("")
@@ -32,55 +39,102 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   const [showCustomReminder, setShowCustomReminder] = useState(false)
   const [customReminderDate, setCustomReminderDate] = useState("")
   const [reminderFeedback, setReminderFeedback] = useState<string | null>(null)
+  const [showQuickNoteInput, setShowQuickNoteInput] = useState<string | null>(null)
+  const [quickNoteText, setQuickNoteText] = useState("")
 
-  // Helper function to normalize old status values
-  const normalizeStatus = (status: string): string => {
-    const statusMap: Record<string, string> = {
-      "cold": "Not Interested",
-      "contacted": "Contacted", 
-      "interested": "Interested",
-      "closed": "Not Interested",
-      "dormant": "Needs Follow-Up",
-      "left voicemail": "Left Voicemail",
-      // New statuses (already correct)
-      "Left Voicemail": "Left Voicemail",
-      "Contacted": "Contacted",
-      "Interested": "Interested", 
-      "Not Interested": "Not Interested",
-      "Needs Follow-Up": "Needs Follow-Up"
+  // Convert old status to new status
+  const normalizeStatus = (status: string): LeadStatus => {
+    const statusMap: Record<string, LeadStatus> = {
+      "cold": "NOT INTERESTED",
+      "contacted": "CONTACTED", 
+      "interested": "INTERESTED",
+      "closed": "CLOSED",
+      "dormant": "VOICEMAIL",
+      "left voicemail": "VOICEMAIL",
+      "Left Voicemail": "VOICEMAIL",
+      "Contacted": "CONTACTED",
+      "Interested": "INTERESTED", 
+      "Not Interested": "NOT INTERESTED",
+      "Needs Follow-Up": "VOICEMAIL",
+      "VOICEMAIL": "VOICEMAIL",
+      "CONTACTED": "CONTACTED",
+      "INTERESTED": "INTERESTED",
+      "NOT INTERESTED": "NOT INTERESTED",
+      "CLOSED": "CLOSED"
     }
     
-    return statusMap[status] || "Contacted"
+    return statusMap[status] || "CONTACTED"
   }
 
   // Auto-migrate status if it's in old format when panel opens
   useEffect(() => {
     if (lead && isOpen) {
-      const normalizedStatus = normalizeStatus(lead.status)
-      if (normalizedStatus !== lead.status) {
+      const normalizedStatus = normalizeStatus(lead.status as string)
+      if (normalizedStatus !== (lead.status as string)) {
         console.log(`🔄 Auto-migrating status for ${lead.name}: "${lead.status}" → "${normalizedStatus}"`)
-        onUpdateLead(lead.id, { status: normalizedStatus as Lead["status"] })
+        onUpdateLead(lead.id, { status: normalizedStatus as any })
       }
     }
   }, [lead, isOpen, onUpdateLead])
 
-  const progress = useMemo(() => {
+  const currentStatus = useMemo(() => {
+    if (!lead) return "CONTACTED"
+    return normalizeStatus(lead.status as string)
+  }, [lead?.status])
+
+  const progress = useMemo((): StatusProgress | null => {
     if (!lead) return null
-    return calculateCadenceProgress(lead.notes)
-  }, [lead?.notes])
+    return calculateStatusProgress(currentStatus, lead.notes)
+  }, [lead?.notes, currentStatus])
 
-  const currentStep = useMemo(() => {
-    if (!progress || progress.isDormant) return null
-    return SALES_CADENCE.find(step => step.id === progress.currentStep)
-  }, [progress])
+  const handleQuickAction = (action: StatusAction, quickActionText: string, includeNote: boolean = false) => {
+    if (!lead || !progress) return
 
-  const handleQuickAction = (type: "call" | "email" | "video" | "social" | "note", description: string) => {
-    if (!lead || !currentStep) return
+    let noteText = `${action.action}: ${quickActionText}`
+    if (includeNote && quickNoteText.trim()) {
+      noteText += ` - ${quickNoteText}`
+    }
+
+    // Determine note type based on action
+    let noteTypeToUse: "call" | "email" | "note" | "video" | "social" | "text" = action.type === "text" ? "note" : action.type
 
     onAddNote(lead.id, {
-      text: `${currentStep.action}: ${description}`,
-      type: type === "social" ? "note" : type,
+      text: noteText,
+      type: noteTypeToUse,
     })
+
+    // Handle status transitions
+    if (action.autoTransition) {
+      onUpdateLead(lead.id, { status: action.autoTransition as any })
+    } else {
+      // Special handling for transitions based on action result
+      if (quickActionText.includes("Phone Answered") && currentStatus === "VOICEMAIL") {
+        onUpdateLead(lead.id, { status: "CONTACTED" as any })
+      } else if (quickActionText.includes("Interested") && currentStatus === "CONTACTED") {
+        onUpdateLead(lead.id, { status: "INTERESTED" as any })
+      } else if (quickActionText.includes("Not Interested")) {
+        onUpdateLead(lead.id, { status: "NOT INTERESTED" as any })
+      } else if (quickActionText.includes("Closed Deal")) {
+        onUpdateLead(lead.id, { status: "CLOSED" as any })
+      }
+    }
+
+    // Clear quick note
+    setQuickNoteText("")
+    setShowQuickNoteInput(null)
+  }
+
+  const handleStatusTransition = (newStatus: LeadStatus) => {
+    if (!lead) return
+    
+    // Add a note about the status change
+    onAddNote(lead.id, {
+      text: `Status changed from ${currentStatus} to ${newStatus}`,
+      type: "note",
+    })
+    
+    onUpdateLead(lead.id, { status: newStatus as any })
+    setIsEditingStatus(false)
   }
 
   const handleSetReminder = (timeframe: string) => {
@@ -131,12 +185,6 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     setNewNote("")
   }
 
-  const handleStatusChange = (newStatus: Lead["status"]) => {
-    if (!lead) return
-    onUpdateLead(lead.id, { status: newStatus })
-    setIsEditingStatus(false)
-  }
-
   const handleStartEditNote = (note: any) => {
     setEditingNoteId(note.id)
     setEditingNoteText(note.text)
@@ -164,9 +212,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   if (!isOpen || !lead) return null
 
-  // Get colors for the normalized status
-  const normalizedStatus = normalizeStatus(lead.status)
-  const statusColor = colors.status[normalizedStatus as keyof typeof colors.status] || colors.status["Contacted"]
+  const statusColor = getStatusColor(currentStatus)
+  const workflow = STATUS_WORKFLOWS[currentStatus]
 
   return (
     <AnimatePresence>
@@ -205,72 +252,190 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                   <CardContent className="p-6 pt-8">
                     <SalesProgress
                       progress={progress}
-                      statusColor={getProgressColor(progress, lead.status)}
+                      statusColor={statusColor}
                     />
-                    
-                    {currentStep && (
-                      <div className="mt-6">
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Dynamic Action Buttons */}
+              {progress && progress.availableActions.length > 0 && (
+                <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" style={{ color: statusColor }} />
+                      <CardTitle className="text-primary-hierarchy font-title text-lg">
+                        Action Required
+                      </CardTitle>
+                      {progress.availableActions.some(a => a.priority === "high") && (
+                        <Badge className="bg-red-500/20 text-red-300 border-red-500/30 text-xs animate-pulse">
+                          High Priority
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {progress.availableActions.map((action) => (
+                      <motion.div
+                        key={action.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-2xl border"
+                        style={{
+                          backgroundColor: `${statusColor}10`,
+                          borderColor: action.priority === "high" ? "#ef4444" : `${statusColor}30`
+                        }}
+                      >
                         <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
-                          <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
-                            Day {currentStep.day}
+                          <div>
+                            <h4 className="font-title text-primary-hierarchy text-sm">{action.action}</h4>
+                            <p className="text-xs text-medium-hierarchy">{action.description}</p>
+                          </div>
+                          <Badge 
+                            className="text-xs"
+                            style={{
+                              backgroundColor: action.priority === "high" ? "#ef444420" : `${statusColor}20`,
+                              color: action.priority === "high" ? "#ef4444" : statusColor,
+                              borderColor: action.priority === "high" ? "#ef4444" : statusColor
+                            }}
+                          >
+                            {action.priority} priority
                           </Badge>
                         </div>
-                        <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {currentStep.type === "call" && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAction("call", "Made call")}
-                                className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
-                              >
-                                <Phone className="h-3 w-3 mr-1" />
-                                Made Call
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAction("call", "Left voicemail")}
-                                className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Left Voicemail
-                              </Button>
-                            </>
-                          )}
-                          {currentStep.type === "email" && (
+                        
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {action.quickActions?.map((quickAction) => (
                             <Button
+                              key={quickAction}
                               size="sm"
-                              onClick={() => handleQuickAction("email", "Sent follow-up email")}
-                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                              onClick={() => handleQuickAction(action, quickAction)}
+                              className="rounded-full font-body text-xs"
+                              style={{
+                                backgroundColor: `${statusColor}20`,
+                                color: statusColor,
+                                borderColor: `${statusColor}40`
+                              }}
                             >
-                              <Mail className="h-3 w-3 mr-1" />
-                              Sent Email
+                              {action.type === "call" && <Phone className="h-3 w-3 mr-1" />}
+                              {action.type === "email" && <Mail className="h-3 w-3 mr-1" />}
+                              {action.type === "text" && <MessageSquare className="h-3 w-3 mr-1" />}
+                              {action.type === "video" && <Video className="h-3 w-3 mr-1" />}
+                              {action.type === "social" && <Users className="h-3 w-3 mr-1" />}
+                              {quickAction}
                             </Button>
-                          )}
-                          {currentStep.type === "video" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("video", "Sent video message")}
-                              className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
-                            >
-                              <Video className="h-3 w-3 mr-1" />
-                              Sent Video
-                            </Button>
-                          )}
-                          {currentStep.type === "social" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
-                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                            >
-                              <Users className="h-3 w-3 mr-1" />
-                              Connected
-                            </Button>
-                          )}
+                          ))}
                         </div>
+
+                        {/* Quick note input */}
+                        <AnimatePresence>
+                          {showQuickNoteInput === action.id ? (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-2"
+                            >
+                              <Textarea
+                                value={quickNoteText}
+                                onChange={(e) => setQuickNoteText(e.target.value)}
+                                placeholder="Add a quick note about this action..."
+                                className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-xl text-sm"
+                                rows={2}
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    if (action.quickActions?.[0]) {
+                                      handleQuickAction(action, action.quickActions[0], true)
+                                    }
+                                  }}
+                                  className="rounded-full text-xs"
+                                  style={{
+                                    backgroundColor: statusColor,
+                                    color: "white"
+                                  }}
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Complete with Note
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowQuickNoteInput(null)
+                                    setQuickNoteText("")
+                                  }}
+                                  className="rounded-full text-xs border-white/20 text-white hover:bg-white/10"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </motion.div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowQuickNoteInput(action.id)}
+                              className="w-full rounded-full text-xs border-white/20 text-medium-hierarchy hover:bg-white/10"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add note with action
+                            </Button>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    ))}
+
+                    {/* Status transition buttons */}
+                    <div className="pt-4 border-t border-white/10">
+                      <div className="text-xs text-medium-hierarchy mb-3 flex items-center gap-2">
+                        <ArrowRight className="h-3 w-3" />
+                        Quick Status Changes
                       </div>
-                    )}
+                      <div className="flex flex-wrap gap-2">
+                        {currentStatus === "VOICEMAIL" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleStatusTransition("CONTACTED")}
+                            className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full text-xs"
+                          >
+                            <Phone className="h-3 w-3 mr-1" />
+                            Answered Call
+                          </Button>
+                        )}
+                        {currentStatus === "CONTACTED" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleStatusTransition("INTERESTED")}
+                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full text-xs"
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Showed Interest
+                          </Button>
+                        )}
+                        {currentStatus === "INTERESTED" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleStatusTransition("CLOSED")}
+                            className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full text-xs"
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Closed Deal
+                          </Button>
+                        )}
+                        {currentStatus !== "NOT INTERESTED" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleStatusTransition("NOT INTERESTED")}
+                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full text-xs"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Not Interested
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -355,56 +520,22 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     <CardTitle className="text-primary-hierarchy font-title">{lead.name}</CardTitle>
                     <div className="flex items-center gap-2">
                       {isEditingStatus ? (
-                        <Select value={lead.status} onValueChange={handleStatusChange}>
-                          <SelectTrigger className="w-32 bg-black/20 backdrop-blur-sm border-system rounded-full">
+                        <Select value={currentStatus} onValueChange={(value) => handleStatusTransition(value as LeadStatus)}>
+                          <SelectTrigger className="w-40 bg-black/20 backdrop-blur-sm border-system rounded-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
-                            <SelectItem value="Left Voicemail" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["Left Voicemail"].icon }}
-                                />
-                                <span className="text-white font-body">Left Voicemail</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="Contacted" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["Contacted"].icon }}
-                                />
-                                <span className="text-white font-body">Contacted</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="Interested" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["Interested"].icon }}
-                                />
-                                <span className="text-white font-body">Interested</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="Not Interested" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["Not Interested"].icon }}
-                                />
-                                <span className="text-white font-body">Not Interested</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="Needs Follow-Up" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["Needs Follow-Up"].icon }}
-                                />
-                                <span className="text-white font-body">Needs Follow-Up</span>
-                              </div>
-                            </SelectItem>
+                            {Object.keys(STATUS_WORKFLOWS).map((status) => (
+                              <SelectItem key={status} value={status} className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full"
+                                    style={{ backgroundColor: getStatusColor(status as LeadStatus) }}
+                                  />
+                                  <span className="text-white font-body">{status}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (
@@ -414,9 +545,9 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           >
                             <div
                               className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: statusColor.icon }}
+                              style={{ backgroundColor: statusColor }}
                             />
-                            {normalizedStatus}
+                            {currentStatus}
                           </Badge>
                           <Button
                             variant="ghost"
@@ -460,8 +591,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex gap-2">
-                    {(["note", "call", "email"] as const).map((type) => {
-                      const typeColor = colors.interaction[type]
+                    {(["note", "call", "email", "text"] as const).map((type) => {
+                      const typeColor = (type === "text" ? colors.interaction.note : colors.interaction[type as keyof typeof colors.interaction]) || colors.interaction.note
                       return (
                         <Button
                           key={type}
@@ -542,7 +673,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                         .filter(note => !note.text.includes("Set reminder:"))
                         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                         .map((note) => {
-                          const noteColor = colors.interaction[note.type]
+                          const noteColor = colors.interaction[note.type as keyof typeof colors.interaction] || colors.interaction.note
                           const isEditing = editingNoteId === note.id
                           
                           return (
