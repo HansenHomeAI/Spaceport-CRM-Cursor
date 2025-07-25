@@ -27,7 +27,7 @@ export interface Lead {
   email: string
   address: string
   company?: string
-  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up" | "Closed"
+  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Closed"
   lastInteraction: string
   ownerId?: string
   ownerName?: string
@@ -70,18 +70,18 @@ const normalizeStatus = (status: string): string => {
     "contacted": "Contacted", 
     "interested": "Interested",
     "closed": "Closed",
-    "dormant": "Needs Follow-Up",
+    "dormant": "Not Interested", // Map old dormant to Not Interested
     "left voicemail": "Left Voicemail",
+    "needs follow-up": "Not Interested", // Map old needs follow-up to Not Interested
     // New statuses (already correct)
     "Left Voicemail": "Left Voicemail",
     "Contacted": "Contacted",
     "Interested": "Interested", 
     "Not Interested": "Not Interested",
-    "Needs Follow-Up": "Needs Follow-Up",
     "Closed": "Closed"
   }
   
-  return statusMap[status] || "Contacted"
+  return statusMap[status] || "Left Voicemail" // Default to Left Voicemail for new leads
 }
 
 export function LeadsTable({

@@ -8,7 +8,7 @@ export interface Lead {
   email: string
   address: string
   company?: string
-  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Needs Follow-Up" | "Closed"
+  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Closed"
   lastInteraction: string
   ownerId?: string
   ownerName?: string

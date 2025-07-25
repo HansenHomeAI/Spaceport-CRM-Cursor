@@ -23,12 +23,11 @@ export function SalesProgress({ progress, statusColor, leadStatus }: SalesProgre
   const totalSteps = cadenceSteps.length
   
   // Don't show progress for statuses without cadences
-  if (totalSteps === 0 || leadStatus === "Not Interested" || leadStatus === "Needs Follow-Up") {
+  if (totalSteps === 0 || leadStatus === "Not Interested") {
     return (
       <div className="relative py-6 px-2">
         <div className="text-center text-gray-400 text-sm">
           {leadStatus === "Not Interested" ? "No follow-up cadence - lead not interested" :
-           leadStatus === "Needs Follow-Up" ? "Manual follow-up required" :
            "No cadence defined for this status"}
         </div>
       </div>

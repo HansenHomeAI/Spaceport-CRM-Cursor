@@ -39,18 +39,19 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
       "cold": "Not Interested",
       "contacted": "Contacted", 
       "interested": "Interested",
-      "closed": "Not Interested",
-      "dormant": "Needs Follow-Up",
+      "closed": "Closed", // FIX: This was mapping to "Not Interested"
+      "dormant": "Not Interested",
       "left voicemail": "Left Voicemail",
+      "needs follow-up": "Not Interested",
       // New statuses (already correct)
       "Left Voicemail": "Left Voicemail",
       "Contacted": "Contacted",
       "Interested": "Interested", 
       "Not Interested": "Not Interested",
-      "Needs Follow-Up": "Needs Follow-Up"
+      "Closed": "Closed"
     }
     
-    return statusMap[status] || "Contacted"
+    return statusMap[status] || "Left Voicemail"
   }
 
   // Auto-migrate status if it's in old format when panel opens
@@ -66,8 +67,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   const progress = useMemo(() => {
     if (!lead) return null
-    return calculateCadenceProgress(lead.notes, normalizeStatus(lead.status), lead.id)
-  }, [lead?.notes, lead?.status, lead?.id])
+    return calculateCadenceProgress(lead.notes, normalizeStatus(lead.status), lead.id, lead.updatedAt)
+  }, [lead?.notes, lead?.status, lead?.id, lead?.updatedAt])
 
   const currentStep = useMemo(() => {
     if (!progress || progress.isDormant || !lead) return null
@@ -396,15 +397,6 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                   style={{ backgroundColor: colors.status["Not Interested"].icon }}
                                 />
                                 <span className="text-white font-body">Not Interested</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="Needs Follow-Up" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: colors.status["Needs Follow-Up"].icon }}
-                                />
-                                <span className="text-white font-body">Needs Follow-Up</span>
                               </div>
                             </SelectItem>
                             <SelectItem value="Closed" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">

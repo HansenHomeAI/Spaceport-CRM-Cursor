@@ -26,12 +26,6 @@ export const colors = {
       border: "border-red-500/20",
       icon: "#ef4444", // Red-500
     },
-    "Needs Follow-Up": {
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-300",
-      border: "border-yellow-500/20",
-      icon: "#eab308", // Yellow-500
-    },
     "Closed": {
       bg: "bg-purple-500/10",
       text: "text-purple-300",

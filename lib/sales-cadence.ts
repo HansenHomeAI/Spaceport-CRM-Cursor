@@ -202,59 +202,31 @@ function addBusinessDays(startDate: Date, businessDays: number): Date {
   return result
 }
 
-// Helper function to find when a lead entered their current status
+// SIMPLIFIED: Find when a lead entered their current status
 function findStatusStartDate(
-  currentStatus: string, 
-  notes: Array<{ type: string; timestamp: string; text: string }>
+  currentStatus: string,
+  notes: Array<{ type: string; timestamp: string; text: string }>,
+  leadUpdatedAt?: string
 ): string {
-  // Look for status change notes or fallback to first interaction
+  // Look for explicit status change notes (most reliable)
   const statusChangeNote = notes
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .find(note => 
       note.text.toLowerCase().includes(`status changed to ${currentStatus.toLowerCase()}`) ||
       note.text.toLowerCase().includes(`moved to ${currentStatus.toLowerCase()}`) ||
-      note.text.toLowerCase().includes(`marked as ${currentStatus.toLowerCase()}`)
+      note.text.toLowerCase().includes(`set to ${currentStatus.toLowerCase()}`)
     )
 
   if (statusChangeNote) {
     return statusChangeNote.timestamp
   }
 
-  // Special logic for specific statuses
-  if (currentStatus === "Left Voicemail") {
-    const voicemailNote = notes.find(note => 
-      note.text.toLowerCase().includes("voicemail") || 
-      note.type === "call"
-    )
-    if (voicemailNote) return voicemailNote.timestamp
+  // SIMPLIFIED: If no explicit status change, use the lead's last updated date or most recent note
+  if (leadUpdatedAt) {
+    return leadUpdatedAt
   }
 
-  if (currentStatus === "Contacted") {
-    const contactNote = notes.find(note => 
-      note.type === "call" && !note.text.toLowerCase().includes("voicemail")
-    )
-    if (contactNote) return contactNote.timestamp
-  }
-
-  if (currentStatus === "Interested") {
-    const interestedNote = notes.find(note => 
-      note.text.toLowerCase().includes("interested") ||
-      note.text.toLowerCase().includes("wants to proceed") ||
-      note.text.toLowerCase().includes("positive response")
-    )
-    if (interestedNote) return interestedNote.timestamp
-  }
-
-  if (currentStatus === "Closed") {
-    const closedNote = notes.find(note => 
-      note.text.toLowerCase().includes("closed") ||
-      note.text.toLowerCase().includes("deal won") ||
-      note.text.toLowerCase().includes("contract signed")
-    )
-    if (closedNote) return closedNote.timestamp
-  }
-
-  // Fallback to most recent note or current date
+  // Fallback to most recent note
   const latestNote = notes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
   return latestNote?.timestamp || new Date().toISOString()
 }
@@ -262,12 +234,13 @@ function findStatusStartDate(
 export function calculateCadenceProgress(
   notes: Array<{ type: string; timestamp: string; text: string }>, 
   leadStatus: string,
-  leadId?: string
+  leadId?: string,
+  leadUpdatedAt?: string
 ): CadenceProgress {
   const now = new Date()
   
-  // Handle "Not Interested" and "Needs Follow-Up" statuses (no active cadence)
-  if (leadStatus === "Not Interested" || leadStatus === "Needs Follow-Up") {
+  // Handle "Not Interested" status (no active cadence)
+  if (leadStatus === "Not Interested") {
     return {
       currentStep: 0,
       completedSteps: [],
@@ -291,10 +264,11 @@ export function calculateCadenceProgress(
     }
   }
 
-  const statusStartDate = new Date(findStatusStartDate(leadStatus, notes))
+  // SIMPLIFIED: Find status start date
+  const statusStartDate = new Date(findStatusStartDate(leadStatus, notes, leadUpdatedAt))
   const sortedNotes = notes.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   
-  // Calculate completed steps based on actions since status start
+  // SIMPLIFIED: Track completed steps LINEARLY (no skipping allowed)
   const completedSteps: number[] = []
   let currentStep = 1
 
@@ -303,59 +277,38 @@ export function calculateCadenceProgress(
     new Date(note.timestamp) >= statusStartDate
   )
 
-  // For each cadence step, check if it's been completed
-  cadenceSteps.forEach((step, index) => {
-    const stepDueDate = addBusinessDays(statusStartDate, step.dayOffset)
+  // SIMPLIFIED: Complete steps in order, one by one
+  for (let stepIndex = 0; stepIndex < cadenceSteps.length; stepIndex++) {
+    const step = cadenceSteps[stepIndex]
     
     // Check if we have a matching action for this step
-    const matchingAction = notesInCurrentStatus.find(note => {
-      const noteDate = new Date(note.timestamp)
-      
-      // Must be the right type and after the step due date
+    const hasMatchingAction = notesInCurrentStatus.some(note => {
+      // SIMPLIFIED: Just match the note type, no complex keyword matching
       if (note.type !== step.type) return false
       
-      // For status-specific matching
+      // For voicemail status, ensure it's actually a voicemail
       if (leadStatus === "Left Voicemail") {
-        return note.text.toLowerCase().includes("voicemail")
-      } else if (leadStatus === "Contacted") {
-        // Match step-specific actions
-        if (step.action.includes("Demo Email")) {
-          return note.type === "call" || (note.type === "email" && note.text.toLowerCase().includes("demo"))
-        } else if (step.action.includes("Spam Check")) {
-          return note.type === "email" && note.text.toLowerCase().includes("spam")
-        } else if (step.action.includes("Case Study")) {
-          return note.type === "email" && note.text.toLowerCase().includes("case study")
-        } else if (step.action.includes("Final Attempt")) {
-          return note.type === "email" && note.text.toLowerCase().includes("final")
-        }
-      } else if (leadStatus === "Interested") {
-        if (step.action.includes("Next Steps")) {
-          return note.type === "email" && note.text.toLowerCase().includes("next steps")
-        } else if (step.action.includes("Status Check")) {
-          return note.type === "email" && note.text.toLowerCase().includes("status")
-        }
-      } else if (leadStatus === "Closed") {
-        if (step.action.includes("Delivery")) {
-          return note.type === "email" && note.text.toLowerCase().includes("delivery")
-        } else if (step.action.includes("Check-in")) {
-          return note.type === "email" && note.text.toLowerCase().includes("check-in")
-        } else if (step.action.includes("Market Update")) {
-          return note.type === "email" && note.text.toLowerCase().includes("market")
-        }
+        return note.text.toLowerCase().includes("voicemail") || 
+               note.text.toLowerCase().includes("left message") ||
+               note.text.toLowerCase().includes("no answer")
       }
       
-      return note.type === step.type
+      // For other statuses, just match the type
+      return true
     })
 
-    if (matchingAction) {
+    if (hasMatchingAction) {
       completedSteps.push(step.id)
-      currentStep = Math.min(step.id + 1, cadenceSteps.length)
+      currentStep = step.id + 1 // Next step
+    } else {
+      // STOP: Can't complete later steps until this one is done
+      break
     }
-  })
+  }
 
-  // If no steps completed, start with step 1
-  if (completedSteps.length === 0) {
-    currentStep = 1
+  // Ensure currentStep doesn't exceed available steps
+  if (currentStep > cadenceSteps.length) {
+    currentStep = cadenceSteps.length // Stay on final step
   }
 
   // Calculate next action date
@@ -364,12 +317,16 @@ export function calculateCadenceProgress(
   
   if (nextStep) {
     if (currentStep === 1) {
-      // First step - due immediately or based on status start
+      // First step - use status start date + offset
       nextActionDate = addBusinessDays(statusStartDate, nextStep.dayOffset).toISOString()
     } else {
-      // Subsequent steps - based on last action
-      const lastActionDate = sortedNotes.length > 0 ? new Date(sortedNotes[0].timestamp) : statusStartDate
-      nextActionDate = addBusinessDays(lastActionDate, nextStep.dayOffset).toISOString()
+      // Subsequent steps - use last completed action date + offset
+      const lastCompletedStep = cadenceSteps.find(step => step.id === currentStep - 1)
+      if (lastCompletedStep) {
+        const lastActionNote = notesInCurrentStatus.find(note => note.type === lastCompletedStep.type)
+        const lastActionDate = lastActionNote ? new Date(lastActionNote.timestamp) : statusStartDate
+        nextActionDate = addBusinessDays(lastActionDate, nextStep.dayOffset).toISOString()
+      }
     }
   }
 
@@ -407,21 +364,41 @@ function normalizeStatus(status: string): string {
     "contacted": "Contacted", 
     "interested": "Interested",
     "closed": "Closed",
-    "dormant": "Needs Follow-Up",
+    "dormant": "Not Interested",
     "left voicemail": "Left Voicemail",
+    "needs follow-up": "Not Interested",
     // New statuses (already correct)
     "Left Voicemail": "Left Voicemail",
     "Contacted": "Contacted",
     "Interested": "Interested", 
     "Not Interested": "Not Interested",
-    "Needs Follow-Up": "Needs Follow-Up",
     "Closed": "Closed"
   }
   
-  return statusMap[status] || "Contacted" // Default fallback
+  return statusMap[status] || "Left Voicemail" // Default fallback
 }
 
 // Get the cadence steps for a specific status
 export function getCadenceSteps(status: string): CadenceStep[] {
   return STATUS_CADENCES[status as keyof typeof STATUS_CADENCES] || []
+}
+
+// NEW: Auto status transition logic
+export function shouldAutoTransitionStatus(
+  currentStatus: string,
+  newNote: { type: string; text: string }
+): string | null {
+  // Auto-transition from "Left Voicemail" to "Contacted" on successful call
+  if (currentStatus === "Left Voicemail" && newNote.type === "call") {
+    const noteText = newNote.text.toLowerCase()
+    // If it's a successful call (not a voicemail), transition to Contacted
+    if (!noteText.includes("voicemail") && 
+        !noteText.includes("no answer") && 
+        !noteText.includes("left message") &&
+        (noteText.includes("talked") || noteText.includes("spoke") || noteText.includes("answered"))) {
+      return "Contacted"
+    }
+  }
+  
+  return null // No auto-transition
 } 
