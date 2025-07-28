@@ -35,6 +35,14 @@ export class SpaceportCrmStack extends cdk.Stack {
       sortKey: { name: "timestamp", type: dynamodb.AttributeType.NUMBER },
     })
 
+    const prospectsTable = new dynamodb.Table(this, "ProspectsTable", {
+      tableName: "spaceport-crm-prospects",
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    })
+
     // Cognito User Pool
     const userPool = new cognito.UserPool(this, "SpaceportCrmUserPool", {
       userPoolName: "spaceport-crm-users",
@@ -131,16 +139,21 @@ export class SpaceportCrmStack extends cdk.Stack {
           }
           
           try {
-            const { httpMethod, pathParameters, body, headers } = event;
+            const { httpMethod, pathParameters, body, headers, resource } = event;
             const leadsTableName = process.env.LEADS_TABLE_NAME;
+            const prospectsTableName = process.env.PROSPECTS_TABLE_NAME;
             const user = getUserFromToken(headers.Authorization || headers.authorization);
+            
+            // Determine if this is a leads or prospects request
+            const isProspectsRequest = resource && resource.includes('/prospects');
+            const tableName = isProspectsRequest ? prospectsTableName : leadsTableName;
             
             switch (httpMethod) {
               case 'GET':
                 if (pathParameters && pathParameters.id) {
-                  // Get single lead with strong consistency
+                  // Get single item with strong consistency
                   const result = await dynamodb.send(new GetCommand({
-                    TableName: leadsTableName,
+                    TableName: tableName,
                     Key: { id: pathParameters.id },
                     ConsistentRead: true // Force strong consistency for immediate read-after-write
                   }));
@@ -151,9 +164,9 @@ export class SpaceportCrmStack extends cdk.Stack {
                     body: JSON.stringify(result.Item || null)
                   };
                 } else {
-                  // Get all leads with strong consistency for immediate read-after-write
+                  // Get all items with strong consistency for immediate read-after-write
                   const result = await dynamodb.send(new ScanCommand({
-                    TableName: leadsTableName,
+                    TableName: tableName,
                     ConsistentRead: true // Force strong consistency to eliminate eventual consistency delays
                   }));
                   
@@ -165,26 +178,29 @@ export class SpaceportCrmStack extends cdk.Stack {
                 }
               
               case 'POST':
-                const newLead = JSON.parse(body);
-                newLead.id = \`lead_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;
-                newLead.dateAdded = new Date().toISOString();
-                newLead.lastContact = newLead.lastContact || new Date().toISOString();
+                const newItem = JSON.parse(body);
+                const itemType = isProspectsRequest ? 'prospect' : 'lead';
+                newItem.id = \`\${itemType}_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;
+                newItem.createdAt = new Date().toISOString();
+                newItem.updatedAt = new Date().toISOString();
                 
                 // Add user attribution
                 if (user) {
-                  newLead.createdBy = user.id;
-                  newLead.createdByName = user.name;
+                  newItem.createdBy = user.id;
+                  newItem.createdByName = user.name;
+                  newItem.lastUpdatedBy = user.id;
+                  newItem.lastUpdatedByName = user.name;
                 }
                 
                 await dynamodb.send(new PutCommand({
-                  TableName: leadsTableName,
-                  Item: newLead
+                  TableName: tableName,
+                  Item: newItem
                 }));
                 
                 return {
                   statusCode: 201,
                   headers: corsHeaders,
-                  body: JSON.stringify(newLead)
+                  body: JSON.stringify(newItem)
                 };
               
               case 'PUT':
@@ -220,7 +236,7 @@ export class SpaceportCrmStack extends cdk.Stack {
                 });
                 
                 const result = await dynamodb.send(new UpdateCommand({
-                  TableName: leadsTableName,
+                  TableName: tableName,
                   Key: { id: pathParameters.id },
                   UpdateExpression: \`SET \${updateExpression.join(', ')}\`,
                   ExpressionAttributeNames: expressionAttributeNames,
@@ -236,29 +252,30 @@ export class SpaceportCrmStack extends cdk.Stack {
               
               case 'DELETE':
                 if (pathParameters && pathParameters.id === 'reset') {
-                  // Reset/clear all leads (special endpoint)
+                  // Reset/clear all items (special endpoint)
                   const scanResult = await dynamodb.send(new ScanCommand({
-                    TableName: leadsTableName,
+                    TableName: tableName,
                     ProjectionExpression: 'id'
                   }));
                   
                   // Delete all items
                   for (const item of scanResult.Items || []) {
                     await dynamodb.send(new DeleteCommand({
-                      TableName: leadsTableName,
+                      TableName: tableName,
                       Key: { id: item.id }
                     }));
                   }
                   
+                  const itemType = isProspectsRequest ? 'prospects' : 'leads';
                   return {
                     statusCode: 200,
                     headers: corsHeaders,
-                    body: JSON.stringify({ message: \`Deleted \${scanResult.Items?.length || 0} leads\` })
+                    body: JSON.stringify({ message: \`Deleted \${scanResult.Items?.length || 0} \${itemType}\` })
                   };
                 } else if (pathParameters && pathParameters.id) {
-                  // Delete single lead
+                  // Delete single item
                   await dynamodb.send(new DeleteCommand({
-                    TableName: leadsTableName,
+                    TableName: tableName,
                     Key: { id: pathParameters.id }
                   }));
                   
@@ -268,10 +285,11 @@ export class SpaceportCrmStack extends cdk.Stack {
                     body: ''
                   };
                 } else {
+                  const itemType = isProspectsRequest ? 'prospect' : 'lead';
                   return {
                     statusCode: 400,
                     headers: corsHeaders,
-                    body: JSON.stringify({ error: 'Lead ID required' })
+                    body: JSON.stringify({ error: \`\${itemType.charAt(0).toUpperCase() + itemType.slice(1)} ID required\` })
                   };
                 }
               
@@ -297,6 +315,7 @@ export class SpaceportCrmStack extends cdk.Stack {
       `),
       environment: {
         LEADS_TABLE_NAME: leadsTable.tableName,
+        PROSPECTS_TABLE_NAME: prospectsTable.tableName,
         ACTIVITIES_TABLE_NAME: activitiesTable.tableName,
         USER_POOL_ID: userPool.userPoolId,
       },
@@ -445,6 +464,7 @@ export class SpaceportCrmStack extends cdk.Stack {
     leadsTable.grantReadWriteData(leadsLambda)
     activitiesTable.grantReadWriteData(leadsLambda)
     activitiesTable.grantReadWriteData(activitiesLambda)
+    prospectsTable.grantReadWriteData(leadsLambda)
 
     // API Gateway with Cognito Authorizer
     const api = new apigateway.RestApi(this, "SpaceportCrmApi", {
@@ -470,6 +490,8 @@ export class SpaceportCrmStack extends cdk.Stack {
     const leadsResource = api.root.addResource("leads")
     const leadResource = leadsResource.addResource("{id}")
     const activitiesResource = api.root.addResource("activities")
+    const prospectsResource = api.root.addResource("prospects")
+    const prospectResource = prospectsResource.addResource("{id}")
 
     // API Methods with Cognito authorization
     const methodOptions = {
@@ -519,6 +541,12 @@ export class SpaceportCrmStack extends cdk.Stack {
 
     activitiesResource.addMethod("GET", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
     activitiesResource.addMethod("POST", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
+
+    prospectsResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    prospectsResource.addMethod("POST", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    prospectResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    prospectResource.addMethod("PUT", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    prospectResource.addMethod("DELETE", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
 
     // Add Gateway Responses for CORS support on authentication failures
     api.addGatewayResponse("AuthorizerFailure", {
