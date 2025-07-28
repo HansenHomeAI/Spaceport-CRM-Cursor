@@ -10,7 +10,7 @@ import type { Lead } from "./leads-table"
 
 interface FollowUpItem {
   lead: Lead
-  urgency: "high" | "medium"
+  urgency: "high" | "medium" | "low"
   nextAction: "call" | "email"
   daysOverdue: number
   reason: string
@@ -24,15 +24,17 @@ interface FollowUpPriorityProps {
 const urgencyColors = {
   high: "bg-green-500/10 text-green-300 border-green-500/20",
   medium: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
+  low: "bg-gray-500/10 text-gray-300 border-gray-500/20",
 }
 
 const urgencyIcons = {
   high: AlertTriangle,
   medium: Clock,
+  low: Clock,
 }
 
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
-  const [expandedGroup, setExpandedGroup] = useState<"high" | "medium" | null>("high")
+  const [expandedGroup, setExpandedGroup] = useState<"high" | "medium" | "low" | null>("high")
 
   // Helper function to normalize old status values to new ones
   const normalizeStatus = (status: string): string => {
@@ -128,21 +130,66 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: "Interested" and "Contacted" leads
-      if (normalizedStatus === "Interested" || normalizedStatus === "Contacted") {
+      // High priority: Only "Interested" leads
+      if (normalizedStatus === "Interested") {
         if (daysSinceLastContact > 7) {
           followUps.push({
             lead,
             urgency: "high",
             nextAction: "call",
             daysOverdue: daysSinceLastContact - 7,
-            reason: `${normalizedStatus} lead - ready for follow-up`,
+            reason: "Interested lead - ready for follow-up",
           })
         }
         return
       }
 
-      // Medium priority: "Left Voicemail" and "Closed" leads
+      // Medium priority: "Contacted" leads (unless they have a follow-up date)
+      if (normalizedStatus === "Contacted") {
+        // Check if there's a follow-up reminder due today or overdue
+        const followUpReminders = lead.notes.filter(note => 
+          note.text.includes("Set reminder:") && 
+          new Date(note.timestamp) <= today
+        )
+        
+        if (followUpReminders.length > 0) {
+          // Check if any actions were taken after the reminder
+          const mostRecentReminder = followUpReminders.sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          )[0]
+          
+          const actionsAfterReminder = lead.notes.filter(note => 
+            !note.text.includes("Set reminder:") && 
+            new Date(note.timestamp) > new Date(mostRecentReminder.timestamp)
+          )
+          
+          if (actionsAfterReminder.length === 0) {
+            const daysOverdue = Math.floor((today.getTime() - new Date(mostRecentReminder.timestamp).getTime()) / (1000 * 60 * 60 * 24))
+            followUps.push({
+              lead,
+              urgency: "high",
+              nextAction: "call",
+              daysOverdue: daysOverdue,
+              reason: daysOverdue === 0 ? "Scheduled follow-up due today" : `Scheduled follow-up overdue by ${daysOverdue} day${daysOverdue > 1 ? 's' : ''}`,
+            })
+            return
+          }
+        }
+        
+        // Default medium priority for contacted leads without follow-up dates
+        if (daysSinceLastContact > 7) {
+          followUps.push({
+            lead,
+            urgency: "medium",
+            nextAction: "call",
+            daysOverdue: daysSinceLastContact - 7,
+            reason: "Contacted lead - ready for follow-up",
+          })
+        }
+        return
+      }
+
+      // Low priority: "Left Voicemail" and "Closed" leads
       if (normalizedStatus === "Left Voicemail" || normalizedStatus === "Closed") {
         if (daysSinceLastContact > 30) {
           return // Don't include very old leads
@@ -151,7 +198,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         if (daysSinceLastContact > 7) {
           followUps.push({
             lead,
-            urgency: "medium",
+            urgency: "low",
             nextAction: lastInteraction.type === "call" ? "email" : "call",
             daysOverdue: daysSinceLastContact - 7,
             reason: `${normalizedStatus} lead - past due follow-up`,
@@ -163,7 +210,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     })
 
     return followUps.sort((a, b) => {
-      const urgencyOrder = { high: 2, medium: 1 }
+      const urgencyOrder = { high: 3, medium: 2, low: 1 }
       return urgencyOrder[b.urgency] - urgencyOrder[a.urgency] || b.daysOverdue - a.daysOverdue
     })
   }
@@ -188,6 +235,8 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         return "bg-green-500/20 text-green-300 border-green-500/30"
       case "medium":
         return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+      case "low":
+        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
       default:
         return "bg-gray-500/20 text-gray-300 border-gray-500/30"
     }
@@ -199,12 +248,14 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         return "High Priority"
       case "medium":
         return "Medium Priority"
+      case "low":
+        return "Low Priority"
       default:
         return "Other"
     }
   }
 
-  const toggleGroup = (urgency: "high" | "medium") => {
+  const toggleGroup = (urgency: "high" | "medium" | "low") => {
     setExpandedGroup(expandedGroup === urgency ? null : urgency)
   }
 
@@ -221,7 +272,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
           <div key={urgency} className="space-y-3">
             {/* Accordion Header */}
             <Button
-              onClick={() => toggleGroup(urgency as "high" | "medium")}
+              onClick={() => toggleGroup(urgency as "high" | "medium" | "low")}
               variant="ghost"
               className={`w-full justify-between p-4 h-auto rounded-2xl border-2 transition-all duration-300 ${
                 expandedGroup === urgency 
@@ -234,7 +285,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                   <div
                     className="w-2 h-2 rounded-full"
                     style={{ 
-                      backgroundColor: urgency === "high" ? "#22c55e" : "#eab308" // Green for high, yellow for medium
+                      backgroundColor: urgency === "high" ? "#22c55e" : urgency === "medium" ? "#eab308" : "#6b7280" // Green for high, yellow for medium, gray for low
                     }}
                   />
                   {getGroupTitle(urgency)} ({items.length})
