@@ -19,6 +19,7 @@ import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle } from 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { colors } from "@/lib/colors"
 import { useAuth } from "@/lib/auth-context"
+import { formatTimestamp, formatRelativeTime } from "@/lib/utils"
 
 export interface Lead {
   id: string
@@ -452,15 +453,12 @@ export function LeadsTable({
           const lastNote = row.original.notes.sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           )[0]
-          const daysSince = lastNote
-            ? Math.floor((new Date().getTime() - new Date(lastNote.timestamp).getTime()) / (1000 * 60 * 60 * 24))
-            : null
 
           return (
             <div className="text-gray-400 font-body text-sm">
-              {getValue()}
-              {daysSince !== null && (
-                <div className="text-xs">{daysSince === 0 ? "Today" : `${daysSince} days ago`}</div>
+              {lastNote ? formatTimestamp(lastNote.timestamp) : 'No contact'}
+              {lastNote && (
+                <div className="text-xs text-gray-500">{formatRelativeTime(lastNote.timestamp)}</div>
               )}
             </div>
           )

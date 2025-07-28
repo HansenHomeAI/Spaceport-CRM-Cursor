@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
+import { formatTimestamp } from "@/lib/utils"
 import type { Lead } from "./leads-table"
 
 interface LeadPanelProps {
@@ -83,7 +84,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
       case "custom":
         if (!customReminderDate) return
         reminderDate = new Date(customReminderDate)
-        reminderText = `Set reminder: Follow up on ${new Date(customReminderDate).toLocaleDateString()}`
+        reminderText = `Set reminder: Follow up on ${formatTimestamp(customReminderDate)}`
         break
       default:
         return
@@ -95,7 +96,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     })
 
     // Show feedback
-    setReminderFeedback(`Reminder set for ${reminderDate.toLocaleDateString()}`)
+    setReminderFeedback(`Reminder set for ${formatTimestamp(reminderDate.toISOString())}`)
     setTimeout(() => setReminderFeedback(null), 3000)
 
     // Reset custom reminder form
@@ -122,7 +123,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   const handleStartEditNote = (note: any) => {
     setEditingNoteId(note.id)
     setEditingNoteText(note.text)
-    setEditingNoteDate(new Date(note.timestamp).toISOString().split('T')[0])
+    setEditingNoteDate(new Date(note.timestamp).toISOString())
   }
 
   const handleSaveNoteEdit = () => {
@@ -236,11 +237,11 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     >
                       <div className="flex items-center gap-2">
                         <input
-                          type="date"
-                          value={customReminderDate}
-                          onChange={(e) => setCustomReminderDate(e.target.value)}
+                          type="datetime-local"
+                          value={customReminderDate.slice(0, 16)}
+                          onChange={(e) => setCustomReminderDate(e.target.value + ':00.000Z')}
                           className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
-                          min={new Date().toISOString().split('T')[0]}
+                          min={new Date().toISOString().slice(0, 16)}
                         />
                         <Button
                           size="sm"
@@ -470,14 +471,14 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                   </Badge>
                                   {isEditing ? (
                                     <input
-                                      type="date"
-                                      value={editingNoteDate}
-                                      onChange={(e) => setEditingNoteDate(e.target.value)}
+                                      type="datetime-local"
+                                      value={editingNoteDate.slice(0, 16)}
+                                      onChange={(e) => setEditingNoteDate(e.target.value + ':00.000Z')}
                                       className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
                                     />
                                   ) : (
                                     <span className="text-xs text-medium-hierarchy font-body">
-                                      {new Date(note.timestamp).toLocaleDateString()}
+                                      {formatTimestamp(note.timestamp)}
                                     </span>
                                   )}
                                 </div>
