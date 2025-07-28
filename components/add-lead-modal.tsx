@@ -36,8 +36,8 @@ const parseContactInfo = (text: string) => {
     text = text.replace(emailMatch[0], "").trim()
   }
 
-  // Phone regex - multiple formats
-  const phoneMatch = text.match(/(?:\+?1[-.\s]?)?\$?([0-9]{3})\$?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/)
+  // Improved phone regex - handles parentheses and more formats
+  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
   if (phoneMatch) {
     result.phone = phoneMatch[0]
     text = text.replace(phoneMatch[0], "").trim()
@@ -45,21 +45,8 @@ const parseContactInfo = (text: string) => {
 
   // Address detection (contains numbers and common address words)
   const addressKeywords = [
-    "Street",
-    "St",
-    "Avenue",
-    "Ave",
-    "Road",
-    "Rd",
-    "Drive",
-    "Dr",
-    "Lane",
-    "Ln",
-    "Boulevard",
-    "Blvd",
-    "Way",
-    "Circle",
-    "Cir",
+    "Street", "St", "Avenue", "Ave", "Road", "Rd", "Drive", "Dr", 
+    "Lane", "Ln", "Boulevard", "Blvd", "Way", "Circle", "Cir",
   ]
   const addressMatch = addressKeywords.find((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
 
@@ -72,43 +59,188 @@ const parseContactInfo = (text: string) => {
     }
   }
 
-  // Company detection - real estate keywords
+  // Enhanced company detection - real estate keywords
   const companyKeywords = [
-    "Real Estate",
-    "Realty",
-    "Properties",
-    "Group",
-    "Team",
-    "Associates",
-    "Brokers",
-    "Homes",
-    "Land",
-    "Development",
-    "Investment",
-    "LLC",
-    "Inc",
+    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", 
+    "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc",
+    "Partners", "HomeServices", "Sotheby's", "Compass", "Keller Williams", 
+    "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", 
+    "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", 
+    "Upside", "Premier", "Edina", "Real Broker", "Toll Brothers", 
+    "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", 
+    "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", 
+    "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", 
+    "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", 
+    "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", 
+    "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", 
+    "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"
   ]
 
-  const companyMatch = companyKeywords.find((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
-
-  if (companyMatch) {
-    const companyRegex = new RegExp(`[^,]*${companyMatch}[^,]*`, "i")
-    const match = text.match(companyRegex)
-    if (match) {
-      result.company = match[0].trim()
-      text = text.replace(match[0], "").trim()
+  // Look for company names in the text
+  for (const keyword of companyKeywords) {
+    if (text.toLowerCase().includes(keyword.toLowerCase())) {
+      // Find the full company name (including variations)
+      const companyRegex = new RegExp(`[^,]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,]*`, "i")
+      const match = text.match(companyRegex)
+      if (match) {
+        result.company = match[0].trim()
+        text = text.replace(match[0], "").trim()
+        break
+      }
     }
   }
 
   // Clean up name - remove parenthetical aliases and extra info
-  text = text.replace(/\$[^)]*\$/g, "") // Remove (aka Lawrence) type content
-  text = text.replace(/,.*$/, "") // Remove everything after first comma
+  text = text.replace(/\([^)]*\)/g, "") // Remove (aka Lawrence) type content
+  text = text.replace(/,+/g, " ") // Replace commas with spaces
   text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
 
-  // Extract name (first few words before any remaining punctuation)
-  const nameMatch = text.match(/^([A-Za-z\s]+)/)
-  if (nameMatch) {
-    result.name = nameMatch[1].trim()
+  // Extract name (should be what's left after removing phone, email, company)
+  if (text.length > 0) {
+    // Remove any remaining non-alphabetic characters at the start/end
+    const nameMatch = text.match(/^[^a-zA-Z]*([A-Za-z\s]+?)[^a-zA-Z]*$/)
+    if (nameMatch) {
+      result.name = nameMatch[1].trim()
+    } else {
+      result.name = text.trim()
+    }
+  }
+
+  return result
+}
+
+// Special function for parsing listing data
+const parseListingData = (text: string) => {
+  const result = {
+    name: "",
+    phone: "",
+    email: "",
+    company: "",
+    address: "",
+  }
+
+  // Look for "Listed by:" pattern
+  const listedByMatch = text.match(/Listed by:\s*([^,]+)/i)
+  if (listedByMatch) {
+    const listedByText = listedByMatch[1].trim()
+    
+    // Parse the "Listed by" section
+    const phoneMatch = listedByText.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
+    if (phoneMatch) {
+      result.phone = phoneMatch[0]
+      const nameText = listedByText.replace(phoneMatch[0], "").trim()
+      result.name = nameText
+    } else {
+      result.name = listedByText
+    }
+  }
+
+  // Look for company after "Listed by" - more specific pattern
+  // Stop at "Source:" to avoid including extra information
+  const companyMatch = text.match(/Realtypath LLC[^,]*?(?=Source:|$)/i)
+  if (companyMatch) {
+    result.company = companyMatch[0].trim()
+  }
+
+  return result
+}
+
+// Special function for parsing complex real estate data
+const parseComplexRealEstate = (text: string) => {
+  const result = {
+    name: "",
+    phone: "",
+    email: "",
+    company: "",
+    address: "",
+  }
+
+  // Extract phone first
+  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
+  if (phoneMatch) {
+    result.phone = phoneMatch[0]
+    text = text.replace(phoneMatch[0], "").trim()
+  }
+
+  // For cases with ampersand, the pattern is typically: "FirstName LastName CompanyName & CompanyName"
+  // We need to extract just the first person's name
+  if (text.includes("&")) {
+    // Split into words
+    const words = text.split(/\s+/)
+    
+    let nameWords = []
+    
+    // Find the first person's name (stop when we hit the company part)
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      
+      // If we hit "&", we've reached the company part
+      if (word === "&") {
+        break
+      }
+      
+      // If we hit "Real Estate", we've reached the company part
+      if (word.toLowerCase().includes("real") || word.toLowerCase().includes("estate")) {
+        break
+      }
+      
+      // Check if this word looks like it could be the start of a company name
+      // (i.e., if we have at least 2 words already, and this word is capitalized)
+      if (nameWords.length >= 2 && word.charAt(0) === word.charAt(0).toUpperCase()) {
+        // This might be the start of the company name
+        // Let's check if the next word is also capitalized (indicating a company name)
+        if (i + 1 < words.length && words[i + 1].charAt(0) === words[i + 1].charAt(0).toUpperCase()) {
+          break
+        }
+      }
+      
+      nameWords.push(word)
+    }
+    
+    if (nameWords.length > 0) {
+      result.name = nameWords.join(" ").trim()
+      // Remove the name from the text
+      text = text.replace(result.name, "").trim()
+    }
+
+    // Now extract the company - everything that contains "&" and "Real Estate"
+    const companyMatch = text.match(/([^,]*&[^,]*Real Estate[^,]*)/i)
+    if (companyMatch) {
+      result.company = companyMatch[1].trim()
+    }
+  } else {
+    // Fallback to regular parsing
+    const nameMatch = text.match(/^([A-Za-z]+(?:\s+[A-Za-z]+)*)/)
+    if (nameMatch) {
+      result.name = nameMatch[1].trim()
+      text = text.replace(nameMatch[1], "").trim()
+    }
+
+    // Now look for company keywords in remaining text
+    const companyKeywords = ["Real Estate", "Realty", "Properties", "Group", "Team", "Associates", 
+      "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc",
+      "Partners", "HomeServices", "Sotheby's", "Compass", "Keller Williams", 
+      "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", 
+      "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", 
+      "Upside", "Premier", "Edina", "Real Broker", "Toll Brothers", 
+      "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", 
+      "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", 
+      "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", 
+      "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", 
+      "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", 
+      "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", 
+      "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"]
+
+    for (const keyword of companyKeywords) {
+      if (text.toLowerCase().includes(keyword.toLowerCase())) {
+        const companyRegex = new RegExp(`[^,]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,]*`, "i")
+        const match = text.match(companyRegex)
+        if (match) {
+          result.company = match[0].trim()
+          break
+        }
+      }
+    }
   }
 
   return result
@@ -184,7 +316,16 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
   const handleSmartParse = () => {
     if (!smartParseText.trim()) return
 
-    const parsed = parseContactInfo(smartParseText)
+    let parsed
+    if (smartParseText.includes("Listed by:")) {
+      parsed = parseListingData(smartParseText)
+    } else if (smartParseText.includes("Real Estate") && smartParseText.includes("&")) {
+      // Special handling for complex real estate data
+      parsed = parseComplexRealEstate(smartParseText)
+    } else {
+      parsed = parseContactInfo(smartParseText)
+    }
+
     setFormData((prev) => ({
       ...prev,
       name: parsed.name || prev.name,

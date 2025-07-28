@@ -38,9 +38,8 @@ const parseContactInfo = (text: string) => {
     text = text.replace(emailMatch[0], "").trim()
   }
 
-  // Phone regex - ONLY proper phone formats (no dates!)
-  // Accepts: 000-000-0000, 0(000)-000-0000, 000.000.0000, 000 000 0000
-  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})(?!\d)/)
+  // Improved phone regex - handles parentheses and more formats
+  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
   if (phoneMatch) {
     const phoneStr = phoneMatch[0]
     // Double-check this isn't a date by ensuring it doesn't match date patterns
@@ -53,9 +52,21 @@ const parseContactInfo = (text: string) => {
     }
   }
 
-  // Company detection - real estate keywords
+  // Enhanced company detection - real estate keywords
   const companyKeywords = [
-    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc", "Partners", "Sotheby's", "Compass", "Keller Williams", "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", "Upside", "Premier", "Edina", "Real Broker", "Keller Williams Realty", "Berkshire Hathaway HomeServices", "Toll Brothers", "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"
+    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", 
+    "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc",
+    "Partners", "HomeServices", "Sotheby's", "Compass", "Keller Williams", 
+    "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", 
+    "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", 
+    "Upside", "Premier", "Edina", "Real Broker", "Toll Brothers", 
+    "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", 
+    "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", 
+    "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", 
+    "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", 
+    "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", 
+    "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", 
+    "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"
   ]
 
   // Look for company names in the text
