@@ -28,6 +28,23 @@ export interface Lead {
   lastUpdatedByName?: string
 }
 
+export interface Prospect {
+  id: string
+  title: string
+  details: string
+  propertyLink?: string
+  brokerageInfo?: string
+  contactInfo?: string
+  priority: "low" | "medium" | "high"
+  isCompleted: boolean
+  createdAt: string
+  updatedAt: string
+  createdBy?: string
+  createdByName?: string
+  lastUpdatedBy?: string
+  lastUpdatedByName?: string
+}
+
 export interface Activity {
   id: string
   leadId: string
@@ -233,6 +250,33 @@ class ApiClient {
     }
 
     return { data: results, error: null }
+  }
+
+  // Prospects API
+  async getProspects(): Promise<{ data: Prospect[] | null; error: string | null }> {
+    return this.request<Prospect[]>("/prospects")
+  }
+
+  async createProspect(
+    prospect: Omit<Prospect, "id" | "createdAt" | "updatedAt">,
+  ): Promise<{ data: Prospect | null; error: string | null }> {
+    return this.request<Prospect>("/prospects", {
+      method: "POST",
+      body: JSON.stringify(prospect),
+    })
+  }
+
+  async updateProspect(prospect: Prospect): Promise<{ data: Prospect | null; error: string | null }> {
+    return this.request<Prospect>(`/prospects/${prospect.id}`, {
+      method: "PUT",
+      body: JSON.stringify(prospect),
+    })
+  }
+
+  async deleteProspect(id: string): Promise<{ data: null; error: string | null }> {
+    return this.request<null>(`/prospects/${id}`, {
+      method: "DELETE",
+    })
   }
 }
 

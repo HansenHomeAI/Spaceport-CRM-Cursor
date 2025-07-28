@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, AlertCircle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -16,6 +16,7 @@ import { LeadPanel } from "@/components/lead-panel"
 import { AddLeadModal } from "@/components/add-lead-modal"
 import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
+import { ProspectListModal } from "@/components/prospect-list-modal"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
 import { useActivityRefresh } from "@/hooks/use-activity-refresh"
@@ -39,6 +40,8 @@ export default function DashboardPage() {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [prospects, setProspects] = useState<any[]>([])
+  const [isProspectModalOpen, setIsProspectModalOpen] = useState(false)
 
   // Helper function to migrate old status values to new ones
   const migrateLeadStatuses = useCallback(async () => {
@@ -171,9 +174,9 @@ export default function DashboardPage() {
     isEnabled: Boolean(isProductionMode && databaseConnectionStatus === 'connected')
   })
 
-  // Load leads from API on mount
+  // Load leads and prospects from API on mount
   useEffect(() => {
-    const loadLeads = async () => {
+    const loadData = async () => {
       if (!user) return
       
       setDataLoading(true)
@@ -182,14 +185,18 @@ export default function DashboardPage() {
       try {
         if (isProductionMode) {
           // Production mode - load from API
-          console.log("🔍 Dashboard: Loading leads from API...")
-          const { data, error } = await apiClient.getLeads()
-          if (error) {
-            console.error("🔍 Dashboard: Error loading leads:", error)
-            setConnectionError(error)
+          console.log("🔍 Dashboard: Loading data from API...")
+          const [leadsResult, prospectsResult] = await Promise.all([
+            apiClient.getLeads(),
+            apiClient.getProspects()
+          ])
+          
+          if (leadsResult.error) {
+            console.error("🔍 Dashboard: Error loading leads:", leadsResult.error)
+            setConnectionError(leadsResult.error)
             
             // Check if it's an authentication error
-            if (error.includes('Unauthorized') || error.includes('authentication') || error.includes('token')) {
+            if (leadsResult.error.includes('Unauthorized') || leadsResult.error.includes('authentication') || leadsResult.error.includes('token')) {
               setDatabaseConnectionStatus('error')
               // Don't fall back for auth errors - show the user they need to sign in properly
               setLeads([])
@@ -201,23 +208,31 @@ export default function DashboardPage() {
                 setLeads(JSON.parse(savedLeads))
               }
             }
-          } else if (data) {
-            console.log("🔍 Dashboard: Loaded leads from API:", data.length)
+          } else if (leadsResult.data) {
+            console.log("🔍 Dashboard: Loaded leads from API:", leadsResult.data.length)
             setDatabaseConnectionStatus('connected')
-            setLeads(data)
+            setLeads(leadsResult.data)
             markAsRefreshed() // Mark initial load as refresh time
+          }
+          
+          if (prospectsResult.data) {
+            setProspects(prospectsResult.data)
           }
         } else {
           // Development mode - load from localStorage
-          console.log("🔍 Dashboard: Loading leads from localStorage...")
+          console.log("🔍 Dashboard: Loading data from localStorage...")
           setDatabaseConnectionStatus('fallback')
           const savedLeads = localStorage.getItem("spaceport_leads")
+          const savedProspects = localStorage.getItem("spaceport_prospects")
           if (savedLeads) {
             setLeads(JSON.parse(savedLeads))
           }
+          if (savedProspects) {
+            setProspects(JSON.parse(savedProspects))
+          }
         }
       } catch (error) {
-        console.error("🔍 Dashboard: Error loading leads:", error)
+        console.error("🔍 Dashboard: Error loading data:", error)
         setConnectionError(error instanceof Error ? error.message : "Network error")
         setDatabaseConnectionStatus('error')
       } finally {
@@ -226,7 +241,7 @@ export default function DashboardPage() {
     }
 
     if (!loading && user) {
-      loadLeads()
+      loadData()
     }
   }, [user, loading, isProductionMode])
 
@@ -838,6 +853,21 @@ export default function DashboardPage() {
                     <Plus className="h-4 w-4 mr-2" />
                     Add Lead
                   </Button>
+                  <Button
+                    onClick={() => setIsProspectModalOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6 relative"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Prospect List
+                    {prospects.filter(p => !p.isCompleted).length > 0 && (
+                      <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-bold text-black">
+                          {prospects.filter(p => !p.isCompleted).length}
+                        </span>
+                      </div>
+                    )}
+                  </Button>
                 </div>
               </div>
             </motion.div>
@@ -859,6 +889,21 @@ export default function DashboardPage() {
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Lead
+                  </Button>
+                  <Button
+                    onClick={() => setIsProspectModalOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body relative"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Prospect List
+                    {prospects.filter(p => !p.isCompleted).length > 0 && (
+                      <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-bold text-black">
+                          {prospects.filter(p => !p.isCompleted).length}
+                        </span>
+                      </div>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -927,6 +972,11 @@ export default function DashboardPage() {
           <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
 
           <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
+
+          <ProspectListModal
+            isOpen={isProspectModalOpen}
+            onClose={() => setIsProspectModalOpen(false)}
+          />
         </div>
       </div>
     </div>
