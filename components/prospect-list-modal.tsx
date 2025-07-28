@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Plus, Check, Trash2, Edit3, ExternalLink, Building, User, AlertCircle } from "lucide-react"
+import { X, Plus, Check, Trash2, Edit3, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { apiClient, type Prospect } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp } from "@/lib/utils"
@@ -26,12 +26,7 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null)
   
   const [formData, setFormData] = useState({
-    title: "",
-    details: "",
-    propertyLink: "",
-    brokerageInfo: "",
-    contactInfo: "",
-    priority: "medium" as Prospect["priority"],
+    content: "",
   })
 
   // Load prospects
@@ -59,10 +54,10 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.title.trim()) return
+    if (!formData.content.trim()) return
 
     const newProspect: Omit<Prospect, "id" | "createdAt" | "updatedAt"> = {
-      ...formData,
+      content: formData.content,
       isCompleted: false,
       createdBy: user?.id,
       createdByName: user?.name,
@@ -120,24 +115,14 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
 
   const resetForm = () => {
     setFormData({
-      title: "",
-      details: "",
-      propertyLink: "",
-      brokerageInfo: "",
-      contactInfo: "",
-      priority: "medium",
+      content: "",
     })
   }
 
   const startEdit = (prospect: Prospect) => {
     setEditingProspect(prospect)
     setFormData({
-      title: prospect.title,
-      details: prospect.details,
-      propertyLink: prospect.propertyLink || "",
-      brokerageInfo: prospect.brokerageInfo || "",
-      contactInfo: prospect.contactInfo || "",
-      priority: prospect.priority,
+      content: prospect.content,
     })
   }
 
@@ -151,7 +136,7 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
 
     const updatedProspect: Prospect = {
       ...editingProspect,
-      ...formData,
+      content: formData.content,
       updatedAt: new Date().toISOString(),
       lastUpdatedBy: user?.id,
       lastUpdatedByName: user?.name,
@@ -161,18 +146,7 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
     cancelEdit()
   }
 
-  const getPriorityColor = (priority: Prospect["priority"]) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-500/20 text-red-300 border-red-500/30"
-      case "medium":
-        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-      case "low":
-        return "bg-green-500/20 text-green-300 border-green-500/30"
-      default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30"
-    }
-  }
+
 
   const activeProspects = prospects.filter(p => !p.isCompleted)
   const completedProspects = prospects.filter(p => p.isCompleted)
@@ -248,83 +222,18 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
                           {editingProspect ? "Edit Prospect" : "Add New Prospect"}
                         </h3>
                         <form onSubmit={editingProspect ? saveEdit : handleSubmit} className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm text-medium-hierarchy font-body mb-2 block">
-                                Title *
-                              </label>
-                              <Input
-                                value={formData.title}
-                                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                                placeholder="e.g., John Smith - 123 Main St"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
-                                required
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-medium-hierarchy font-body mb-2 block">
-                                Priority
-                              </label>
-                              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value as Prospect["priority"] }))}>
-                                <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
-                                  <SelectItem value="low" className="rounded-lg font-body">Low</SelectItem>
-                                  <SelectItem value="medium" className="rounded-lg font-body">Medium</SelectItem>
-                                  <SelectItem value="high" className="rounded-lg font-body">High</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
                           <div>
                             <label className="text-sm text-medium-hierarchy font-body mb-2 block">
-                              Details
+                              Prospect Note *
                             </label>
                             <Textarea
-                              value={formData.details}
-                              onChange={(e) => setFormData(prev => ({ ...prev, details: e.target.value }))}
-                              placeholder="Notes about this prospect..."
+                              value={formData.content}
+                              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                              placeholder="Enter prospect details, property links, contact info, or any notes..."
                               className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
-                              rows={3}
+                              rows={4}
+                              required
                             />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                              <label className="text-sm text-medium-hierarchy font-body mb-2 block">
-                                Property Link
-                              </label>
-                              <Input
-                                value={formData.propertyLink}
-                                onChange={(e) => setFormData(prev => ({ ...prev, propertyLink: e.target.value }))}
-                                placeholder="https://..."
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-medium-hierarchy font-body mb-2 block">
-                                Brokerage Info
-                              </label>
-                              <Input
-                                value={formData.brokerageInfo}
-                                onChange={(e) => setFormData(prev => ({ ...prev, brokerageInfo: e.target.value }))}
-                                placeholder="Company name, agent info..."
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-medium-hierarchy font-body mb-2 block">
-                                Contact Info
-                              </label>
-                              <Input
-                                value={formData.contactInfo}
-                                onChange={(e) => setFormData(prev => ({ ...prev, contactInfo: e.target.value }))}
-                                placeholder="Phone, email, etc."
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
-                              />
-                            </div>
                           </div>
 
                           <div className="flex gap-3 pt-4">
@@ -338,7 +247,7 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
                             </Button>
                             <Button
                               type="submit"
-                              disabled={!formData.title.trim()}
+                              disabled={!formData.content.trim()}
                               className="flex-1 bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-pill transition-all duration-200 font-body disabled:opacity-50"
                             >
                               {editingProspect ? "Update Prospect" : "Add Prospect"}
@@ -362,36 +271,11 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h4 className="text-primary-hierarchy font-title">{prospect.title}</h4>
-                                    <Badge className={`${getPriorityColor(prospect.priority)} rounded-full px-2 py-0.5 text-xs`}>
-                                      {prospect.priority}
-                                    </Badge>
+                                  <div className="mb-2">
+                                    <p className="text-primary-hierarchy font-body whitespace-pre-wrap">{prospect.content}</p>
                                   </div>
-                                  {prospect.details && (
-                                    <p className="text-medium-hierarchy font-body text-sm mb-3">{prospect.details}</p>
-                                  )}
-                                  <div className="flex flex-wrap gap-4 text-xs text-gray-400">
-                                    {prospect.propertyLink && (
-                                      <div className="flex items-center gap-1">
-                                        <ExternalLink className="h-3 w-3" />
-                                        <a href={prospect.propertyLink} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                                          Property Link
-                                        </a>
-                                      </div>
-                                    )}
-                                    {prospect.brokerageInfo && (
-                                      <div className="flex items-center gap-1">
-                                        <Building className="h-3 w-3" />
-                                        <span>{prospect.brokerageInfo}</span>
-                                      </div>
-                                    )}
-                                    {prospect.contactInfo && (
-                                      <div className="flex items-center gap-1">
-                                        <User className="h-3 w-3" />
-                                        <span>{prospect.contactInfo}</span>
-                                      </div>
-                                    )}
+                                  <div className="text-xs text-gray-400">
+                                    <span>Added {formatTimestamp(prospect.createdAt)}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 ml-4">
@@ -440,15 +324,12 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h4 className="text-primary-hierarchy font-title line-through">{prospect.title}</h4>
-                                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 rounded-full px-2 py-0.5 text-xs">
-                                      Completed
-                                    </Badge>
+                                  <div className="mb-2">
+                                    <p className="text-primary-hierarchy font-body whitespace-pre-wrap line-through">{prospect.content}</p>
                                   </div>
-                                  {prospect.details && (
-                                    <p className="text-medium-hierarchy font-body text-sm mb-3 line-through">{prospect.details}</p>
-                                  )}
+                                  <div className="text-xs text-gray-400">
+                                    <span>Completed {formatTimestamp(prospect.updatedAt)}</span>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-2 ml-4">
                                   <Button

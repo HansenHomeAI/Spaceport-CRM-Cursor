@@ -30,12 +30,7 @@ export interface Lead {
 
 export interface Prospect {
   id: string
-  title: string
-  details: string
-  propertyLink?: string
-  brokerageInfo?: string
-  contactInfo?: string
-  priority: "low" | "medium" | "high"
+  content: string
   isCompleted: boolean
   createdAt: string
   updatedAt: string
