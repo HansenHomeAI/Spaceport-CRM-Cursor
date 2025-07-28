@@ -45,8 +45,8 @@ export default function DashboardPage() {
       "cold": "Not Interested",
       "contacted": "Contacted", 
       "interested": "Interested",
-      "closed": "Not Interested",
-      "dormant": "Needs Follow-Up",
+      "closed": "Closed",
+      "dormant": "Not Interested",
       "left voicemail": "Left Voicemail"
     }
 
@@ -94,8 +94,8 @@ export default function DashboardPage() {
       "cold": "Not Interested",
       "contacted": "Contacted", 
       "interested": "Interested",
-      "closed": "Not Interested",
-      "dormant": "Needs Follow-Up",
+      "closed": "Closed",
+      "dormant": "Not Interested",
       "left voicemail": "Left Voicemail"
     }
 
@@ -295,8 +295,8 @@ export default function DashboardPage() {
           const interestOrder: Record<string, number> = { 
             "Interested": 5, 
             "Contacted": 4, 
-            "Needs Follow-Up": 3, 
-            "Left Voicemail": 2, 
+            "Left Voicemail": 3, 
+            "Closed": 2, 
             "Not Interested": 1 
           }
           // Helper function to normalize status values
@@ -305,16 +305,16 @@ export default function DashboardPage() {
               "cold": "Not Interested",
               "contacted": "Contacted", 
               "interested": "Interested",
-              "closed": "Not Interested",
-              "dormant": "Needs Follow-Up",
+              "closed": "Closed",
+              "dormant": "Not Interested",
               "left voicemail": "Left Voicemail",
               "Left Voicemail": "Left Voicemail",
               "Contacted": "Contacted",
               "Interested": "Interested", 
               "Not Interested": "Not Interested",
-              "Needs Follow-Up": "Needs Follow-Up"
+              "Closed": "Closed"
             }
-            return statusMap[status] || "Contacted"
+            return statusMap[status] || "Left Voicemail"
           }
           aValue = interestOrder[normalizeStatus(a.status)] || 1
           bValue = interestOrder[normalizeStatus(b.status)] || 1

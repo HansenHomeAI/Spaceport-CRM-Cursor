@@ -121,7 +121,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     email: "",
     address: "",
     company: "",
-    status: "Contacted" as Lead["status"],
+    status: "Left Voicemail" as Lead["status"],
     lastInteraction: new Date().toISOString().split("T")[0],
   })
 
@@ -152,7 +152,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       email: "",
       address: "",
       company: "",
-      status: "Contacted",
+      status: "Left Voicemail",
       lastInteraction: new Date().toISOString().split("T")[0],
     })
     setSmartParseText("")
@@ -357,16 +357,19 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
-                        <SelectItem value="cold" className="rounded-lg font-body">
-                          Cold
+                        <SelectItem value="Left Voicemail" className="rounded-lg font-body">
+                          Left Voicemail
                         </SelectItem>
-                        <SelectItem value="contacted" className="rounded-lg font-body">
+                        <SelectItem value="Contacted" className="rounded-lg font-body">
                           Contacted
                         </SelectItem>
-                        <SelectItem value="interested" className="rounded-lg font-body">
+                        <SelectItem value="Interested" className="rounded-lg font-body">
                           Interested
                         </SelectItem>
-                        <SelectItem value="closed" className="rounded-lg font-body">
+                        <SelectItem value="Not Interested" className="rounded-lg font-body">
+                          Not Interested
+                        </SelectItem>
+                        <SelectItem value="Closed" className="rounded-lg font-body">
                           Closed
                         </SelectItem>
                       </SelectContent>

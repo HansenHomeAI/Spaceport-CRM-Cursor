@@ -126,8 +126,8 @@ export function LeadsTable({
           const interestOrder: Record<string, number> = { 
             "Interested": 5, 
             "Contacted": 4, 
-            "Needs Follow-Up": 3, 
-            "Left Voicemail": 2, 
+            "Left Voicemail": 3, 
+            "Closed": 2, 
             "Not Interested": 1 
           }
           aValue = interestOrder[normalizeStatus(a.status)] || 1

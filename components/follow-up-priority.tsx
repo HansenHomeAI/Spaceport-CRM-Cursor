@@ -40,21 +40,21 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       "cold": "Not Interested",
       "contacted": "Contacted", 
       "interested": "Interested",
-      "closed": "Not Interested",
-      "dormant": "Needs Follow-Up",
+      "closed": "Closed",
+      "dormant": "Not Interested",
       "left voicemail": "Left Voicemail",
       // New statuses (already correct)
       "Left Voicemail": "Left Voicemail",
       "Contacted": "Contacted",
       "Interested": "Interested", 
       "Not Interested": "Not Interested",
-      "Needs Follow-Up": "Needs Follow-Up"
+      "Closed": "Closed"
     }
     
-    return statusMap[status] || "Contacted"
+    return statusMap[status] || "Left Voicemail"
   }
 
-  // Calculate follow-up priorities based on new status system
+  // Calculate follow-up priorities based on status
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -128,30 +128,22 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: "Contacted" and "Interested" leads (using normalized status)
-      if (normalizedStatus === "Contacted" || normalizedStatus === "Interested") {
-        if (daysSinceLastContact > 28) {
-          followUps.push({
-            lead,
-            urgency: "medium",
-            nextAction: "call",
-            daysOverdue: 0,
-            reason: `${normalizedStatus} lead - no action in over 4 weeks`,
-          })
-        } else if (daysSinceLastContact > 7) {
+      // High priority: "Interested" and "Contacted" leads
+      if (normalizedStatus === "Interested" || normalizedStatus === "Contacted") {
+        if (daysSinceLastContact > 7) {
           followUps.push({
             lead,
             urgency: "high",
             nextAction: "call",
-            daysOverdue: 0,
+            daysOverdue: daysSinceLastContact - 7,
             reason: `${normalizedStatus} lead - ready for follow-up`,
           })
         }
         return
       }
 
-      // Medium priority: "Needs Follow-Up" and "Left Voicemail" leads (using normalized status)
-      if (normalizedStatus === "Needs Follow-Up" || normalizedStatus === "Left Voicemail") {
+      // Medium priority: "Left Voicemail" and "Closed" leads
+      if (normalizedStatus === "Left Voicemail" || normalizedStatus === "Closed") {
         if (daysSinceLastContact > 30) {
           return // Don't include very old leads
         }
@@ -162,27 +154,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             urgency: "medium",
             nextAction: lastInteraction.type === "call" ? "email" : "call",
             daysOverdue: daysSinceLastContact - 7,
-            reason: "Past due follow-up",
-          })
-          return
-        }
-
-        // Check cadence for medium priority leads
-        if (lastInteraction.type === "call" && daysSinceLastContact >= 2) {
-          followUps.push({
-            lead,
-            urgency: "medium",
-            nextAction: "email",
-            daysOverdue: daysSinceLastContact - 2,
-            reason: "Email follow-up after call",
-          })
-        } else if (lastInteraction.type === "email" && daysSinceLastContact >= 4) {
-          followUps.push({
-            lead,
-            urgency: "medium",
-            nextAction: "call",
-            daysOverdue: daysSinceLastContact - 4,
-            reason: "Call follow-up after email",
+            reason: `${normalizedStatus} lead - past due follow-up`,
           })
         }
       }

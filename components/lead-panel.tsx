@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { colors } from "@/lib/colors"
-import { getCadenceSteps, calculateCadenceProgress, getProgressColor } from "@/lib/sales-cadence"
-import { SalesProgress } from "./sales-progress"
 import type { Lead } from "./leads-table"
 
 interface LeadPanelProps {
@@ -39,7 +37,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
       "cold": "Not Interested",
       "contacted": "Contacted", 
       "interested": "Interested",
-      "closed": "Closed", // FIX: This was mapping to "Not Interested"
+      "closed": "Closed",
       "dormant": "Not Interested",
       "left voicemail": "Left Voicemail",
       "needs follow-up": "Not Interested",
@@ -65,25 +63,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     }
   }, [lead, isOpen, onUpdateLead])
 
-  const progress = useMemo(() => {
-    if (!lead) return null
-    return calculateCadenceProgress(lead.notes, normalizeStatus(lead.status), lead.id, lead.updatedAt)
-  }, [lead?.notes, lead?.status, lead?.id, lead?.updatedAt])
 
-  const currentStep = useMemo(() => {
-    if (!progress || progress.isDormant || !lead) return null
-    const cadenceSteps = getCadenceSteps(normalizeStatus(lead.status))
-    return cadenceSteps.find(step => step.id === progress.currentStep)
-  }, [progress, lead?.status])
-
-  const handleQuickAction = (type: "call" | "email" | "video" | "social" | "note", description: string) => {
-    if (!lead || !currentStep) return
-
-    onAddNote(lead.id, {
-      text: `${currentStep.action}: ${description}`,
-      type: type === "social" ? "note" : type,
-    })
-  }
 
   const handleSetReminder = (timeframe: string) => {
     if (!lead) return
@@ -201,82 +181,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                 </Button>
               </div>
 
-              {/* Sales Progress */}
-              {progress && (
-                <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl overflow-hidden">
-                  <CardContent className="p-6 pt-8">
-                    <SalesProgress
-                      progress={progress}
-                      statusColor={getProgressColor(progress, lead.status)}
-                      leadStatus={normalizeStatus(lead.status)}
-                    />
-                    
-                    {currentStep && (
-                      <div className="mt-6">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-primary-hierarchy font-title text-sm">Current Step: {currentStep.action}</h3>
-                          <Badge className={`${statusColor.bg} ${statusColor.text} ${statusColor.border} rounded-full px-2 py-0.5 text-xs`}>
-                            {currentStep.dayOffset === 0 ? "Immediate" : `+${currentStep.dayOffset} days`}
-                          </Badge>
-                        </div>
-                        <p className="text-medium-hierarchy font-body text-sm mb-4">{currentStep.description}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {currentStep.type === "call" && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAction("call", "Made call")}
-                                className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
-                              >
-                                <Phone className="h-3 w-3 mr-1" />
-                                Made Call
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleQuickAction("call", "Left voicemail")}
-                                className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 rounded-full"
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Left Voicemail
-                              </Button>
-                            </>
-                          )}
-                          {currentStep.type === "email" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("email", "Sent follow-up email")}
-                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                            >
-                              <Mail className="h-3 w-3 mr-1" />
-                              Sent Email
-                            </Button>
-                          )}
-                          {currentStep.type === "video" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("video", "Sent video message")}
-                              className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full"
-                            >
-                              <Video className="h-3 w-3 mr-1" />
-                              Sent Video
-                            </Button>
-                          )}
-                          {currentStep.type === "social" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleQuickAction("social", "Connected on LinkedIn")}
-                              className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
-                            >
-                              <Users className="h-3 w-3 mr-1" />
-                              Connected
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+
 
               {/* Contact Reminder */}
               <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
