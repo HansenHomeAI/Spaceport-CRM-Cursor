@@ -111,7 +111,7 @@ const parseNotes = (notesText: string): Array<{ id: string; text: string; timest
       /\b(\d{1,2}\/\d{1,2})\b/g, // "10/21", "12/6" - but not in words
     ]
     
-    let timestamp = new Date("2024-10-01").toISOString() // Default fallback
+    let timestamp = new Date("2024-10-01T12:00:00").toISOString() // Default fallback at noon
     let foundValidDate = false
     
     for (const pattern of datePatterns) {
@@ -315,7 +315,7 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
 
 
   // Find the most recent date from notes for lastInteraction (NOT import date!)
-  let lastInteraction = "2024-10-01" // Default to start of our timeframe
+  let lastInteraction = "2024-10-01T12:00:00.000Z" // Default to start of our timeframe at noon
   if (notes.length > 0) {
     const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
     if (dates.length > 0) {
@@ -341,7 +341,7 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
     notes: notes.length > 0 ? notes : [{
       id: Date.now().toString(),
       text: "Imported from CSV - no interaction history",
-      timestamp: new Date("2024-10-01").toISOString(),
+      timestamp: new Date("2024-10-01T12:00:00").toISOString(),
       type: "note" as const,
     }],
     createdAt: new Date().toISOString(),
