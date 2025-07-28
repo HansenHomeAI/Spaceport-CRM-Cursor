@@ -320,7 +320,7 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
     const dates = notes.map(note => new Date(note.timestamp)).filter(date => !isNaN(date.getTime()))
     if (dates.length > 0) {
       const mostRecentDate = new Date(Math.max(...dates.map(d => d.getTime())))
-      lastInteraction = mostRecentDate.toISOString().split("T")[0]
+              lastInteraction = mostRecentDate.toISOString()
     }
   }
 

@@ -122,7 +122,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     address: "",
     company: "",
     status: "Left Voicemail" as Lead["status"],
-    lastInteraction: new Date().toISOString().split("T")[0],
+    lastInteraction: new Date().toISOString(),
   })
 
   const [smartParseText, setSmartParseText] = useState("")
@@ -153,7 +153,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       address: "",
       company: "",
       status: "Left Voicemail",
-      lastInteraction: new Date().toISOString().split("T")[0],
+      lastInteraction: new Date().toISOString(),
     })
     setSmartParseText("")
     setShowSmartParse(false)

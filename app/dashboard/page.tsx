@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [databaseConnectionStatus, setDatabaseConnectionStatus] = useState<'connected' | 'fallback' | 'error' | 'unknown'>('unknown')
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   // Helper function to migrate old status values to new ones
   const migrateLeadStatuses = useCallback(async () => {
@@ -383,6 +384,27 @@ export default function DashboardPage() {
     setIsPanelOpen(true)
   }
 
+  const handleMetricCardClick = (filterType: string) => {
+    setActiveFilter(activeFilter === filterType ? null : filterType)
+  }
+
+  const getFilteredLeads = () => {
+    if (!activeFilter) return sortedLeads
+    
+    switch (activeFilter) {
+      case 'interested':
+        return sortedLeads.filter(lead => lead.status === "Interested")
+      case 'my-leads':
+        return sortedLeads.filter(lead => lead.ownerId === user?.id)
+      case 'needs-attention':
+        return sortedLeads.filter(lead => lead.needsAttention)
+      case 'total':
+        return sortedLeads
+      default:
+        return sortedLeads
+    }
+  }
+
   const handleAddNote = async (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => {
     const newNote = {
       id: Date.now().toString(),
@@ -707,7 +729,12 @@ export default function DashboardPage() {
 
           {/* Enhanced Metrics - removed unclaimed card */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+            <Card 
+              className={`bg-black/20 backdrop-blur-xl border-system rounded-brand cursor-pointer transition-all duration-300 hover:bg-black/30 ${
+                activeFilter === 'total' ? 'ring-2 ring-white/20 bg-black/30' : ''
+              }`}
+              onClick={() => handleMetricCardClick('total')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -721,7 +748,12 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+            <Card 
+              className={`bg-black/20 backdrop-blur-xl border-system rounded-brand cursor-pointer transition-all duration-300 hover:bg-black/30 ${
+                activeFilter === 'interested' ? 'ring-2 ring-green-500/20 bg-green-500/10' : ''
+              }`}
+              onClick={() => handleMetricCardClick('interested')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -735,7 +767,12 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+            <Card 
+              className={`bg-black/20 backdrop-blur-xl border-system rounded-brand cursor-pointer transition-all duration-300 hover:bg-black/30 ${
+                activeFilter === 'my-leads' ? 'ring-2 ring-blue-500/20 bg-blue-500/10' : ''
+              }`}
+              onClick={() => handleMetricCardClick('my-leads')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -749,7 +786,12 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-black/20 backdrop-blur-xl border-system rounded-brand">
+            <Card 
+              className={`bg-black/20 backdrop-blur-xl border-system rounded-brand cursor-pointer transition-all duration-300 hover:bg-black/30 ${
+                activeFilter === 'needs-attention' ? 'ring-2 ring-red-500/20 bg-red-500/10' : ''
+              }`}
+              onClick={() => handleMetricCardClick('needs-attention')}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -821,13 +863,33 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <FollowUpPriority leads={leads} onLeadSelect={handleLeadSelect} />
+              <FollowUpPriority leads={getFilteredLeads()} onLeadSelect={handleLeadSelect} />
 
               {/* Leads Table Section */}
               <div className="mb-8">
-                <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Leads Table</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-title text-primary-hierarchy">Leads Table</h2>
+                  {activeFilter && (
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-white/10 text-white border-white/20 rounded-full px-3 py-1">
+                        {activeFilter === 'interested' && 'Interested Leads'}
+                        {activeFilter === 'my-leads' && 'My Leads'}
+                        {activeFilter === 'needs-attention' && 'Needs Attention'}
+                        {activeFilter === 'total' && 'All Leads'}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveFilter(null)}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <LeadsTable
-                  leads={sortedLeads}
+                  leads={getFilteredLeads()}
                   onLeadUpdate={handleLeadUpdate}
                   onLeadSelect={handleLeadSelect}
                   sortConfig={sortConfig}
