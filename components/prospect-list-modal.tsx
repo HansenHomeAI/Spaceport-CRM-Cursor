@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Plus, Check, Trash2, Edit3, AlertCircle } from "lucide-react"
+import { X, Plus, Check, Trash2, Edit3, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -54,7 +54,12 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.content.trim()) return
+    console.log("Form submitted with content:", formData.content)
+    
+    if (!formData.content.trim()) {
+      console.log("Content is empty, not submitting")
+      return
+    }
 
     const newProspect: Omit<Prospect, "id" | "createdAt" | "updatedAt"> = {
       content: formData.content,
@@ -65,17 +70,22 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
       lastUpdatedByName: user?.name,
     }
 
+    console.log("Creating prospect:", newProspect)
+
     try {
       const { data, error } = await apiClient.createProspect(newProspect)
       if (error) {
         console.error("Error creating prospect:", error)
+        alert("Failed to create prospect: " + error)
       } else if (data) {
+        console.log("Prospect created successfully:", data)
         setProspects(prev => [data, ...prev])
         resetForm()
         setShowAddForm(false)
       }
     } catch (error) {
       console.error("Error creating prospect:", error)
+      alert("Failed to create prospect: " + (error instanceof Error ? error.message : "Unknown error"))
     }
   }
 
@@ -172,10 +182,10 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
             <div className="h-full bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-3xl flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <AlertCircle className="h-5 w-5 text-green-400" />
-                  </div>
+                                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-green-500/20 rounded-full flex items-center justify-center">
+                      <ClipboardList className="h-5 w-5 text-green-400" />
+                    </div>
                   <div>
                     <h2 className="text-2xl font-title text-primary-hierarchy">Prospect List</h2>
                     <p className="text-gray-400 font-body text-sm">
@@ -359,7 +369,7 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
                     {prospects.length === 0 && !showAddForm && (
                       <div className="text-center py-16">
                         <div className="h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <AlertCircle className="h-8 w-8 text-green-400" />
+                          <ClipboardList className="h-8 w-8 text-green-400" />
                         </div>
                         <h3 className="text-xl font-title text-white mb-2">No prospects yet</h3>
                         <p className="text-gray-400 font-body mb-6">

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, AlertCircle } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, ClipboardList } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -858,7 +858,7 @@ export default function DashboardPage() {
                     variant="outline"
                     className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6 relative"
                   >
-                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <ClipboardList className="h-4 w-4 mr-2" />
                     Prospect List
                     {prospects.filter(p => !p.isCompleted).length > 0 && (
                       <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
@@ -895,7 +895,7 @@ export default function DashboardPage() {
                     variant="outline"
                     className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body relative"
                   >
-                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <ClipboardList className="h-4 w-4 mr-2" />
                     Prospect List
                     {prospects.filter(p => !p.isCompleted).length > 0 && (
                       <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
