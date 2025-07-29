@@ -130,15 +130,23 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: Only "Interested" leads
+      // High priority: "Interested" leads (within 56 days of last contact)
       if (normalizedStatus === "Interested") {
-        if (daysSinceLastContact > 56) {
+        if (daysSinceLastContact <= 56) {
           followUps.push({
             lead,
             urgency: "high",
             nextAction: "call",
+            daysOverdue: 0,
+            reason: "Interested lead - recent contact",
+          })
+        } else {
+          followUps.push({
+            lead,
+            urgency: "medium",
+            nextAction: "call",
             daysOverdue: daysSinceLastContact - 56,
-            reason: "Interested lead - ready for follow-up",
+            reason: "Interested lead - needs re-engagement",
           })
         }
         return
@@ -176,14 +184,22 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
           }
         }
         
-        // Default medium priority for contacted leads without follow-up dates
-        if (daysSinceLastContact > 56) {
+        // Default priority for contacted leads without follow-up dates
+        if (daysSinceLastContact <= 56) {
           followUps.push({
             lead,
             urgency: "medium",
             nextAction: "call",
+            daysOverdue: 0,
+            reason: "Contacted lead - recent contact",
+          })
+        } else {
+          followUps.push({
+            lead,
+            urgency: "low",
+            nextAction: "call",
             daysOverdue: daysSinceLastContact - 56,
-            reason: "Contacted lead - ready for follow-up",
+            reason: "Contacted lead - needs re-engagement",
           })
         }
         return
@@ -195,13 +211,21 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
           return // Don't include very old leads
         }
 
-        if (daysSinceLastContact > 56) {
+        if (daysSinceLastContact <= 56) {
+          followUps.push({
+            lead,
+            urgency: "low",
+            nextAction: lastInteraction.type === "call" ? "email" : "call",
+            daysOverdue: 0,
+            reason: `${normalizedStatus} lead - recent contact`,
+          })
+        } else {
           followUps.push({
             lead,
             urgency: "low",
             nextAction: lastInteraction.type === "call" ? "email" : "call",
             daysOverdue: daysSinceLastContact - 56,
-            reason: `${normalizedStatus} lead - past due follow-up`,
+            reason: `${normalizedStatus} lead - needs re-engagement`,
           })
         }
       }
