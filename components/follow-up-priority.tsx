@@ -341,7 +341,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                           transition={{ duration: 0.3 }}
                         >
                           <div
-                            className="bg-transparent backdrop-blur-sm border-2.5 border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer rounded-[25px] p-4"
+                            className="bg-transparent backdrop-blur-sm border-[2.5px] border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer rounded-[25px] p-4"
                             onClick={() => onLeadSelect(item.lead)}
                           >
                             <div className="flex items-start justify-between mb-3">
