@@ -257,8 +257,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     lastInteraction: new Date().toISOString(),
   })
 
-  const [smartParseText, setSmartParseText] = useState("")
-  const [showSmartParse, setShowSmartParse] = useState(false)
+  const [autoParseFeedback, setAutoParseFeedback] = useState("")
+  const [showAutoParseFeedback, setShowAutoParseFeedback] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -287,43 +287,36 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       status: "Left Voicemail",
       lastInteraction: new Date().toISOString(),
     })
-    setSmartParseText("")
-    setShowSmartParse(false)
+    setAutoParseFeedback("")
+    setShowAutoParseFeedback(false)
     onClose()
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-
-    // Auto-parse if the input looks like it contains multiple pieces of info
-    if (
-      (field === "name" || field === "phone" || field === "email") &&
-      (value.includes("@") || value.includes("(") || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(value))
-    ) {
-      const parsed = parseContactInfo(value)
-
-      setFormData((prev) => ({
-        ...prev,
-        name: parsed.name || prev.name,
-        phone: parsed.phone || prev.phone,
-        email: parsed.email || prev.email,
-        company: parsed.company || prev.company,
-        address: parsed.address || prev.address,
-      }))
-    }
+  // Function to detect if content should trigger auto-parse
+  const shouldAutoParse = (text: string): boolean => {
+    // Trigger auto-parse if content has multiple indicators of contact info
+    const hasMultipleInfo = (
+      text.includes("@") || // Has email
+      /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(text) || // Has phone
+      text.includes("Real Estate") || // Has real estate keywords
+      text.includes("Listed by:") || // Has listing data
+      text.includes("&") || // Has ampersand (company indicator)
+      text.split(/\s+/).length > 4 // Has multiple words
+    )
+    
+    return hasMultipleInfo && text.length > 20 // Minimum length threshold
   }
 
-  const handleSmartParse = () => {
-    if (!smartParseText.trim()) return
-
+  // Function to auto-parse content
+  const autoParseContent = (text: string) => {
     let parsed
-    if (smartParseText.includes("Listed by:")) {
-      parsed = parseListingData(smartParseText)
-    } else if (smartParseText.includes("Real Estate") && smartParseText.includes("&")) {
+    if (text.includes("Listed by:")) {
+      parsed = parseListingData(text)
+    } else if (text.includes("Real Estate") && text.includes("&")) {
       // Special handling for complex real estate data
-      parsed = parseComplexRealEstate(smartParseText)
+      parsed = parseComplexRealEstate(text)
     } else {
-      parsed = parseContactInfo(smartParseText)
+      parsed = parseContactInfo(text)
     }
 
     setFormData((prev) => ({
@@ -335,8 +328,24 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       address: parsed.address || prev.address,
     }))
 
-    setSmartParseText("")
-    setShowSmartParse(false)
+    // Show feedback
+    setAutoParseFeedback("Contact info automatically parsed! ✨")
+    setShowAutoParseFeedback(true)
+    setTimeout(() => setShowAutoParseFeedback(false), 3000)
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // Handle paste events for auto-parsing
+  const handlePaste = (field: string, e: React.ClipboardEvent) => {
+    const pastedText = e.clipboardData.getData('text')
+    
+    if (shouldAutoParse(pastedText)) {
+      e.preventDefault() // Prevent default paste
+      autoParseContent(pastedText)
+    }
   }
 
   return (
@@ -370,49 +379,13 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                 </Button>
               </CardHeader>
               <CardContent className="overflow-y-auto max-h-[calc(90vh-120px)]">
-                {/* Smart Parse Section */}
-                {!showSmartParse ? (
-                  <div className="mb-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowSmartParse(true)}
-                      className="w-full border-[#CD70E4]/30 text-[#CD70E4] hover:bg-[#CD70E4]/10 rounded-pill font-body"
-                    >
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Smart Parse Contact Info
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="mb-4 space-y-3">
-                    <Label className="text-white font-body">Paste contact info block</Label>
-                    <Textarea
-                      value={smartParseText}
-                      onChange={(e) => setSmartParseText(e.target.value)}
-                      placeholder="Paste: Mary Wheeler 406-539-1745, PureWest Real Estate, 123 Main St..."
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      rows={3}
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        onClick={handleSmartParse}
-                        size="sm"
-                        className="bg-[#CD70E4] hover:bg-[#CD70E4]/80 text-white rounded-pill font-body"
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        Parse
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setShowSmartParse(false)}
-                        size="sm"
-                        className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill font-body"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
+                {/* Auto-parse feedback */}
+                {showAutoParseFeedback && (
+                  <div className="mb-4 p-3 bg-[#CD70E4]/10 border border-[#CD70E4]/30 rounded-lg">
+                    <p className="text-[#CD70E4] text-sm font-body flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      {autoParseFeedback}
+                    </p>
                   </div>
                 )}
 
@@ -426,8 +399,9 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="name"
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
+                      onPaste={(e) => handlePaste("name", e)}
                       className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      placeholder="Enter contact name"
+                      placeholder="Enter contact name or paste contact info block"
                       required
                     />
                   </div>
@@ -442,8 +416,9 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
+                      onPaste={(e) => handlePaste("email", e)}
                       className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      placeholder="Enter email address"
+                      placeholder="Enter email address or paste contact info block"
                     />
                   </div>
 
@@ -456,8 +431,9 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="phone"
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
+                      onPaste={(e) => handlePaste("phone", e)}
                       className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      placeholder="Enter phone number"
+                      placeholder="Enter phone number or paste contact info block"
                     />
                   </div>
 
@@ -470,8 +446,9 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="company"
                       value={formData.company}
                       onChange={(e) => handleInputChange("company", e.target.value)}
+                      onPaste={(e) => handlePaste("company", e)}
                       className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      placeholder="Enter company name"
+                      placeholder="Enter company name or paste contact info block"
                     />
                   </div>
 
@@ -484,8 +461,9 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       id="address"
                       value={formData.address}
                       onChange={(e) => handleInputChange("address", e.target.value)}
+                      onPaste={(e) => handlePaste("address", e)}
                       className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      placeholder="Enter property address"
+                      placeholder="Enter property address or paste contact info block"
                     />
                   </div>
 
