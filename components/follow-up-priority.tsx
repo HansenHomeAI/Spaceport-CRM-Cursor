@@ -297,7 +297,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
             {/* Minimalist Accordion Header */}
             <div
               onClick={() => toggleGroup(urgency as "high" | "medium" | "low")}
-              className="flex items-center justify-between p-3 cursor-pointer transition-all duration-300 hover:bg-white/5 rounded-xl"
+              className="flex items-center justify-between p-3 cursor-pointer transition-all duration-300 hover:bg-white/5 rounded-[25px]"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -341,7 +341,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                           transition={{ duration: 0.3 }}
                         >
                           <div
-                            className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer rounded-xl p-4"
+                            className="bg-transparent backdrop-blur-sm border-2.5 border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer rounded-[25px] p-4"
                             onClick={() => onLeadSelect(item.lead)}
                           >
                             <div className="flex items-start justify-between mb-3">
