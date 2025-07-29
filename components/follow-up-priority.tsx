@@ -132,12 +132,12 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
 
       // High priority: Only "Interested" leads
       if (normalizedStatus === "Interested") {
-        if (daysSinceLastContact > 7) {
+        if (daysSinceLastContact > 56) {
           followUps.push({
             lead,
             urgency: "high",
             nextAction: "call",
-            daysOverdue: daysSinceLastContact - 7,
+            daysOverdue: daysSinceLastContact - 56,
             reason: "Interested lead - ready for follow-up",
           })
         }
@@ -177,12 +177,12 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         }
         
         // Default medium priority for contacted leads without follow-up dates
-        if (daysSinceLastContact > 7) {
+        if (daysSinceLastContact > 56) {
           followUps.push({
             lead,
             urgency: "medium",
             nextAction: "call",
-            daysOverdue: daysSinceLastContact - 7,
+            daysOverdue: daysSinceLastContact - 56,
             reason: "Contacted lead - ready for follow-up",
           })
         }
@@ -191,16 +191,16 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
 
       // Low priority: "Left Voicemail" and "Closed" leads
       if (normalizedStatus === "Left Voicemail" || normalizedStatus === "Closed") {
-        if (daysSinceLastContact > 30) {
+        if (daysSinceLastContact > 90) {
           return // Don't include very old leads
         }
 
-        if (daysSinceLastContact > 7) {
+        if (daysSinceLastContact > 56) {
           followUps.push({
             lead,
             urgency: "low",
             nextAction: lastInteraction.type === "call" ? "email" : "call",
-            daysOverdue: daysSinceLastContact - 7,
+            daysOverdue: daysSinceLastContact - 56,
             reason: `${normalizedStatus} lead - past due follow-up`,
           })
         }
@@ -267,36 +267,31 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       className="mb-8"
     >
       <h2 className="text-2xl font-title text-primary-hierarchy mb-6">Priority Follow-ups</h2>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {Object.entries(groupedFollowUps).map(([urgency, items]) => (
           <div key={urgency} className="space-y-3">
-            {/* Accordion Header */}
-            <Button
+            {/* Minimalist Accordion Header */}
+            <div
               onClick={() => toggleGroup(urgency as "high" | "medium" | "low")}
-              variant="ghost"
-              className={`w-full justify-between p-4 h-auto rounded-2xl border-2 transition-all duration-300 ${
-                expandedGroup === urgency 
-                  ? `${getGroupColor(urgency)} border-white/20` 
-                  : "bg-black/10 backdrop-blur-sm border-white/10 hover:bg-black/20"
-              }`}
+              className="flex items-center justify-between p-3 cursor-pointer transition-all duration-300 hover:bg-white/5 rounded-xl"
             >
               <div className="flex items-center gap-3">
-                <Badge className="bg-black/20 text-white border-2 border-white/10 rounded-full px-4 py-1.5 font-body flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ 
-                      backgroundColor: urgency === "high" ? "#22c55e" : urgency === "medium" ? "#eab308" : "#6b7280" // Green for high, yellow for medium, gray for low
-                    }}
-                  />
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ 
+                    backgroundColor: urgency === "high" ? "#22c55e" : urgency === "medium" ? "#eab308" : "#6b7280"
+                  }}
+                />
+                <span className="text-white font-medium text-sm">
                   {getGroupTitle(urgency)} ({items.length})
-                </Badge>
+                </span>
               </div>
               {expandedGroup === urgency ? (
-                <ChevronDown className="h-5 w-5 text-white" />
+                <ChevronDown className="h-4 w-4 text-gray-400" />
               ) : (
-                <ChevronRight className="h-5 w-5 text-white" />
+                <ChevronRight className="h-4 w-4 text-gray-400" />
               )}
-            </Button>
+            </div>
 
             {/* Accordion Content */}
             <AnimatePresence>
@@ -308,7 +303,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4">
                     {items.map((item) => {
                       const UrgencyIcon = urgencyIcons[item.urgency]
 
@@ -321,30 +316,28 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ duration: 0.3 }}
                         >
-                          <Card
-                            className="bg-black/20 backdrop-blur-xl border-2 border-white/20 hover:bg-black/30 transition-all duration-300 cursor-pointer rounded-2xl"
+                          <div
+                            className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer rounded-xl p-4"
                             onClick={() => onLeadSelect(item.lead)}
                           >
-                            <CardContent className="p-3">
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
-                                  <p className="text-xs text-gray-400 font-body mt-1">{item.reason}</p>
-                                </div>
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-white font-medium text-sm truncate">{item.lead.name}</h3>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">{item.reason}</p>
                               </div>
+                            </div>
 
-                              <div className="flex items-center gap-2">
-                                {item.nextAction === "call" ? (
-                                  <Phone className="h-3 w-3 text-purple-400" />
-                                ) : (
-                                  <Mail className="h-3 w-3 text-purple-400" />
-                                )}
-                                <span className="text-medium-hierarchy font-body text-xs">
-                                  {item.nextAction === "call" ? "Call" : "Email"}
-                                </span>
-                              </div>
-                            </CardContent>
-                          </Card>
+                            <div className="flex items-center gap-2">
+                              {item.nextAction === "call" ? (
+                                <Phone className="h-3 w-3 text-emerald-400" />
+                              ) : (
+                                <Mail className="h-3 w-3 text-blue-400" />
+                              )}
+                              <span className="text-xs text-gray-300 font-medium">
+                                {item.nextAction === "call" ? "Call" : "Email"}
+                              </span>
+                            </div>
+                          </div>
                         </motion.div>
                       )
                     })}
