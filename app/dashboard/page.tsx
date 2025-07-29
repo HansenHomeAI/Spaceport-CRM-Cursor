@@ -20,11 +20,13 @@ import { ProspectListModal } from "@/components/prospect-list-modal"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
 import { useActivityRefresh } from "@/hooks/use-activity-refresh"
+import { useIsMobile } from "@/hooks/use-mobile"
 import Image from "next/image"
 
 export default function DashboardPage() {
   const router = useRouter()
   const { user, loading, signOut } = useAuth()
+  const isMobile = useIsMobile()
   const [leads, setLeads] = useState<Lead[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
@@ -134,7 +136,7 @@ export default function DashboardPage() {
       console.log("  • migrateLeadStatuses() - Update all leads to new status format")
       console.log("  • checkMigrationStatus() - Check how many leads need migration")
     }
-  }, [leads, migrateLeadStatuses, checkMigrationStatus])
+  }, [migrateLeadStatuses, checkMigrationStatus])
 
   // Check if we're in production mode (explicitly set or have AWS config)
   const isProductionMode = useMemo(() => {
@@ -659,20 +661,20 @@ export default function DashboardPage() {
       
       <div className="relative z-10 p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header with consistent vertical alignment */}
+          {/* Header with responsive layout for mobile */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="flex items-start justify-between mb-16 pt-12"
           >
-            <div className="flex items-start gap-6">
+            <div className={`flex items-start gap-6 ${isMobile ? 'flex-col' : ''}`}>
               <div className="flex-shrink-0">
                 <Image src={process.env.NODE_ENV === 'production' ? '/logo-icon.svg' : '/logo-icon.svg'} alt="Company Logo" width={48} height={48} className="w-12 h-12" />
               </div>
               <div className="flex flex-col">
-                <h1 className="text-4xl font-title text-primary-hierarchy mb-3">Welcome back, {user?.name}</h1>
-                <p className="text-gray-400 font-body text-lg">
+                <h1 className={`font-title text-primary-hierarchy mb-3 ${isMobile ? 'text-2xl' : 'text-4xl'}`}>Welcome back, {user?.name}</h1>
+                <p className={`text-gray-400 font-body ${isMobile ? 'text-base' : 'text-lg'}`}>
                   {leads.length === 0
                     ? "Get started by importing your CSV file or adding your first lead."
                     : "Here's what's happening with your leads today."}
@@ -876,14 +878,6 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex gap-3">
                   <Button
-                    onClick={() => setIsImportOpen(true)}
-                    variant="outline"
-                    className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import CSV
-                  </Button>
-                  <Button
                     onClick={() => setIsAddModalOpen(true)}
                     className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
                   >
@@ -942,8 +936,16 @@ export default function DashboardPage() {
                 />
               </div>
 
-              {/* Reset Database Button - Bottom of page */}
-              <div className="flex justify-center mt-12 mb-8">
+              {/* Bottom Action Buttons */}
+              <div className={`flex justify-center gap-4 mt-12 mb-8 ${isMobile ? 'flex-col items-center' : ''}`}>
+                <Button
+                  onClick={() => setIsImportOpen(true)}
+                  variant="outline"
+                  className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import CSV
+                </Button>
                 <Button
                   onClick={() => {
                     if (confirm("⚠️ WARNING: This will delete ALL contacts from the database. This action cannot be undone. Are you sure you want to reset the database?")) {
