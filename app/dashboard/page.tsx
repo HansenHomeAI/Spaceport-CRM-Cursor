@@ -16,6 +16,7 @@ import { LeadPanel } from "@/components/lead-panel"
 import { AddLeadModal } from "@/components/add-lead-modal"
 import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
+import { PriorityInsights } from "@/components/priority-insights"
 import { ProspectListModal } from "@/components/prospect-list-modal"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
@@ -908,6 +909,10 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* Priority Insights */}
+              <PriorityInsights leads={getFilteredLeads()} />
+              
+              {/* Priority Follow-ups */}
               <FollowUpPriority leads={getFilteredLeads()} onLeadSelect={handleLeadSelect} />
 
               {/* Leads Table Section */}

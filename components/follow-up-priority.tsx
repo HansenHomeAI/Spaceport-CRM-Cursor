@@ -14,6 +14,7 @@ interface FollowUpItem {
   nextAction: "call" | "email"
   daysOverdue: number
   reason: string
+  priorityScore: number // Add priority score
 }
 
 interface FollowUpPriorityProps {
@@ -56,7 +57,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
     return statusMap[status] || "Left Voicemail"
   }
 
-  // Calculate follow-up priorities based on status
+  // Enhanced priority calculation with scoring system
   const calculateFollowUps = (): FollowUpItem[] => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -69,6 +70,63 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       const lastInteraction = lead.notes.sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )[0]
+
+      // Calculate priority score based on multiple factors
+      const calculatePriorityScore = (): number => {
+        let score = 0
+        
+        // Base score from status (0-100)
+        const statusScores: Record<string, number> = {
+          "Interested": 100,
+          "Contacted": 80,
+          "Left Voicemail": 60,
+          "Closed": 40,
+          "Not Interested": 0
+        }
+        score += statusScores[normalizedStatus] || 0
+        
+        // Engagement history bonus (0-50)
+        const callCount = lead.notes.filter(note => note.type === "call").length
+        const emailCount = lead.notes.filter(note => note.type === "email").length
+        const totalInteractions = callCount + emailCount
+        
+        // Bonus for multiple interactions (shows engagement)
+        if (totalInteractions >= 3) score += 30
+        else if (totalInteractions >= 2) score += 20
+        else if (totalInteractions >= 1) score += 10
+        
+        // Bonus for recent activity (0-30)
+        if (lastInteraction) {
+          const daysSinceLastContact = Math.floor(
+            (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24)
+          )
+          if (daysSinceLastContact <= 1) score += 30
+          else if (daysSinceLastContact <= 3) score += 20
+          else if (daysSinceLastContact <= 7) score += 10
+        }
+        
+        // Penalty for overdue follow-ups (-50 to 0)
+        const daysSinceLastContact = lastInteraction ? Math.floor(
+          (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24)
+        ) : 999
+        
+        if (daysSinceLastContact > 30) score -= 50
+        else if (daysSinceLastContact > 14) score -= 30
+        else if (daysSinceLastContact > 7) score -= 15
+        
+        // Bonus for leads with complete information (0-20)
+        if (lead.name && lead.name !== "Unknown Contact" && 
+            lead.address && lead.address !== "Address not provided") {
+          score += 20
+        }
+        
+        // Bonus for leads with company information (0-10)
+        if (lead.company && lead.company.trim()) {
+          score += 10
+        }
+        
+        return Math.max(0, Math.min(200, score)) // Cap at 200
+      }
 
       // Check for reminders due today or overdue (highest priority)
       const allReminders = lead.notes.filter(note => note.text.includes("Set reminder:"))
@@ -89,12 +147,14 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
           
           if (actionsAfterReminder.length === 0) {
             const daysOverdue = Math.floor((today.getTime() - reminderDay.getTime()) / (1000 * 60 * 60 * 24))
+            const priorityScore = calculatePriorityScore() + 100 // Bonus for overdue reminders
             followUps.push({
               lead,
-              urgency: "high",
+              urgency: priorityScore >= 150 ? "high" : priorityScore >= 100 ? "medium" : "low",
               nextAction: "call",
               daysOverdue: daysOverdue,
               reason: daysOverdue === 0 ? "Scheduled to contact today" : `Scheduled contact overdue by ${daysOverdue} day${daysOverdue > 1 ? 's' : ''}`,
+              priorityScore: priorityScore
             })
             return
           }
@@ -116,12 +176,14 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
       }
 
       if (!lastInteraction) {
+        const priorityScore = calculatePriorityScore() + 50 // Bonus for new leads
         followUps.push({
           lead,
-          urgency: "high",
+          urgency: priorityScore >= 150 ? "high" : priorityScore >= 100 ? "medium" : "low",
           nextAction: "call",
           daysOverdue: 0,
           reason: "No initial contact made",
+          priorityScore: priorityScore
         })
         return
       }
@@ -130,88 +192,58 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
         (now.getTime() - new Date(lastInteraction.timestamp).getTime()) / (1000 * 60 * 60 * 24),
       )
 
-      // High priority: Only "Interested" leads
+      // Calculate priority score for existing leads
+      const priorityScore = calculatePriorityScore()
+      
+      // Determine urgency based on score and status-specific logic
+      let urgency: "high" | "medium" | "low" = "low"
+      let shouldInclude = false
+      let reason = ""
+
       if (normalizedStatus === "Interested") {
-        if (daysSinceLastContact > 7) {
-          followUps.push({
-            lead,
-            urgency: "high",
-            nextAction: "call",
-            daysOverdue: daysSinceLastContact - 7,
-            reason: "Interested lead - ready for follow-up",
-          })
+        if (daysSinceLastContact > 3) { // Reduced from 7 days for interested leads
+          urgency = priorityScore >= 150 ? "high" : priorityScore >= 100 ? "medium" : "low"
+          shouldInclude = true
+          reason = "Interested lead - ready for follow-up"
         }
-        return
+      } else if (normalizedStatus === "Contacted") {
+        if (daysSinceLastContact > 5) { // Reduced from 7 days for contacted leads
+          urgency = priorityScore >= 150 ? "high" : priorityScore >= 100 ? "medium" : "low"
+          shouldInclude = true
+          reason = "Contacted lead - ready for follow-up"
+        }
+      } else if (normalizedStatus === "Left Voicemail" || normalizedStatus === "Closed") {
+        if (daysSinceLastContact > 7 && daysSinceLastContact <= 30) {
+          urgency = priorityScore >= 120 ? "medium" : "low"
+          shouldInclude = true
+          reason = `${normalizedStatus} lead - past due follow-up`
+        }
       }
 
-      // Medium priority: "Contacted" leads (unless they have a follow-up date)
-      if (normalizedStatus === "Contacted") {
-        // Check if there's a follow-up reminder due today or overdue
-        const followUpReminders = lead.notes.filter(note => 
-          note.text.includes("Set reminder:") && 
-          new Date(note.timestamp) <= today
-        )
-        
-        if (followUpReminders.length > 0) {
-          // Check if any actions were taken after the reminder
-          const mostRecentReminder = followUpReminders.sort((a, b) => 
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          )[0]
-          
-          const actionsAfterReminder = lead.notes.filter(note => 
-            !note.text.includes("Set reminder:") && 
-            new Date(note.timestamp) > new Date(mostRecentReminder.timestamp)
-          )
-          
-          if (actionsAfterReminder.length === 0) {
-            const daysOverdue = Math.floor((today.getTime() - new Date(mostRecentReminder.timestamp).getTime()) / (1000 * 60 * 60 * 24))
-            followUps.push({
-              lead,
-              urgency: "high",
-              nextAction: "call",
-              daysOverdue: daysOverdue,
-              reason: daysOverdue === 0 ? "Scheduled follow-up due today" : `Scheduled follow-up overdue by ${daysOverdue} day${daysOverdue > 1 ? 's' : ''}`,
-            })
-            return
-          }
-        }
-        
-        // Default medium priority for contacted leads without follow-up dates
-        if (daysSinceLastContact > 7) {
-          followUps.push({
-            lead,
-            urgency: "medium",
-            nextAction: "call",
-            daysOverdue: daysSinceLastContact - 7,
-            reason: "Contacted lead - ready for follow-up",
-          })
-        }
-        return
-      }
-
-      // Low priority: "Left Voicemail" and "Closed" leads
-      if (normalizedStatus === "Left Voicemail" || normalizedStatus === "Closed") {
-        if (daysSinceLastContact > 30) {
-          return // Don't include very old leads
-        }
-
-        if (daysSinceLastContact > 7) {
-          followUps.push({
-            lead,
-            urgency: "low",
-            nextAction: lastInteraction.type === "call" ? "email" : "call",
-            daysOverdue: daysSinceLastContact - 7,
-            reason: `${normalizedStatus} lead - past due follow-up`,
-          })
-        }
+      if (shouldInclude) {
+        followUps.push({
+          lead,
+          urgency,
+          nextAction: lastInteraction.type === "call" ? "email" : "call",
+          daysOverdue: daysSinceLastContact - (normalizedStatus === "Interested" ? 3 : normalizedStatus === "Contacted" ? 5 : 7),
+          reason,
+          priorityScore
+        })
       }
 
       // "Not Interested" leads are excluded from follow-ups
     })
 
     return followUps.sort((a, b) => {
+      // Sort by priority score first, then by urgency, then by days overdue
+      if (b.priorityScore !== a.priorityScore) {
+        return b.priorityScore - a.priorityScore
+      }
       const urgencyOrder = { high: 3, medium: 2, low: 1 }
-      return urgencyOrder[b.urgency] - urgencyOrder[a.urgency] || b.daysOverdue - a.daysOverdue
+      if (urgencyOrder[b.urgency] !== urgencyOrder[a.urgency]) {
+        return urgencyOrder[b.urgency] - urgencyOrder[a.urgency]
+      }
+      return b.daysOverdue - a.daysOverdue
     })
   }
 
@@ -330,6 +362,7 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                                 <div className="flex-1 min-w-0">
                                   <h3 className="text-primary-hierarchy font-title text-sm truncate">{item.lead.name}</h3>
                                   <p className="text-xs text-gray-400 font-body mt-1">{item.reason}</p>
+                                  <p className="text-xs text-purple-400 font-body mt-1">Score: {item.priorityScore}</p>
                                 </div>
                               </div>
 
