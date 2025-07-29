@@ -228,7 +228,8 @@ export function PriorityInsights({ leads }: PriorityInsightsProps) {
             <div className="text-xs text-gray-400 mt-1">Out of 200 possible points</div>
           </div>
 
-          <CollapsibleContent className="space-y-4">
+          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+            <CollapsibleContent className="space-y-4">
             {/* Score Distribution */}
             <div>
               <h4 className="text-lg font-title text-primary-hierarchy mb-3">Score Distribution</h4>
@@ -311,6 +312,7 @@ export function PriorityInsights({ leads }: PriorityInsightsProps) {
               </div>
             </div>
           </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
     </motion.div>
