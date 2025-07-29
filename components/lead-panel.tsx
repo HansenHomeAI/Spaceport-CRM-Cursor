@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,6 +32,10 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   const [showCustomReminder, setShowCustomReminder] = useState(false)
   const [customReminderDate, setCustomReminderDate] = useState("")
   const [reminderFeedback, setReminderFeedback] = useState<string | null>(null)
+  
+  // Inline editing state
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState("")
 
   // Helper function to normalize old status values
   const normalizeStatus = (status: string): string => {
@@ -143,6 +148,40 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     setEditingNoteId(null)
     setEditingNoteText("")
     setEditingNoteDate("")
+  }
+
+  // Inline editing handlers
+  const handleStartEditField = (field: string, value: string) => {
+    setEditingField(field)
+    setEditingValue(value)
+  }
+
+  const handleSaveFieldEdit = () => {
+    if (!lead || !editingField) return
+    
+    const updates: Partial<Lead> = {}
+    if (editingField === 'name') updates.name = editingValue
+    else if (editingField === 'phone') updates.phone = editingValue
+    else if (editingField === 'email') updates.email = editingValue
+    else if (editingField === 'address') updates.address = editingValue
+    else if (editingField === 'company') updates.company = editingValue
+    
+    onUpdateLead(lead.id, updates)
+    setEditingField(null)
+    setEditingValue("")
+  }
+
+  const handleCancelFieldEdit = () => {
+    setEditingField(null)
+    setEditingValue("")
+  }
+
+  const handleFieldKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveFieldEdit()
+    } else if (e.key === "Escape") {
+      handleCancelFieldEdit()
+    }
   }
 
   if (!isOpen || !lead) return null
@@ -261,7 +300,42 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
               <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-primary-hierarchy font-title">{lead.name}</CardTitle>
+                    <div className="flex-1">
+                      {editingField === 'name' ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onBlur={handleSaveFieldEdit}
+                            onKeyDown={handleFieldKeyDown}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-title text-xl rounded-lg flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleSaveFieldEdit}
+                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelFieldEdit}
+                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <CardTitle 
+                          className="text-primary-hierarchy font-title cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
+                          onDoubleClick={() => handleStartEditField('name', lead.name)}
+                        >
+                          {lead.name}
+                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        </CardTitle>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       {isEditingStatus ? (
                         <Select value={lead.status} onValueChange={handleStatusChange}>
@@ -341,24 +415,185 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Property Address - Inline Editable */}
                   <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
                     <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
-                    <div>
+                    <div className="flex-1">
                       <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
-                      <div className="text-primary-hierarchy font-body leading-tight">{lead.address}</div>
+                      {editingField === 'address' ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onBlur={handleSaveFieldEdit}
+                            onKeyDown={handleFieldKeyDown}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleSaveFieldEdit}
+                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelFieldEdit}
+                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          className="text-primary-hierarchy font-body leading-tight cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
+                          onDoubleClick={() => handleStartEditField('address', lead.address)}
+                        >
+                          {lead.address}
+                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                    <Phone className="h-4 w-4" style={{ color: colors.interaction.call.icon }} />
-                    <span>{lead.phone}</span>
+
+                  {/* Phone Number - Inline Editable */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                    <Phone className="h-4 w-4 flex-shrink-0" style={{ color: colors.interaction.call.icon }} />
+                    <div className="flex-1">
+                      <div className="text-sm text-medium-hierarchy font-body mb-1">Phone Number</div>
+                      {editingField === 'phone' ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onBlur={handleSaveFieldEdit}
+                            onKeyDown={handleFieldKeyDown}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleSaveFieldEdit}
+                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelFieldEdit}
+                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          className="text-primary-hierarchy font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
+                          onDoubleClick={() => handleStartEditField('phone', lead.phone)}
+                        >
+                          {lead.phone}
+                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                    <Mail className="h-4 w-4" style={{ color: colors.interaction.email.icon }} />
-                    <span>{lead.email}</span>
+
+                  {/* Email - Inline Editable */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                    <Mail className="h-4 w-4 flex-shrink-0" style={{ color: colors.interaction.email.icon }} />
+                    <div className="flex-1">
+                      <div className="text-sm text-medium-hierarchy font-body mb-1">Email Address</div>
+                      {editingField === 'email' ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onBlur={handleSaveFieldEdit}
+                            onKeyDown={handleFieldKeyDown}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleSaveFieldEdit}
+                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelFieldEdit}
+                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          className="text-primary-hierarchy font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
+                          onDoubleClick={() => handleStartEditField('email', lead.email)}
+                        >
+                          {lead.email}
+                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-primary-hierarchy font-body">
-                    <Calendar className="h-4 w-4 text-purple-400" />
-                    <span>Last interaction: {lead.lastInteraction}</span>
+
+                  {/* Company - Inline Editable (if exists) */}
+                  {lead.company && (
+                    <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                      <Users className="h-4 w-4 flex-shrink-0 text-blue-400" />
+                      <div className="flex-1">
+                        <div className="text-sm text-medium-hierarchy font-body mb-1">Company</div>
+                        {editingField === 'company' ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={handleSaveFieldEdit}
+                              onKeyDown={handleFieldKeyDown}
+                              className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                              autoFocus
+                            />
+                            <Button
+                              size="sm"
+                              onClick={handleSaveFieldEdit}
+                              className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleCancelFieldEdit}
+                              className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div
+                            className="text-primary-hierarchy font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
+                            onDoubleClick={() => handleStartEditField('company', lead.company || '')}
+                          >
+                            {lead.company}
+                            <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Last Interaction - Read Only */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                    <Calendar className="h-4 w-4 text-purple-400 flex-shrink-0" />
+                    <div>
+                      <div className="text-sm text-medium-hierarchy font-body mb-1">Last Interaction</div>
+                      <div className="text-primary-hierarchy font-body">
+                        {lead.lastInteraction}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
