@@ -270,7 +270,7 @@ export function ProspectListModal({ isOpen, onClose }: ProspectListModalProps) {
                     {/* Active Prospects */}
                     {activeProspects.length > 0 && (
                       <div>
-                        <h3 className="text-lg font-title text-primary-hierarchy mb-4">Active Prospects</h3>
+                        <h3 className="text-lg font-title text-primary-hierarchy mb-4">Recommended Contacts</h3>
                         <div className="space-y-3">
                           {activeProspects.map((prospect) => (
                             <motion.div
