@@ -32,6 +32,12 @@ export interface Prospect {
   id: string
   content: string
   isCompleted: boolean
+  // Lead creation fields for efficient conversion
+  contactName?: string
+  contactPhone?: string
+  contactEmail?: string
+  contactCompany?: string
+  propertyAddress?: string
   createdAt: string
   updatedAt: string
   createdBy?: string

@@ -978,6 +978,7 @@ export default function DashboardPage() {
           <ProspectListModal
             isOpen={isProspectModalOpen}
             onClose={() => setIsProspectModalOpen(false)}
+            onAddLead={handleAddLead}
           />
         </div>
       </div>
