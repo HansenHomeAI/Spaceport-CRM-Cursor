@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp } from "@/lib/utils"
 import { colors } from "@/lib/colors"
 
-// Smart parsing function for contact info (same as add lead modal)
+// Smart parsing function for contact info
 const parseContactInfo = (text: string) => {
   const result = {
     name: "",
@@ -310,10 +310,20 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
     setSelectedStatus("Contacted")
   }
 
-  // Smart parsing handlers
-  const handlePaste = (field: string, e: React.ClipboardEvent) => {
-    const pastedText = e.clipboardData.getData('text')
-    const parsed = parseContactInfo(pastedText)
+  // Auto-parse functionality
+  const shouldAutoParse = (text: string): boolean => {
+    // Check if text contains multiple pieces of contact information
+    const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)
+    const hasPhone = /(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/.test(text)
+    const hasAddress = /(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Circle|Cir)/i.test(text)
+    
+    return (hasEmail || hasPhone || hasAddress) && text.length > 20
+  }
+
+  const autoParseContent = (text: string) => {
+    if (!shouldAutoParse(text)) return
+
+    const parsed = parseContactInfo(text)
     
     setFormData(prev => ({
       ...prev,
@@ -325,35 +335,22 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
     }))
   }
 
-  const handleAddLeadFromForm = async () => {
-    if (!onAddLead) return
-
-    // Validate required fields
-    if (!formData.contactName.trim() || !formData.propertyAddress.trim()) {
-      alert("Please fill in both Contact Name and Property Address (required fields)")
-      return
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Auto-parse when content field changes
+    if (field === 'content') {
+      autoParseContent(value)
     }
+  }
 
-    // Create lead from form data
-    const newLead: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName"> = {
-      name: formData.contactName,
-      phone: formData.contactPhone,
-      email: formData.contactEmail,
-      address: formData.propertyAddress,
-      company: formData.contactCompany,
-      status: "Contacted",
-      lastInteraction: new Date().toISOString(),
-      ownerId: user?.id,
-      ownerName: user?.name,
-      nextActionDate: new Date().toISOString(),
+  const handlePaste = (field: string, e: React.ClipboardEvent) => {
+    if (field === 'content') {
+      const pastedText = e.clipboardData.getData('text')
+      setTimeout(() => {
+        autoParseContent(pastedText)
+      }, 100)
     }
-
-    // Add the lead
-    onAddLead(newLead)
-
-    // Reset form
-    resetForm()
-    setShowAddForm(false)
   }
 
 
@@ -379,7 +376,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed inset-4 z-50 overflow-hidden"
           >
-            <div className="h-full bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-brand flex flex-col">
+            <div className="h-full bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-3xl flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10">
                                   <div className="flex items-center gap-3">
@@ -399,7 +396,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                     className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Prospect
+                    Add Lead
                   </Button>
                   <Button
                     variant="ghost"
@@ -426,10 +423,10 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="bg-white/5 rounded-brand p-6 border border-white/10"
+                        className="bg-white/5 rounded-[25px] p-6 border border-white/10"
                       >
                         <h3 className="text-lg font-title text-primary-hierarchy mb-4">
-                          {editingProspect ? "Edit Prospect" : "Add New Prospect"}
+                          {editingProspect ? "Edit Prospect" : "Add New Lead"}
                         </h3>
                         <form onSubmit={editingProspect ? saveEdit : handleSubmit} className="space-y-4">
                           <div>
@@ -438,11 +435,11 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                             </label>
                             <Textarea
                               value={formData.content}
-                              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                              placeholder="Enter prospect details, property links, contact info, or any notes..."
-                              className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand"
+                              onChange={(e) => handleInputChange('content', e.target.value)}
+                              onPaste={(e) => handlePaste('content', e)}
+                              placeholder="Enter prospect details, property links, contact info, or any notes... (Smart parsing will auto-fill contact fields)"
+                              className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
                               rows={4}
-                              required
                             />
                           </div>
 
@@ -451,14 +448,13 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                             <div>
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
                                 <User className="h-3 w-3" />
-                                Contact Name *
+                                Contact Name
                               </label>
                               <Input
                                 value={formData.contactName}
-                                onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
-                                onPaste={(e) => handlePaste('contactName', e)}
-                                placeholder="Enter contact name or paste full contact info"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand"
+                                onChange={(e) => handleInputChange('contactName', e.target.value)}
+                                placeholder="Enter contact name *"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
                                 required
                               />
                             </div>
@@ -469,10 +465,9 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               </label>
                               <Input
                                 value={formData.contactPhone}
-                                onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
-                                onPaste={(e) => handlePaste('contactPhone', e)}
+                                onChange={(e) => handleInputChange('contactPhone', e.target.value)}
                                 placeholder="Enter phone number"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
                               />
                             </div>
                             <div>
@@ -482,10 +477,9 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               </label>
                               <Input
                                 value={formData.contactEmail}
-                                onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                                onPaste={(e) => handlePaste('contactEmail', e)}
+                                onChange={(e) => handleInputChange('contactEmail', e.target.value)}
                                 placeholder="Enter email address"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
                               />
                             </div>
                             <div>
@@ -495,23 +489,21 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               </label>
                               <Input
                                 value={formData.contactCompany}
-                                onChange={(e) => setFormData(prev => ({ ...prev, contactCompany: e.target.value }))}
-                                onPaste={(e) => handlePaste('contactCompany', e)}
+                                onChange={(e) => handleInputChange('contactCompany', e.target.value)}
                                 placeholder="Enter company name"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
                               />
                             </div>
                             <div className="md:col-span-2">
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
                                 <MapPin className="h-3 w-3" />
-                                Property Address *
+                                Property Address
                               </label>
                               <Input
                                 value={formData.propertyAddress}
-                                onChange={(e) => setFormData(prev => ({ ...prev, propertyAddress: e.target.value }))}
-                                onPaste={(e) => handlePaste('propertyAddress', e)}
-                                placeholder="Enter property address"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand"
+                                onChange={(e) => handleInputChange('propertyAddress', e.target.value)}
+                                placeholder="Enter property address *"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
                                 required
                               />
                             </div>
@@ -522,28 +514,17 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               type="button"
                               variant="outline"
                               onClick={editingProspect ? cancelEdit : () => setShowAddForm(false)}
-                              className="flex-1 border-white/20 text-gray-400 bg-transparent hover:bg-white/10 rounded-pill font-body"
+                              className="flex-1 border-white/20 text-gray-400 bg-transparent hover:bg-white/10 rounded-[25px] font-body"
                             >
                               Cancel
                             </Button>
                             <Button
                               type="submit"
-                              disabled={!formData.content.trim()}
-                              className="flex-1 bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-pill transition-all duration-200 font-body disabled:opacity-50"
+                              disabled={!formData.contactName.trim() || !formData.propertyAddress.trim()}
+                              className="flex-1 bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px] transition-all duration-200 font-body disabled:opacity-50"
                             >
-                              {editingProspect ? "Update Prospect" : "Add Prospect"}
+                              {editingProspect ? "Update Prospect" : "Add Lead"}
                             </Button>
-                            {/* Add Lead Button - only show when not editing and onAddLead is available */}
-                            {!editingProspect && onAddLead && (
-                              <Button
-                                type="button"
-                                onClick={handleAddLeadFromForm}
-                                disabled={!formData.contactName.trim() || !formData.propertyAddress.trim()}
-                                className="flex-1 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-pill transition-all duration-200 font-body disabled:opacity-50"
-                              >
-                                Add Lead
-                              </Button>
-                            )}
                           </div>
                         </form>
                       </motion.div>
@@ -559,7 +540,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               key={prospect.id}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="bg-white/5 rounded-brand p-4 border border-white/10 hover:bg-white/10 transition-all duration-200"
+                              className="bg-white/5 rounded-[25px] p-4 border border-white/10 hover:bg-white/10 transition-all duration-200"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -569,7 +550,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                   
                                   {/* Contact Information Display */}
                                   {(prospect.contactName || prospect.contactPhone || prospect.contactEmail || prospect.contactCompany || prospect.propertyAddress) && (
-                                    <div className="mb-3 p-3 bg-black/20 rounded-brand border border-white/5">
+                                    <div className="mb-3 p-3 bg-black/20 rounded-[25px] border border-white/5">
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                                         {prospect.contactName && (
                                           <div className="flex items-center gap-2 text-gray-300">
@@ -611,19 +592,20 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                 </div>
                                 <div className="flex items-center gap-2 ml-4">
                                   {/* Quick Add Lead Button */}
-                                  {onAddLead && (prospect.contactName || prospect.contactPhone) && (
+                                  {onAddLead && prospect.contactName && prospect.propertyAddress && (
                                     <Button
                                       size="sm"
                                       onClick={() => setShowAddLeadModal(prospect.id)}
-                                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-full"
+                                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px] px-3"
                                     >
                                       <Plus className="h-3 w-3" />
+                                      Add Lead
                                     </Button>
                                   )}
                                   <Button
                                     size="sm"
                                     onClick={() => handleToggleComplete(prospect)}
-                                    className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-full"
+                                    className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px]"
                                   >
                                     <Check className="h-3 w-3" />
                                   </Button>
@@ -631,7 +613,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => startEdit(prospect)}
-                                    className="text-white hover:bg-white/10 rounded-full"
+                                    className="text-white hover:bg-white/10 rounded-[25px]"
                                   >
                                     <Edit3 className="h-3 w-3" />
                                   </Button>
@@ -639,7 +621,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleDeleteProspect(prospect.id)}
-                                    className="text-red-400 hover:bg-red-500/10 rounded-full"
+                                    className="text-red-400 hover:bg-red-500/10 rounded-[25px]"
                                   >
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
@@ -651,7 +633,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                 <motion.div
                                   initial={{ opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  className="mt-4 p-4 bg-black/30 rounded-brand border border-white/10"
+                                  className="mt-4 p-4 bg-black/30 rounded-[25px] border border-white/10"
                                 >
                                   <div className="space-y-3">
                                     <div className="flex items-center gap-2">
@@ -662,10 +644,10 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                       <label className="text-xs text-medium-hierarchy font-body mb-1 block">
                                         Initial Status
                                       </label>
-                                                                              <Select value={selectedStatus} onValueChange={(value: Lead["status"]) => setSelectedStatus(value)}>
-                                          <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-brand">
-                                            <SelectValue />
-                                          </SelectTrigger>
+                                      <Select value={selectedStatus} onValueChange={(value: Lead["status"]) => setSelectedStatus(value)}>
+                                        <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg">
+                                          <SelectValue />
+                                        </SelectTrigger>
                                         <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
                                           <SelectItem value="Contacted" className="rounded-xl font-body hover:bg-white/10 focus:bg-white/10 data-[highlighted]:bg-white/10 px-3 py-2.5 cursor-pointer">
                                             Contacted
@@ -689,7 +671,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                       <Button
                                         size="sm"
                                         onClick={() => handleQuickAddLead(prospect)}
-                                        className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-full flex-1"
+                                        className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px] flex-1"
                                       >
                                         Add Lead
                                       </Button>
@@ -697,7 +679,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                         size="sm"
                                         variant="outline"
                                         onClick={() => setShowAddLeadModal(null)}
-                                        className="border-white/20 text-gray-400 hover:bg-white/10 rounded-full"
+                                        className="border-white/20 text-gray-400 hover:bg-white/10 rounded-[25px]"
                                       >
                                         Cancel
                                       </Button>
@@ -721,7 +703,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               key={prospect.id}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="bg-white/5 rounded-brand p-4 border border-white/10 opacity-60"
+                              className="bg-white/5 rounded-[25px] p-4 border border-white/10 opacity-60"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -768,7 +750,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                         </p>
                         <Button
                           onClick={() => setShowAddForm(true)}
-                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-pill px-6"
+                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px] px-6"
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Prospect
