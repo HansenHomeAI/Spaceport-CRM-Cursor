@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp } from "@/lib/utils"
 import { colors } from "@/lib/colors"
 
-// Smart parsing function for contact info
+// Smart parsing function for contact info (same as add lead modal)
 const parseContactInfo = (text: string) => {
   const result = {
     name: "",
@@ -279,12 +279,18 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
   const handleQuickAddLead = async (prospect: Prospect) => {
     if (!onAddLead) return
 
+    // Validate required fields
+    if (!prospect.contactName || !prospect.propertyAddress) {
+      alert("Contact name and property address are required to create a lead.")
+      return
+    }
+
     // Create lead from prospect data
     const newLead: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName"> = {
-      name: prospect.contactName || "Unknown Contact",
+      name: prospect.contactName,
       phone: prospect.contactPhone || "",
       email: prospect.contactEmail || "",
-      address: prospect.propertyAddress || "",
+      address: prospect.propertyAddress,
       company: prospect.contactCompany,
       status: selectedStatus,
       lastInteraction: new Date().toISOString(),
@@ -310,48 +316,24 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
     setSelectedStatus("Contacted")
   }
 
-  // Auto-parse functionality
-  const shouldAutoParse = (text: string): boolean => {
-    // Check if text contains multiple pieces of contact information
-    const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)
-    const hasPhone = /(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/.test(text)
-    const hasAddress = /(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Circle|Cir)/i.test(text)
-    
-    return (hasEmail || hasPhone || hasAddress) && text.length > 20
-  }
-
-  const autoParseContent = (text: string) => {
-    if (!shouldAutoParse(text)) return
-
-    const parsed = parseContactInfo(text)
-    
-    setFormData(prev => ({
-      ...prev,
-      contactName: parsed.name || prev.contactName,
-      contactPhone: parsed.phone || prev.contactPhone,
-      contactEmail: parsed.email || prev.contactEmail,
-      contactCompany: parsed.company || prev.contactCompany,
-      propertyAddress: parsed.address || prev.propertyAddress,
-    }))
-  }
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    
-    // Auto-parse when content field changes
-    if (field === 'content') {
-      autoParseContent(value)
+  // Auto-parse content when pasting into the main content field
+  const handleContentPaste = (e: React.ClipboardEvent) => {
+    const pastedText = e.clipboardData.getData('text')
+    if (pastedText.length > 50) { // Only parse if it's substantial content
+      const parsed = parseContactInfo(pastedText)
+      setFormData(prev => ({
+        ...prev,
+        contactName: parsed.name || prev.contactName,
+        contactPhone: parsed.phone || prev.contactPhone,
+        contactEmail: parsed.email || prev.contactEmail,
+        contactCompany: parsed.company || prev.contactCompany,
+        propertyAddress: parsed.address || prev.propertyAddress,
+      }))
     }
   }
 
-  const handlePaste = (field: string, e: React.ClipboardEvent) => {
-    if (field === 'content') {
-      const pastedText = e.clipboardData.getData('text')
-      setTimeout(() => {
-        autoParseContent(pastedText)
-      }, 100)
-    }
-  }
+  // Check if we can add a lead (has required fields)
+  const canAddLead = formData.contactName && formData.propertyAddress
 
 
 
@@ -376,7 +358,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed inset-4 z-50 overflow-hidden"
           >
-            <div className="h-full bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-3xl flex flex-col">
+            <div className="h-full bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-[25px] flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10">
                                   <div className="flex items-center gap-3">
@@ -393,16 +375,16 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={() => setShowAddForm(!showAddForm)}
-                    className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-full"
+                                                        className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px]"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Lead
+                    Add Prospect
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={onClose}
-                    className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full"
+                                                        className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-[25px]"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -426,7 +408,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                         className="bg-white/5 rounded-[25px] p-6 border border-white/10"
                       >
                         <h3 className="text-lg font-title text-primary-hierarchy mb-4">
-                          {editingProspect ? "Edit Prospect" : "Add New Lead"}
+                          {editingProspect ? "Edit Prospect" : "Add New Prospect"}
                         </h3>
                         <form onSubmit={editingProspect ? saveEdit : handleSubmit} className="space-y-4">
                           <div>
@@ -435,11 +417,12 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                             </label>
                             <Textarea
                               value={formData.content}
-                              onChange={(e) => handleInputChange('content', e.target.value)}
-                              onPaste={(e) => handlePaste('content', e)}
-                              placeholder="Enter prospect details, property links, contact info, or any notes... (Smart parsing will auto-fill contact fields)"
-                              className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
+                              onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                              onPaste={handleContentPaste}
+                              placeholder="Enter prospect details, property links, contact info, or any notes... (Paste contact info to auto-parse)"
+                              className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               rows={4}
+                              required
                             />
                           </div>
 
@@ -447,63 +430,63 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/10">
                             <div>
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
-                                <User className="h-3 w-3" />
-                                Contact Name
+                                <User className="h-3 w-3" style={{ color: colors.interaction.call.icon }} />
+                                Contact Name *
                               </label>
                               <Input
                                 value={formData.contactName}
-                                onChange={(e) => handleInputChange('contactName', e.target.value)}
-                                placeholder="Enter contact name *"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
+                                onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
+                                placeholder="Enter contact name"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                                 required
                               />
                             </div>
                             <div>
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
-                                <Phone className="h-3 w-3" />
+                                <Phone className="h-3 w-3" style={{ color: colors.interaction.call.icon }} />
                                 Phone Number
                               </label>
                               <Input
                                 value={formData.contactPhone}
-                                onChange={(e) => handleInputChange('contactPhone', e.target.value)}
+                                onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
                                 placeholder="Enter phone number"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               />
                             </div>
                             <div>
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
-                                <Mail className="h-3 w-3" />
+                                <Mail className="h-3 w-3" style={{ color: colors.interaction.email.icon }} />
                                 Email Address
                               </label>
                               <Input
                                 value={formData.contactEmail}
-                                onChange={(e) => handleInputChange('contactEmail', e.target.value)}
+                                onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
                                 placeholder="Enter email address"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               />
                             </div>
                             <div>
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
-                                <Users className="h-3 w-3" />
+                                <Users className="h-3 w-3" style={{ color: colors.interaction.social.icon }} />
                                 Company
                               </label>
                               <Input
                                 value={formData.contactCompany}
-                                onChange={(e) => handleInputChange('contactCompany', e.target.value)}
+                                onChange={(e) => setFormData(prev => ({ ...prev, contactCompany: e.target.value }))}
                                 placeholder="Enter company name"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               />
                             </div>
                             <div className="md:col-span-2">
                               <label className="text-sm text-medium-hierarchy font-body mb-2 block flex items-center gap-2">
-                                <MapPin className="h-3 w-3" />
-                                Property Address
+                                <MapPin className="h-3 w-3" style={{ color: colors.interaction.note.icon }} />
+                                Property Address *
                               </label>
                               <Input
                                 value={formData.propertyAddress}
-                                onChange={(e) => handleInputChange('propertyAddress', e.target.value)}
-                                placeholder="Enter property address *"
-                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body"
+                                onChange={(e) => setFormData(prev => ({ ...prev, propertyAddress: e.target.value }))}
+                                placeholder="Enter property address"
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                                 required
                               />
                             </div>
@@ -520,11 +503,37 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                             </Button>
                             <Button
                               type="submit"
-                              disabled={!formData.contactName.trim() || !formData.propertyAddress.trim()}
+                              disabled={!formData.content.trim()}
                               className="flex-1 bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px] transition-all duration-200 font-body disabled:opacity-50"
                             >
-                              {editingProspect ? "Update Prospect" : "Add Lead"}
+                              {editingProspect ? "Update Prospect" : "Add Prospect"}
                             </Button>
+                            {/* Add Lead Button - only show when not editing and has required fields */}
+                            {!editingProspect && onAddLead && canAddLead && (
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const newLead: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName"> = {
+                                    name: formData.contactName,
+                                    phone: formData.contactPhone,
+                                    email: formData.contactEmail,
+                                    address: formData.propertyAddress,
+                                    company: formData.contactCompany,
+                                    status: "Contacted",
+                                    lastInteraction: new Date().toISOString(),
+                                    ownerId: user?.id,
+                                    ownerName: user?.name,
+                                    nextActionDate: new Date().toISOString(),
+                                  }
+                                  onAddLead(newLead)
+                                  resetForm()
+                                  setShowAddForm(false)
+                                }}
+                                className="flex-1 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px] transition-all duration-200 font-body"
+                              >
+                                Add Lead
+                              </Button>
+                            )}
                           </div>
                         </form>
                       </motion.div>
@@ -548,37 +557,37 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                     <p className="text-primary-hierarchy font-body whitespace-pre-wrap">{prospect.content}</p>
                                   </div>
                                   
-                                  {/* Contact Information Display */}
-                                  {(prospect.contactName || prospect.contactPhone || prospect.contactEmail || prospect.contactCompany || prospect.propertyAddress) && (
-                                    <div className="mb-3 p-3 bg-black/20 rounded-[25px] border border-white/5">
+                                                                     {/* Contact Information Display */}
+                                   {(prospect.contactName || prospect.contactPhone || prospect.contactEmail || prospect.contactCompany || prospect.propertyAddress) && (
+                                     <div className="mb-3 p-3 bg-black/20 rounded-[25px] border border-white/5">
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                                         {prospect.contactName && (
                                           <div className="flex items-center gap-2 text-gray-300">
-                                            <User className="h-3 w-3 text-blue-400" />
+                                            <User className="h-3 w-3" style={{ color: colors.interaction.call.icon }} />
                                             <span className="font-body">{prospect.contactName}</span>
                                           </div>
                                         )}
                                         {prospect.contactPhone && (
                                           <div className="flex items-center gap-2 text-gray-300">
-                                            <Phone className="h-3 w-3 text-green-400" />
+                                            <Phone className="h-3 w-3" style={{ color: colors.interaction.call.icon }} />
                                             <span className="font-body">{prospect.contactPhone}</span>
                                           </div>
                                         )}
                                         {prospect.contactEmail && (
                                           <div className="flex items-center gap-2 text-gray-300">
-                                            <Mail className="h-3 w-3 text-purple-400" />
+                                            <Mail className="h-3 w-3" style={{ color: colors.interaction.email.icon }} />
                                             <span className="font-body">{prospect.contactEmail}</span>
                                           </div>
                                         )}
                                         {prospect.contactCompany && (
                                           <div className="flex items-center gap-2 text-gray-300">
-                                            <Users className="h-3 w-3 text-orange-400" />
+                                            <Users className="h-3 w-3" style={{ color: colors.interaction.social.icon }} />
                                             <span className="font-body">{prospect.contactCompany}</span>
                                           </div>
                                         )}
                                         {prospect.propertyAddress && (
                                           <div className="flex items-center gap-2 text-gray-300 md:col-span-2">
-                                            <MapPin className="h-3 w-3 text-red-400" />
+                                            <MapPin className="h-3 w-3" style={{ color: colors.interaction.note.icon }} />
                                             <span className="font-body">{prospect.propertyAddress}</span>
                                           </div>
                                         )}
@@ -592,20 +601,19 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                 </div>
                                 <div className="flex items-center gap-2 ml-4">
                                   {/* Quick Add Lead Button */}
-                                  {onAddLead && prospect.contactName && prospect.propertyAddress && (
+                                  {onAddLead && (prospect.contactName || prospect.contactPhone) && (
                                     <Button
                                       size="sm"
                                       onClick={() => setShowAddLeadModal(prospect.id)}
-                                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px] px-3"
+                                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px]"
                                     >
                                       <Plus className="h-3 w-3" />
-                                      Add Lead
                                     </Button>
                                   )}
                                   <Button
                                     size="sm"
                                     onClick={() => handleToggleComplete(prospect)}
-                                    className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px]"
+                                    className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-full"
                                   >
                                     <Check className="h-3 w-3" />
                                   </Button>
@@ -645,7 +653,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                         Initial Status
                                       </label>
                                       <Select value={selectedStatus} onValueChange={(value: Lead["status"]) => setSelectedStatus(value)}>
-                                        <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg">
+                                        <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-[25px]">
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
@@ -668,21 +676,21 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                       </Select>
                                     </div>
                                     <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleQuickAddLead(prospect)}
-                                        className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px] flex-1"
-                                      >
-                                        Add Lead
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setShowAddLeadModal(null)}
-                                        className="border-white/20 text-gray-400 hover:bg-white/10 rounded-[25px]"
-                                      >
-                                        Cancel
-                                      </Button>
+                                                                              <Button
+                                          size="sm"
+                                          onClick={() => handleQuickAddLead(prospect)}
+                                          className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/30 rounded-[25px] flex-1"
+                                        >
+                                          Add Lead
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => setShowAddLeadModal(null)}
+                                          className="border-white/20 text-gray-400 hover:bg-white/10 rounded-[25px]"
+                                        >
+                                          Cancel
+                                        </Button>
                                     </div>
                                   </div>
                                 </motion.div>
@@ -718,7 +726,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                   <Button
                                     size="sm"
                                     onClick={() => handleToggleComplete(prospect)}
-                                    className="bg-gray-500/20 text-gray-300 hover:bg-gray-500/30 border-gray-500/30 rounded-full"
+                                    className="bg-gray-500/20 text-gray-300 hover:bg-gray-500/30 border-gray-500/30 rounded-[25px]"
                                   >
                                     <Check className="h-3 w-3" />
                                   </Button>
@@ -726,7 +734,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleDeleteProspect(prospect.id)}
-                                    className="text-red-400 hover:bg-red-500/10 rounded-full"
+                                    className="text-red-400 hover:bg-red-500/10 rounded-[25px]"
                                   >
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
@@ -750,7 +758,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                         </p>
                         <Button
                           onClick={() => setShowAddForm(true)}
-                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-[25px] px-6"
+                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 border-green-500/30 rounded-pill px-6"
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Prospect
