@@ -17,7 +17,7 @@ interface LeadPanelProps {
   lead: Lead | null
   isOpen: boolean
   onClose: () => void
-  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => void
+  onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social"; timestamp?: string }) => void
   onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
 }
@@ -98,6 +98,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     onAddNote(lead.id, {
       text: reminderText,
       type: "note",
+      timestamp: reminderDate.toISOString(),
     })
 
     // Show feedback
@@ -600,7 +601,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
               <Card className="bg-black/20 backdrop-blur-xl border-system mb-6 rounded-3xl">
                 <CardHeader>
-                  <CardTitle className="text-primary-hierarchy font-title text-lg">Add Note</CardTitle>
+                  <CardTitle className="text-primary-hierarchy font-title text-lg">Add Event</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex gap-2">
@@ -614,7 +615,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           onClick={() => setNoteType(type)}
                           className={
                             noteType === type
-                              ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body`
+                              ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body shadow-lg ring-2 ring-white/20`
                               : `bg-black/20 ${typeColor.text} border-system hover:bg-white/10 rounded-full font-body`
                           }
                         >
@@ -636,7 +637,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     disabled={!newNote.trim()}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Note
+                    Add
                   </Button>
                 </CardContent>
               </Card>

@@ -422,11 +422,11 @@ export default function DashboardPage() {
     }
   }
 
-  const handleAddNote = async (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social" }) => {
+  const handleAddNote = async (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social"; timestamp?: string }) => {
     const newNote = {
       id: Date.now().toString(),
       ...note,
-      timestamp: new Date().toISOString(),
+      timestamp: note.timestamp || new Date().toISOString(),
     }
 
     // Update local state immediately
