@@ -369,6 +369,26 @@ export default function DashboardPage() {
       setSelectedLead(updatedLead)
     }
 
+    // Create activity for status changes
+    if (updates.status && updates.status !== existingLead.status) {
+      const statusActivity = {
+        leadId,
+        type: "note" as "note" | "call" | "email" | "meeting" | "task",
+        description: `Status changed from "${existingLead.status}" to "${updates.status}"`,
+      }
+      
+      if (isProductionMode) {
+        try {
+          const { error } = await apiClient.createActivity(statusActivity)
+          if (error) {
+            console.error("Error creating status change activity:", error)
+          }
+        } catch (error) {
+          console.error("Error creating status change activity:", error)
+        }
+      }
+    }
+
     // Auto-save to API in production mode (immediate save, no manual save required)
     if (isProductionMode) {
       try {
@@ -558,6 +578,22 @@ export default function DashboardPage() {
           console.error("Error creating lead:", error)
           // Remove from local state on error
           setLeads((prev) => prev.filter(lead => lead.id !== newLead.id))
+        } else {
+          // Create initial activity for new lead
+          const initialActivity = {
+            leadId: newLead.id,
+            type: "note" as "note" | "call" | "email" | "meeting" | "task",
+            description: `Lead created with status: ${newLead.status}`,
+          }
+          
+          try {
+            const { error: activityError } = await apiClient.createActivity(initialActivity)
+            if (activityError) {
+              console.error("Error creating initial activity:", activityError)
+            }
+          } catch (activityError) {
+            console.error("Error creating initial activity:", activityError)
+          }
         }
       } catch (error) {
         console.error("Error creating lead:", error)
