@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Plus, Check, Trash2, Edit3, ClipboardList, User, Phone, Mail, MapPin, Users } from "lucide-react"
+import { X, Plus, Check, Trash2, Edit3, ClipboardList, User, Phone, Mail, MapPin, Users, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -14,6 +14,32 @@ import { apiClient, type Prospect, type Lead } from "@/lib/api-client"
 import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp } from "@/lib/utils"
 import { colors } from "@/lib/colors"
+
+// Helper function to render clickable links
+const renderClickableText = (text: string) => {
+  // Check if the text contains an HTTP/HTTPS URL
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  const parts = text.split(urlRegex)
+  
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline inline-flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      )
+    }
+    return part
+  })
+}
 
 // Smart parsing function for contact info (same as add lead modal)
 const parseContactInfo = (text: string) => {
@@ -318,19 +344,8 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
 
   // Auto-parse content when pasting into the main content field
   const handleContentPaste = (e: React.ClipboardEvent) => {
-    const pastedText = e.clipboardData.getData('text')
-    // For the main content field, only parse if it's substantial content (large chunks)
-    if (pastedText.length > 100) { // Increased threshold for main field
-      const parsed = parseContactInfo(pastedText)
-      setFormData(prev => ({
-        ...prev,
-        contactName: parsed.name || prev.contactName,
-        contactPhone: parsed.phone || prev.contactPhone,
-        contactEmail: parsed.email || prev.contactEmail,
-        contactCompany: parsed.company || prev.contactCompany,
-        propertyAddress: parsed.address || prev.propertyAddress,
-      }))
-    }
+    // No parsing for the main content field - let users paste whatever they want
+    // The content will be handled by the normal onChange event
   }
 
   const handleFieldPaste = (fieldName: string) => (e: React.ClipboardEvent) => {
@@ -342,10 +357,23 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
       // Only update the specific field that was pasted into, plus any other relevant fields
       const updates: Partial<typeof formData> = {}
       
-      // Always update the field that was pasted into with the original text
-      updates[fieldName as keyof typeof formData] = pastedText
+      // For the specific field that was pasted into, use the parsed value if available, otherwise use original text
+      if (fieldName === 'contactName' && parsed.name) {
+        updates.contactName = parsed.name
+      } else if (fieldName === 'contactPhone' && parsed.phone) {
+        updates.contactPhone = parsed.phone
+      } else if (fieldName === 'contactEmail' && parsed.email) {
+        updates.contactEmail = parsed.email
+      } else if (fieldName === 'contactCompany' && parsed.company) {
+        updates.contactCompany = parsed.company
+      } else if (fieldName === 'propertyAddress' && parsed.address) {
+        updates.propertyAddress = parsed.address
+      } else {
+        // If no parsed value for this field, use the original text
+        updates[fieldName as keyof typeof formData] = pastedText
+      }
       
-      // Also update other relevant fields if we found matching data
+      // Also update other relevant fields if we found matching data (but not the field we just pasted into)
       if (parsed.name && fieldName !== 'contactName') {
         updates.contactName = parsed.name
       }
@@ -453,7 +481,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               value={formData.content}
                               onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                               onPaste={handleContentPaste}
-                              placeholder="Enter prospect details, property links, contact info, or any notes... (Paste large chunks to auto-parse)"
+                              placeholder="Enter prospect details, property links, contact info, or any notes..."
                               className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               rows={4}
                               required
@@ -627,7 +655,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                                         {prospect.propertyAddress && (
                                           <div className="flex items-center gap-2 text-gray-300 md:col-span-2">
                                             <MapPin className="h-3 w-3" style={{ color: colors.interaction.note.icon }} />
-                                            <span className="font-body">{prospect.propertyAddress}</span>
+                                            <span className="font-body">{renderClickableText(prospect.propertyAddress)}</span>
                                           </div>
                                         )}
                                       </div>
