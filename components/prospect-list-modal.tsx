@@ -319,7 +319,8 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
   // Auto-parse content when pasting into the main content field
   const handleContentPaste = (e: React.ClipboardEvent) => {
     const pastedText = e.clipboardData.getData('text')
-    if (pastedText.length > 50) { // Only parse if it's substantial content
+    // For the main content field, only parse if it's substantial content (large chunks)
+    if (pastedText.length > 100) { // Increased threshold for main field
       const parsed = parseContactInfo(pastedText)
       setFormData(prev => ({
         ...prev,
@@ -329,6 +330,39 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
         contactCompany: parsed.company || prev.contactCompany,
         propertyAddress: parsed.address || prev.propertyAddress,
       }))
+    }
+  }
+
+  const handleFieldPaste = (fieldName: string) => (e: React.ClipboardEvent) => {
+    const pastedText = e.clipboardData.getData('text')
+    // For individual fields, parse any content to extract relevant info
+    if (pastedText.length > 0) {
+      const parsed = parseContactInfo(pastedText)
+      
+      // Only update the specific field that was pasted into, plus any other relevant fields
+      const updates: Partial<typeof formData> = {}
+      
+      // Always update the field that was pasted into with the original text
+      updates[fieldName as keyof typeof formData] = pastedText
+      
+      // Also update other relevant fields if we found matching data
+      if (parsed.name && fieldName !== 'contactName') {
+        updates.contactName = parsed.name
+      }
+      if (parsed.phone && fieldName !== 'contactPhone') {
+        updates.contactPhone = parsed.phone
+      }
+      if (parsed.email && fieldName !== 'contactEmail') {
+        updates.contactEmail = parsed.email
+      }
+      if (parsed.company && fieldName !== 'contactCompany') {
+        updates.contactCompany = parsed.company
+      }
+      if (parsed.address && fieldName !== 'propertyAddress') {
+        updates.propertyAddress = parsed.address
+      }
+      
+      setFormData(prev => ({ ...prev, ...updates }))
     }
   }
 
@@ -419,7 +453,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               value={formData.content}
                               onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                               onPaste={handleContentPaste}
-                              placeholder="Enter prospect details, property links, contact info, or any notes... (Paste contact info to auto-parse)"
+                              placeholder="Enter prospect details, property links, contact info, or any notes... (Paste large chunks to auto-parse)"
                               className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               rows={4}
                               required
@@ -436,6 +470,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               <Input
                                 value={formData.contactName}
                                 onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
+                                onPaste={handleFieldPaste('contactName')}
                                 placeholder="Enter contact name"
                                 className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                                 required
@@ -449,6 +484,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               <Input
                                 value={formData.contactPhone}
                                 onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
+                                onPaste={handleFieldPaste('contactPhone')}
                                 placeholder="Enter phone number"
                                 className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               />
@@ -461,6 +497,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               <Input
                                 value={formData.contactEmail}
                                 onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
+                                onPaste={handleFieldPaste('contactEmail')}
                                 placeholder="Enter email address"
                                 className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               />
@@ -473,6 +510,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               <Input
                                 value={formData.contactCompany}
                                 onChange={(e) => setFormData(prev => ({ ...prev, contactCompany: e.target.value }))}
+                                onPaste={handleFieldPaste('contactCompany')}
                                 placeholder="Enter company name"
                                 className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                               />
@@ -485,6 +523,7 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               <Input
                                 value={formData.propertyAddress}
                                 onChange={(e) => setFormData(prev => ({ ...prev, propertyAddress: e.target.value }))}
+                                onPaste={handleFieldPaste('propertyAddress')}
                                 placeholder="Enter property address"
                                 className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-[25px]"
                                 required

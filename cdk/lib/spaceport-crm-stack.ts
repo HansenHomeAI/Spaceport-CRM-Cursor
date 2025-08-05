@@ -330,7 +330,7 @@ export class SpaceportCrmStack extends cdk.Stack {
       code: lambda.Code.fromInline(`
         // Use AWS SDK v3 instead of deprecated aws-sdk
         const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-        const { DynamoDBDocumentClient, ScanCommand, QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+        const { DynamoDBDocumentClient, ScanCommand, QueryCommand, PutCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
         
         // Initialize DynamoDB client with v3 SDK
         const client = new DynamoDBClient({});
@@ -431,6 +431,27 @@ export class SpaceportCrmStack extends cdk.Stack {
                   statusCode: 201,
                   headers: corsHeaders,
                   body: JSON.stringify(newActivity)
+                };
+              
+              case 'DELETE':
+                // Reset/clear all activities (special endpoint)
+                const scanResult = await dynamodb.send(new ScanCommand({
+                  TableName: activitiesTableName,
+                  ProjectionExpression: 'id'
+                }));
+                
+                // Delete all activities
+                for (const item of scanResult.Items || []) {
+                  await dynamodb.send(new DeleteCommand({
+                    TableName: activitiesTableName,
+                    Key: { id: item.id }
+                  }));
+                }
+                
+                return {
+                  statusCode: 200,
+                  headers: corsHeaders,
+                  body: JSON.stringify({ message: \`Deleted \${scanResult.Items?.length || 0} activities\` })
                 };
               
               default:

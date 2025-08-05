@@ -568,7 +568,7 @@ export default function DashboardPage() {
   }
 
   const handleResetDatabase = async () => {
-    if (!confirm("⚠️ WARNING: This will delete ALL contacts from the database. This action cannot be undone. Are you sure you want to reset the database?")) {
+    if (!confirm("⚠️ WARNING: This will delete ALL contacts and activities from the database. This action cannot be undone. Are you sure you want to reset the database?")) {
       return
     }
 
@@ -585,14 +585,25 @@ export default function DashboardPage() {
           return
         }
         
-        const { error } = await apiClient.resetDatabase()
-        if (error) {
-          console.error("Error resetting database:", error)
-          if (error.includes('Unauthorized') || error.includes('authentication') || error.includes('token')) {
-            alert("❌ Failed to reset database: Authentication required. Please sign out and sign back in with a valid account.")
+        // Reset both leads and activities
+        const [leadsResetResult, activitiesResetResult] = await Promise.all([
+          apiClient.resetDatabase(),
+          apiClient.resetActivities()
+        ])
+        
+        if (leadsResetResult.error) {
+          console.error("Error resetting leads database:", leadsResetResult.error)
+          if (leadsResetResult.error.includes('Unauthorized') || leadsResetResult.error.includes('authentication') || leadsResetResult.error.includes('token')) {
+            alert("❌ Failed to reset leads database: Authentication required. Please sign out and sign back in with a valid account.")
           } else {
-            alert(`❌ Failed to reset database: ${error}`)
+            alert(`❌ Failed to reset leads database: ${leadsResetResult.error}`)
           }
+          return
+        }
+        
+        if (activitiesResetResult.error) {
+          console.error("Error resetting activities database:", activitiesResetResult.error)
+          alert(`❌ Failed to reset activities database: ${activitiesResetResult.error}`)
           return
         }
         
@@ -609,7 +620,7 @@ export default function DashboardPage() {
       setSelectedLead(null)
       setIsPanelOpen(false)
       
-      alert("✅ Database reset successfully!")
+      alert("✅ Database reset successfully! All leads and activities have been cleared.")
     } catch (error) {
       console.error("Error resetting database:", error)
       alert("❌ Failed to reset database: Network error occurred")

@@ -212,6 +212,12 @@ class ApiClient {
     })
   }
 
+  async resetActivities(): Promise<{ data: { message: string } | null; error: string | null }> {
+    return this.request<{ message: string }>("/activities", {
+      method: "DELETE",
+    })
+  }
+
   // Activities API
   async getActivities(leadId?: string): Promise<{ data: Activity[] | null; error: string | null }> {
     const endpoint = leadId ? `/activities?leadId=${leadId}` : "/activities"
