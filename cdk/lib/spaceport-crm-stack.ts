@@ -435,24 +435,55 @@ export class SpaceportCrmStack extends cdk.Stack {
               
               case 'DELETE':
                 // Reset/clear all activities (special endpoint)
-                const scanResult = await dynamodb.send(new ScanCommand({
-                  TableName: activitiesTableName,
-                  ProjectionExpression: 'id'
-                }));
-                
-                // Delete all activities
-                for (const item of scanResult.Items || []) {
-                  await dynamodb.send(new DeleteCommand({
+                try {
+                  console.log('Starting activities reset...');
+                  const scanResult = await dynamodb.send(new ScanCommand({
                     TableName: activitiesTableName,
-                    Key: { id: item.id }
+                    ProjectionExpression: 'id, timestamp'
                   }));
+                  
+                  console.log(\`Found \${scanResult.Items?.length || 0} activities to delete\`);
+                  
+                  // Delete all activities
+                  let deletedCount = 0;
+                  for (const item of scanResult.Items || []) {
+                    try {
+                      await dynamodb.send(new DeleteCommand({
+                        TableName: activitiesTableName,
+                        Key: { 
+                          id: item.id,
+                          timestamp: item.timestamp
+                        }
+                      }));
+                      deletedCount++;
+                    } catch (deleteError) {
+                      console.error(\`Failed to delete activity \${item.id}:\`, deleteError);
+                      // Continue with other deletions even if one fails
+                    }
+                  }
+                  
+                  console.log(\`Successfully deleted \${deletedCount} activities\`);
+                  
+                  return {
+                    statusCode: 200,
+                    headers: corsHeaders,
+                    body: JSON.stringify({ 
+                      message: \`Successfully deleted \${deletedCount} activities\`,
+                      totalFound: scanResult.Items?.length || 0,
+                      deletedCount: deletedCount
+                    })
+                  };
+                } catch (resetError) {
+                  console.error('Activities reset failed:', resetError);
+                  return {
+                    statusCode: 500,
+                    headers: corsHeaders,
+                    body: JSON.stringify({ 
+                      error: 'Failed to reset activities',
+                      message: resetError.message 
+                    })
+                  };
                 }
-                
-                return {
-                  statusCode: 200,
-                  headers: corsHeaders,
-                  body: JSON.stringify({ message: \`Deleted \${scanResult.Items?.length || 0} activities\` })
-                };
               
               default:
                 return {

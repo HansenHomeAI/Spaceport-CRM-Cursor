@@ -603,7 +603,11 @@ export default function DashboardPage() {
         
         if (activitiesResetResult.error) {
           console.error("Error resetting activities database:", activitiesResetResult.error)
-          alert(`❌ Failed to reset activities database: ${activitiesResetResult.error}`)
+          if (activitiesResetResult.error.includes('schema') || activitiesResetResult.error.includes('key')) {
+            alert("❌ Failed to reset activities database: Database schema mismatch. This may be due to recent changes. Please try again or contact support.")
+          } else {
+            alert(`❌ Failed to reset activities database: ${activitiesResetResult.error}`)
+          }
           return
         }
         
