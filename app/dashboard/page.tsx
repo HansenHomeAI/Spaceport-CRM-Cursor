@@ -465,9 +465,12 @@ export default function DashboardPage() {
           type: note.type as "note" | "call" | "email" | "meeting" | "task",
           description: note.text,
         }
+        console.log(`Creating activity for lead ${leadId}:`, activity)
         const { error } = await apiClient.createActivity(activity)
         if (error) {
           console.error("Error creating activity:", error)
+        } else {
+          console.log(`✅ Successfully created activity for lead ${leadId}`)
         }
       } catch (error) {
         console.error("Error creating activity:", error)
@@ -573,15 +576,18 @@ export default function DashboardPage() {
           ...leadData,
           notes: [],
         }
-        const { error } = await apiClient.createLead(apiLeadData)
+        const { data: createdLead, error } = await apiClient.createLead(apiLeadData)
         if (error) {
           console.error("Error creating lead:", error)
           // Remove from local state on error
           setLeads((prev) => prev.filter(lead => lead.id !== newLead.id))
         } else {
-          // Create initial activity for new lead
+          // Create initial activity for new lead using the API-returned lead ID
+          const actualLeadId = createdLead?.id || newLead.id
+          console.log(`Creating initial activity for lead ${actualLeadId} with status: ${newLead.status}`)
+          
           const initialActivity = {
-            leadId: newLead.id,
+            leadId: actualLeadId,
             type: "note" as "note" | "call" | "email" | "meeting" | "task",
             description: `Lead created with status: ${newLead.status}`,
           }
@@ -590,6 +596,8 @@ export default function DashboardPage() {
             const { error: activityError } = await apiClient.createActivity(initialActivity)
             if (activityError) {
               console.error("Error creating initial activity:", activityError)
+            } else {
+              console.log(`✅ Successfully created initial activity for lead ${actualLeadId}`)
             }
           } catch (activityError) {
             console.error("Error creating initial activity:", activityError)
