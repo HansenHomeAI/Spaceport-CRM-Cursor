@@ -563,28 +563,6 @@ export class SpaceportCrmStack extends cdk.Stack {
     activitiesResource.addMethod("GET", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
     activitiesResource.addMethod("POST", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
     activitiesResource.addMethod("DELETE", new apigateway.LambdaIntegration(activitiesLambda), methodOptions)
-    activitiesResource.addMethod("OPTIONS", new apigateway.MockIntegration({
-      integrationResponses: [{
-        statusCode: "200",
-        responseParameters: {
-          "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-          "method.response.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS'",
-          "method.response.header.Access-Control-Allow-Origin": "'*'",
-        },
-      }],
-      requestTemplates: {
-        "application/json": '{"statusCode": 200}',
-      },
-    }), {
-      methodResponses: [{
-        statusCode: "200",
-        responseParameters: {
-          "method.response.header.Access-Control-Allow-Headers": true,
-          "method.response.header.Access-Control-Allow-Methods": true,
-          "method.response.header.Access-Control-Allow-Origin": true,
-        },
-      }],
-    })
 
     prospectsResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
     prospectsResource.addMethod("POST", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
