@@ -2,16 +2,29 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check, ExternalLink, ChevronDown, User, UserX, Trash2, Home, CheckCircle } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { colors } from "@/lib/colors"
-import { formatTimestamp } from "@/lib/utils"
+import { formatTimestamp, isValidUrl, getGoogleMapsUrl } from "@/lib/utils"
 import type { Lead } from "./leads-table"
+import { useAuth } from "@/lib/auth-context"
 
 interface LeadPanelProps {
   lead: Lead | null
@@ -20,9 +33,12 @@ interface LeadPanelProps {
   onAddNote: (leadId: string, note: { text: string; type: "call" | "email" | "note" | "video" | "social"; timestamp?: string }) => void
   onUpdateNote: (leadId: string, noteId: string, updates: { text?: string; timestamp?: string }) => void
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
+  users?: Array<{ id: string; name: string }>
+  onDeleteLead?: (leadId: string) => void
 }
 
-export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead }: LeadPanelProps) {
+export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead, users = [], onDeleteLead }: LeadPanelProps) {
+  const { user } = useAuth()
   const [newNote, setNewNote] = useState("")
   const [noteType, setNoteType] = useState<"call" | "email" | "note" | "video" | "social">("note")
   const [isEditingStatus, setIsEditingStatus] = useState(false)
@@ -164,11 +180,57 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
     if (editingField === 'name') updates.name = editingValue
     else if (editingField === 'phone') updates.phone = editingValue
     else if (editingField === 'email') updates.email = editingValue
-    else if (editingField === 'address') updates.address = editingValue
     else if (editingField === 'company') updates.company = editingValue
     
     onUpdateLead(lead.id, updates)
     setEditingField(null)
+    setEditingValue("")
+  }
+
+  // Properties handlers
+  const handleAddProperty = () => {
+    if (!lead) return
+    const newProperty = {
+      id: `prop_${Date.now()}`,
+      address: "New Property Address",
+      isSold: false
+    }
+    const updatedProperties = [...(lead.properties || []), newProperty]
+    onUpdateLead(lead.id, { properties: updatedProperties })
+    // Automatically start editing the new property
+    handleStartEditProperty(newProperty.id, newProperty.address)
+  }
+
+  const handleUpdateProperty = (propertyId: string, updates: Partial<{ address: string; isSold: boolean }>) => {
+    if (!lead) return
+    const updatedProperties = (lead.properties || []).map(p => 
+      p.id === propertyId ? { ...p, ...updates } : p
+    )
+    onUpdateLead(lead.id, { properties: updatedProperties })
+  }
+
+  const handleDeleteProperty = (propertyId: string) => {
+    if (!lead) return
+    const updatedProperties = (lead.properties || []).filter(p => p.id !== propertyId)
+    onUpdateLead(lead.id, { properties: updatedProperties })
+  }
+
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null)
+  
+  const handleStartEditProperty = (propertyId: string, address: string) => {
+    setEditingPropertyId(propertyId)
+    setEditingValue(address)
+  }
+
+  const handleSavePropertyEdit = () => {
+    if (!lead || !editingPropertyId) return
+    handleUpdateProperty(editingPropertyId, { address: editingValue })
+    setEditingPropertyId(null)
+    setEditingValue("")
+  }
+
+  const handleCancelPropertyEdit = () => {
+    setEditingPropertyId(null)
     setEditingValue("")
   }
 
@@ -212,14 +274,46 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-title text-primary-hierarchy">Lead Details</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onClose}
-                  className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {onDeleteLead && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-white font-title">Delete Lead?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-gray-400 font-body">
+                            Are you sure you want to delete <span className="text-white font-bold">{lead.name}</span>? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => onDeleteLead(lead.id)}
+                            className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClose}
+                    className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
 
@@ -416,46 +510,157 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Property Address - Inline Editable */}
-                  <div className="flex items-start gap-3 p-3 bg-white/5 rounded-2xl">
-                    <MapPin className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="text-sm text-medium-hierarchy font-body mb-1">Property Address</div>
-                      {editingField === 'address' ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editingValue}
-                            onChange={(e) => setEditingValue(e.target.value)}
-                            onBlur={handleSaveFieldEdit}
-                            onKeyDown={handleFieldKeyDown}
-                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
-                            autoFocus
-                          />
-                          <Button
-                            size="sm"
-                            onClick={handleSaveFieldEdit}
-                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleCancelFieldEdit}
-                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div
-                          className="text-primary-hierarchy font-body leading-tight cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
-                          onDoubleClick={() => handleStartEditField('address', lead.address)}
-                        >
-                          {lead.address}
-                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                        </div>
-                      )}
+                  {/* Properties List */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-medium-hierarchy font-body">Properties</div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleAddProperty}
+                        className="h-6 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-full"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Property
+                      </Button>
                     </div>
+                    
+                    {(lead.properties || []).length === 0 && (
+                      <div className="text-sm text-gray-500 italic p-3 bg-white/5 rounded-2xl text-center">
+                        No properties listed
+                      </div>
+                    )}
+
+                    {(lead.properties || []).map((property) => (
+                      <div 
+                        key={property.id} 
+                        className={`flex items-start gap-3 p-3 bg-white/5 rounded-2xl group ${property.isSold ? 'opacity-70' : ''}`}
+                      >
+                        <div className="mt-0.5">
+                          {property.isSold ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <Home className="h-5 w-5 text-purple-400" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          {editingPropertyId === property.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleSavePropertyEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSavePropertyEdit()
+                                  if (e.key === 'Escape') handleCancelPropertyEdit()
+                                }}
+                                className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1 h-8"
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                onClick={handleSavePropertyEdit}
+                                className="h-7 w-7 bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-0"
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleCancelPropertyEdit}
+                                className="h-7 w-7 bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                {isValidUrl(property.address) ? (
+                                  <a 
+                                    href={property.address} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className={`text-sm ${property.isSold ? 'text-gray-400 line-through' : 'text-blue-400 hover:text-blue-300 hover:underline'} block truncate`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {property.address}
+                                    <ExternalLink className="h-3 w-3 inline ml-1" />
+                                  </a>
+                                ) : (
+                                  <div className="flex flex-col gap-0.5">
+                                    <span 
+                                      className={`text-sm font-body ${property.isSold ? 'text-gray-400 line-through' : 'text-white'} truncate cursor-pointer hover:bg-white/5 rounded px-1 -ml-1 transition-colors`}
+                                      onDoubleClick={() => handleStartEditProperty(property.id, property.address)}
+                                    >
+                                      {property.address}
+                                    </span>
+                                    <a 
+                                      href={getGoogleMapsUrl(property.address)} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 w-fit"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      View on Map <ExternalLink className="h-2 w-2" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-2 mr-2">
+                                  <span className="text-xs text-gray-500 font-body">Sold</span>
+                                  <Switch
+                                    checked={property.isSold}
+                                    onCheckedChange={(checked) => handleUpdateProperty(property.id, { isSold: checked })}
+                                    className="scale-75 data-[state=checked]:bg-green-500"
+                                  />
+                                </div>
+                                
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStartEditProperty(property.id, property.address)}
+                                  className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="text-white font-title">Delete Property?</AlertDialogTitle>
+                                      <AlertDialogDescription className="text-gray-400 font-body">
+                                        Are you sure you want to delete this property?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteProperty(property.id)}
+                                        className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Phone Number - Inline Editable */}
@@ -585,6 +790,75 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                       </div>
                     </div>
                   )}
+
+                  {/* Lead Ownership */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                    <User className="h-4 w-4 flex-shrink-0 text-blue-400" />
+                    <div className="flex-1">
+                      <div className="text-sm text-medium-hierarchy font-body mb-1">Lead Owner</div>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`w-full justify-between ${
+                              lead.ownerName
+                                ? "bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30"
+                                : "text-gray-400 hover:text-white hover:bg-white/10"
+                            } rounded-lg px-3 py-2 font-body text-sm h-auto`}
+                          >
+                            {lead.ownerName || "Unclaimed"}
+                            <ChevronDown className="h-3 w-3 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-64 bg-black/90 backdrop-blur-xl border-system rounded-xl shadow-2xl p-1" align="start">
+                          <div className="text-xs text-gray-400 font-body px-2 py-1.5">Assign to...</div>
+                          
+                          {/* Current User (Quick Action) */}
+                          {user && (
+                            <DropdownMenuItem
+                              onClick={() => onUpdateLead(lead.id, { ownerId: user.id, ownerName: user.name })}
+                              className="text-white hover:bg-white/10 rounded-lg px-2 py-1.5 cursor-pointer text-sm font-body"
+                            >
+                              <User className="h-3 w-3 mr-2 text-blue-400" />
+                              Me ({user.name})
+                              {lead.ownerId === user.id && <Check className="h-3 w-3 ml-auto text-green-400" />}
+                            </DropdownMenuItem>
+                          )}
+                          
+                          <div className="h-px bg-white/10 my-1" />
+                          
+                          {/* Other Users */}
+                          {users.filter(u => u.id !== user?.id).map((u) => (
+                            <DropdownMenuItem
+                              key={u.id}
+                              onClick={() => onUpdateLead(lead.id, { ownerId: u.id, ownerName: u.name })}
+                              className="text-white hover:bg-white/10 rounded-lg px-2 py-1.5 cursor-pointer text-sm font-body"
+                            >
+                              <span className="w-5" />
+                              {u.name}
+                              {lead.ownerId === u.id && <Check className="h-3 w-3 ml-auto text-green-400" />}
+                            </DropdownMenuItem>
+                          ))}
+                          
+                          {/* Unassign */}
+                          {lead.ownerId && (
+                            <>
+                              <div className="h-px bg-white/10 my-1" />
+                              <DropdownMenuItem
+                                onClick={() => onUpdateLead(lead.id, { ownerId: undefined, ownerName: undefined })}
+                                className="text-red-300 hover:bg-red-500/20 rounded-lg px-2 py-1.5 cursor-pointer text-sm font-body"
+                              >
+                                <UserX className="h-3 w-3 mr-2" />
+                                Unassign
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
 
                   {/* Last Interaction - Read Only */}
                   <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">

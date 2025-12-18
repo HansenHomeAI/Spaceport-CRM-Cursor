@@ -45,6 +45,31 @@ export default function DashboardPage() {
   const [prospects, setProspects] = useState<any[]>([])
   const [isProspectModalOpen, setIsProspectModalOpen] = useState(false)
 
+  // Extract unique users from leads for ownership assignment
+  const availableUsers = useMemo(() => {
+    const userMap = new Map<string, string>()
+    
+    // Add current user
+    if (user) {
+      userMap.set(user.id, user.name)
+    }
+    
+    // Extract from leads
+    leads.forEach(lead => {
+      if (lead.ownerId && lead.ownerName) {
+        userMap.set(lead.ownerId, lead.ownerName)
+      }
+      if (lead.createdBy && lead.createdByName) {
+        userMap.set(lead.createdBy, lead.createdByName)
+      }
+      if (lead.lastUpdatedBy && lead.lastUpdatedByName) {
+        userMap.set(lead.lastUpdatedBy, lead.lastUpdatedByName)
+      }
+    })
+    
+    return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }))
+  }, [leads, user])
+
   // Helper function to migrate old status values to new ones
   const migrateLeadStatuses = useCallback(async () => {
     const statusMap: Record<string, string> = {
@@ -210,10 +235,26 @@ export default function DashboardPage() {
                 setLeads(JSON.parse(savedLeads))
               }
             }
-          } else if (leadsResult.data) {
+          } else           if (leadsResult.data) {
             console.log("🔍 Dashboard: Loaded leads from API:", leadsResult.data.length)
+            
+            // Migrate leads with properties array if needed
+            const migratedLeads = leadsResult.data.map(lead => {
+              if (!lead.properties && lead.address) {
+                return {
+                  ...lead,
+                  properties: [{
+                    id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    address: lead.address,
+                    isSold: false
+                  }]
+                }
+              }
+              return lead
+            })
+            
             setDatabaseConnectionStatus('connected')
-            setLeads(leadsResult.data)
+            setLeads(migratedLeads)
             markAsRefreshed() // Mark initial load as refresh time
           }
           
@@ -227,7 +268,22 @@ export default function DashboardPage() {
           const savedLeads = localStorage.getItem("spaceport_leads")
           const savedProspects = localStorage.getItem("spaceport_prospects")
           if (savedLeads) {
-            setLeads(JSON.parse(savedLeads))
+            const parsedLeads = JSON.parse(savedLeads) as Lead[]
+            // Migrate leads with properties array if needed
+            const migratedLeads = parsedLeads.map(lead => {
+              if (!lead.properties && lead.address) {
+                return {
+                  ...lead,
+                  properties: [{
+                    id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    address: lead.address,
+                    isSold: false
+                  }]
+                }
+              }
+              return lead
+            })
+            setLeads(migratedLeads)
           }
           if (savedProspects) {
             setProspects(JSON.parse(savedProspects))
@@ -412,6 +468,38 @@ export default function DashboardPage() {
         if (selectedLead?.id === leadId) {
           setSelectedLead(existingLead)
         }
+      }
+    }
+  }
+
+  const handleDeleteLead = async (leadId: string) => {
+    // Determine if we should delete from local state or API
+    const leadToDelete = leads.find(l => l.id === leadId)
+    if (!leadToDelete) return
+
+    // Optimistically update local state
+    setLeads((prev) => prev.filter((lead) => lead.id !== leadId))
+    if (selectedLead?.id === leadId) {
+      setSelectedLead(null)
+      setIsPanelOpen(false)
+    }
+
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.deleteLead(leadId)
+        if (error) {
+          console.error("Error deleting lead:", error)
+          // Revert on error
+          setLeads((prev) => [...prev, leadToDelete])
+          alert(`Failed to delete lead: ${error}`)
+        } else {
+          console.log(`✅ Successfully deleted lead ${leadId}`)
+        }
+      } catch (error) {
+        console.error("Error deleting lead:", error)
+        // Revert on error
+        setLeads((prev) => [...prev, leadToDelete])
+        alert("Failed to delete lead due to network error")
       }
     }
   }
@@ -992,6 +1080,8 @@ export default function DashboardPage() {
                   onLeadSelect={handleLeadSelect}
                   sortConfig={sortConfig}
                   onSortChange={setSortConfig}
+                  users={availableUsers}
+                  onDeleteLead={handleDeleteLead}
                 />
               </div>
 
@@ -1028,6 +1118,8 @@ export default function DashboardPage() {
             onAddNote={handleAddNote}
             onUpdateNote={handleUpdateNote}
             onUpdateLead={handleLeadUpdate}
+            users={availableUsers}
+            onDeleteLead={handleDeleteLead}
           />
 
           <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />

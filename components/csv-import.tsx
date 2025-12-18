@@ -345,6 +345,11 @@ const parseCSVRow = (rowText: string, headers: string[]): Omit<Lead, "id"> | nul
     email: email || "Not provided",
     company: row.company || row.business || row.organization || "",
     address: address || "Address not provided",
+    properties: [{
+      id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      address: address || "Address not provided",
+      isSold: false
+    }],
     status: status,
     lastInteraction: lastInteraction,
     nextActionDate: new Date().toISOString(),

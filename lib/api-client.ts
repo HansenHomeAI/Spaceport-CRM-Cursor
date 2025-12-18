@@ -7,6 +7,12 @@ export interface Lead {
   phone: string
   email: string
   address: string
+  properties?: Array<{
+    id: string
+    address: string
+    isSold: boolean
+    soldDate?: string
+  }>
   company?: string
   status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Closed"
   lastInteraction: string
