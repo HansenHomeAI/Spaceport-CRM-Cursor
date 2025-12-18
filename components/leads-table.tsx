@@ -657,7 +657,7 @@ export function LeadsTable({
         ),
       }),
     ],
-    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange],
+    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange, users, onDeleteLead],
   )
 
   const table = useReactTable({

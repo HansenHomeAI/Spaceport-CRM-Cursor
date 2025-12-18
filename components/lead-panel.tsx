@@ -191,7 +191,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   const handleAddProperty = () => {
     if (!lead) return
     const newProperty = {
-      id: `prop_${Date.now()}`,
+      id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       address: "New Property Address",
       isSold: false
     }

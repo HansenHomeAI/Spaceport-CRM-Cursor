@@ -477,6 +477,10 @@ export default function DashboardPage() {
     const leadToDelete = leads.find(l => l.id === leadId)
     if (!leadToDelete) return
 
+    // Store panel state before closing it (in case we need to restore)
+    const wasPanelOpen = selectedLead?.id === leadId
+    const previousSelectedLead = selectedLead
+
     // Optimistically update local state
     setLeads((prev) => prev.filter((lead) => lead.id !== leadId))
     if (selectedLead?.id === leadId) {
@@ -489,16 +493,24 @@ export default function DashboardPage() {
         const { error } = await apiClient.deleteLead(leadId)
         if (error) {
           console.error("Error deleting lead:", error)
-          // Revert on error
+          // Revert on error - restore both lead and panel state
           setLeads((prev) => [...prev, leadToDelete])
+          if (wasPanelOpen && previousSelectedLead?.id === leadId) {
+            setSelectedLead(leadToDelete)
+            setIsPanelOpen(true)
+          }
           alert(`Failed to delete lead: ${error}`)
         } else {
           console.log(`✅ Successfully deleted lead ${leadId}`)
         }
       } catch (error) {
         console.error("Error deleting lead:", error)
-        // Revert on error
+        // Revert on error - restore both lead and panel state
         setLeads((prev) => [...prev, leadToDelete])
+        if (wasPanelOpen && previousSelectedLead?.id === leadId) {
+          setSelectedLead(leadToDelete)
+          setIsPanelOpen(true)
+        }
         alert("Failed to delete lead due to network error")
       }
     }
@@ -759,6 +771,8 @@ export default function DashboardPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    // Revoke the object URL to free memory
+    URL.revokeObjectURL(url)
   }
 
   const handleAddLead = async (leadData: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName">) => {
