@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, ClipboardList } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, ClipboardList, Download } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -44,6 +44,31 @@ export default function DashboardPage() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [prospects, setProspects] = useState<any[]>([])
   const [isProspectModalOpen, setIsProspectModalOpen] = useState(false)
+
+  // Extract unique users from leads for ownership assignment
+  const availableUsers = useMemo(() => {
+    const userMap = new Map<string, string>()
+    
+    // Add current user
+    if (user) {
+      userMap.set(user.id, user.name)
+    }
+    
+    // Extract from leads
+    leads.forEach(lead => {
+      if (lead.ownerId && lead.ownerName) {
+        userMap.set(lead.ownerId, lead.ownerName)
+      }
+      if (lead.createdBy && lead.createdByName) {
+        userMap.set(lead.createdBy, lead.createdByName)
+      }
+      if (lead.lastUpdatedBy && lead.lastUpdatedByName) {
+        userMap.set(lead.lastUpdatedBy, lead.lastUpdatedByName)
+      }
+    })
+    
+    return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }))
+  }, [leads, user])
 
   // Helper function to migrate old status values to new ones
   const migrateLeadStatuses = useCallback(async () => {
@@ -212,8 +237,24 @@ export default function DashboardPage() {
             }
           } else if (leadsResult.data) {
             console.log("🔍 Dashboard: Loaded leads from API:", leadsResult.data.length)
+            
+            // Migrate leads with properties array if needed
+            const migratedLeads = leadsResult.data.map(lead => {
+              if (!lead.properties && lead.address) {
+                return {
+                  ...lead,
+                  properties: [{
+                    id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    address: lead.address,
+                    isSold: false
+                  }]
+                }
+              }
+              return lead
+            })
+            
             setDatabaseConnectionStatus('connected')
-            setLeads(leadsResult.data)
+            setLeads(migratedLeads)
             markAsRefreshed() // Mark initial load as refresh time
           }
           
@@ -227,7 +268,22 @@ export default function DashboardPage() {
           const savedLeads = localStorage.getItem("spaceport_leads")
           const savedProspects = localStorage.getItem("spaceport_prospects")
           if (savedLeads) {
-            setLeads(JSON.parse(savedLeads))
+            const parsedLeads = JSON.parse(savedLeads) as Lead[]
+            // Migrate leads with properties array if needed
+            const migratedLeads = parsedLeads.map(lead => {
+              if (!lead.properties && lead.address) {
+                return {
+                  ...lead,
+                  properties: [{
+                    id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    address: lead.address,
+                    isSold: false
+                  }]
+                }
+              }
+              return lead
+            })
+            setLeads(migratedLeads)
           }
           if (savedProspects) {
             setProspects(JSON.parse(savedProspects))
@@ -416,6 +472,50 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDeleteLead = async (leadId: string) => {
+    // Determine if we should delete from local state or API
+    const leadToDelete = leads.find(l => l.id === leadId)
+    if (!leadToDelete) return
+
+    // Store panel state before closing it (in case we need to restore)
+    const wasPanelOpen = selectedLead?.id === leadId
+    const previousSelectedLead = selectedLead
+
+    // Optimistically update local state
+    setLeads((prev) => prev.filter((lead) => lead.id !== leadId))
+    if (selectedLead?.id === leadId) {
+      setSelectedLead(null)
+      setIsPanelOpen(false)
+    }
+
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.deleteLead(leadId)
+        if (error) {
+          console.error("Error deleting lead:", error)
+          // Revert on error - restore both lead and panel state
+          setLeads((prev) => [...prev, leadToDelete])
+          if (wasPanelOpen && previousSelectedLead?.id === leadId) {
+            setSelectedLead(leadToDelete)
+            setIsPanelOpen(true)
+          }
+          alert(`Failed to delete lead: ${error}`)
+        } else {
+          console.log(`✅ Successfully deleted lead ${leadId}`)
+        }
+      } catch (error) {
+        console.error("Error deleting lead:", error)
+        // Revert on error - restore both lead and panel state
+        setLeads((prev) => [...prev, leadToDelete])
+        if (wasPanelOpen && previousSelectedLead?.id === leadId) {
+          setSelectedLead(leadToDelete)
+          setIsPanelOpen(true)
+        }
+        alert("Failed to delete lead due to network error")
+      }
+    }
+  }
+
   const handleLeadSelect = (lead: Lead) => {
     setSelectedLead(lead)
     setIsPanelOpen(true)
@@ -549,8 +649,130 @@ export default function DashboardPage() {
         return { success: false, message: "Import failed due to network error" }
       }
     }
-
     return { success: true, message: `Successfully imported ${leadsWithIds.length} leads!` }
+  }
+
+  const handleCSVExport = () => {
+    // Convert leads to CSV format matching the import format
+    // Format: Name,Phone,Email,Property,Notes,,
+    const csvRows: string[] = []
+    
+    // Add header row
+    csvRows.push("Name,Phone,Email,Property,Notes,,")
+    
+    // Process each lead
+    leads.forEach((lead) => {
+      // Build name field - include company if available (matching import format)
+      let nameField = lead.name
+      if (lead.company) {
+        nameField = `${lead.name}\n${lead.company}`
+      }
+      
+      // Get phone and email
+      const phone = lead.phone || ""
+      const email = lead.email || ""
+      
+      // Get property - use first property from properties array, or fall back to address
+      let property = ""
+      if (lead.properties && lead.properties.length > 0) {
+        property = lead.properties[0].address
+        // If there are multiple properties, mention them in notes
+        if (lead.properties.length > 1) {
+          const additionalProps = lead.properties.slice(1).map(p => p.address).join("; ")
+          if (lead.notes.length > 0 || additionalProps) {
+            // Will be added to notes below
+          }
+        }
+      } else {
+        property = lead.address || ""
+      }
+      
+      // Combine notes into a single text field
+      // Format notes with timestamps if available
+      let notesText = ""
+      if (lead.notes && lead.notes.length > 0) {
+        const noteTexts = lead.notes.map((note) => {
+          const date = new Date(note.timestamp)
+          const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined })
+          const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          
+          let notePrefix = ""
+          if (note.type === "call") {
+            notePrefix = "Called"
+          } else if (note.type === "email") {
+            notePrefix = "Emailed"
+          } else if (note.type === "video") {
+            notePrefix = "Video"
+          } else if (note.type === "social") {
+            notePrefix = "Social"
+          }
+          
+          return `${notePrefix ? notePrefix + ", " : ""}${dateStr}${timeStr ? " " + timeStr : ""}: ${note.text}`
+        })
+        notesText = noteTexts.join(". ")
+        
+        // Add additional properties info if there are multiple
+        if (lead.properties && lead.properties.length > 1) {
+          const additionalProps = lead.properties.slice(1).map((p, idx) => {
+            let propText = p.address
+            if (p.isSold) {
+              propText += " (Sold" + (p.soldDate ? ` ${new Date(p.soldDate).toLocaleDateString()}` : "") + ")"
+            }
+            return propText
+          }).join("; ")
+          if (additionalProps) {
+            notesText += (notesText ? ". " : "") + `Additional properties: ${additionalProps}`
+          }
+        }
+      } else if (lead.properties && lead.properties.length > 1) {
+        // No notes but multiple properties
+        const additionalProps = lead.properties.slice(1).map((p) => {
+          let propText = p.address
+          if (p.isSold) {
+            propText += " (Sold" + (p.soldDate ? ` ${new Date(p.soldDate).toLocaleDateString()}` : "") + ")"
+          }
+          return propText
+        }).join("; ")
+        notesText = `Additional properties: ${additionalProps}`
+      }
+      
+      // Escape CSV values (handle quotes and commas)
+      const escapeCSV = (value: string): string => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }
+      
+      // Build CSV row
+      const row = [
+        escapeCSV(nameField),
+        escapeCSV(phone),
+        escapeCSV(email),
+        escapeCSV(property),
+        escapeCSV(notesText),
+        "", // Empty column
+        ""  // Empty column
+      ].join(",")
+      
+      csvRows.push(row)
+    })
+    
+    // Create CSV content
+    const csvContent = csvRows.join("\n")
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `spaceport-crm-export-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    // Revoke the object URL to free memory
+    URL.revokeObjectURL(url)
   }
 
   const handleAddLead = async (leadData: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName">) => {
@@ -898,13 +1120,21 @@ export default function DashboardPage() {
                 <p className="text-gray-400 font-body mb-6">
                   Get started by importing your CSV file with contact data, or add your first lead manually.
                 </p>
-                <div className="flex gap-3 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center px-4">
                   <Button
                     onClick={() => setIsImportOpen(true)}
                     className="bg-white text-black hover:bg-gray-100 rounded-pill px-6"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Import CSV
+                  </Button>
+                  <Button
+                    onClick={handleCSVExport}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
                   </Button>
                   <Button
                     onClick={() => setIsAddModalOpen(true)}
@@ -934,8 +1164,8 @@ export default function DashboardPage() {
             </motion.div>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-3">
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                <div className="flex flex-wrap gap-3">
                   <Button
                     onClick={() => setIsAddModalOpen(true)}
                     className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
@@ -992,11 +1222,13 @@ export default function DashboardPage() {
                   onLeadSelect={handleLeadSelect}
                   sortConfig={sortConfig}
                   onSortChange={setSortConfig}
+                  users={availableUsers}
+                  onDeleteLead={handleDeleteLead}
                 />
               </div>
 
               {/* Bottom Action Buttons */}
-              <div className={`flex justify-center gap-4 mt-12 mb-8 ${isMobile ? 'flex-col items-center' : ''}`}>
+              <div className={`flex flex-wrap justify-center gap-4 mt-12 mb-8 px-4 ${isMobile ? 'flex-col items-stretch' : ''}`}>
                 <Button
                   onClick={() => setIsImportOpen(true)}
                   variant="outline"
@@ -1004,6 +1236,14 @@ export default function DashboardPage() {
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Import CSV
+                </Button>
+                <Button
+                  onClick={handleCSVExport}
+                  variant="outline"
+                  className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
                 </Button>
                 <Button
                   onClick={() => {
@@ -1028,6 +1268,8 @@ export default function DashboardPage() {
             onAddNote={handleAddNote}
             onUpdateNote={handleUpdateNote}
             onUpdateLead={handleLeadUpdate}
+            users={availableUsers}
+            onDeleteLead={handleDeleteLead}
           />
 
           <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />

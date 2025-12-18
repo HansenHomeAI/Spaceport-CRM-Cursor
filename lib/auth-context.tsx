@@ -12,7 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; message: string }>
   confirmUser: (email: string, verificationCode: string) => Promise<{ success: boolean; message: string }>
   resendVerificationCode: (email: string) => Promise<{ success: boolean; message: string }>
-  signInDemo: () => void
+  signInDemo: () => Promise<{ success: boolean; message: string }>
   signOut: () => void
 }
 
@@ -213,14 +213,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signInDemo = () => {
+  const signInDemo = async (): Promise<{ success: boolean; message: string }> => {
     // Check if we're in production mode
     const hasAwsConfig = process.env.NEXT_PUBLIC_DEV_MODE === 'false' || (awsConfig.userPoolId && awsConfig.userPoolClientId && awsConfig.apiUrl)
     
     if (hasAwsConfig) {
       console.log("🔍 signInDemo: Demo sign in not available in production mode")
-      alert("Demo accounts are not available in production mode. Please use a real account.")
-      return
+      return { success: false, message: "Demo accounts are not available in production mode. Please use a real account." }
     }
     
     console.log("🔍 signInDemo: Starting demo sign in...")
@@ -237,6 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(demoUser)
     localStorage.setItem("spaceport_user", JSON.stringify(demoUser))
     console.log("🔍 signInDemo: User saved to localStorage")
+    return { success: true, message: "Signed in as demo user!" }
   }
 
   const signOut = () => {

@@ -62,3 +62,18 @@ export function formatRelativeTime(timestamp: string): string {
     return 'Unknown time'
   }
 }
+
+// Check if a string is a valid URL
+export function isValidUrl(string: string): boolean {
+  try {
+    const url = new URL(string)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch (_) {
+    return false
+  }
+}
+
+// Get Google Maps URL for an address
+export function getGoogleMapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+}

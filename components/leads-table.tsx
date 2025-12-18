@@ -15,11 +15,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle } from "lucide-react"
+import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle, ExternalLink, ChevronDown, Check, Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { colors } from "@/lib/colors"
 import { useAuth } from "@/lib/auth-context"
-import { formatTimestamp, formatRelativeTime } from "@/lib/utils"
+import { formatTimestamp, formatRelativeTime, isValidUrl, getGoogleMapsUrl } from "@/lib/utils"
 
 export interface Lead {
   id: string
@@ -27,6 +38,12 @@ export interface Lead {
   phone: string
   email: string
   address: string
+  properties?: Array<{
+    id: string
+    address: string
+    isSold: boolean
+    soldDate?: string
+  }>
   company?: string
   status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Closed"
   lastInteraction: string
@@ -60,6 +77,8 @@ interface LeadsTableProps {
     field: 'name' | 'status' | 'lastContact' | 'dateAdded' | 'interestLevel'
     direction: 'asc' | 'desc'
   }) => void
+  users?: Array<{ id: string; name: string }>
+  onDeleteLead?: (leadId: string) => void
 }
 
 const columnHelper = createColumnHelper<Lead>()
@@ -91,6 +110,8 @@ export function LeadsTable({
   onLeadSelect,
   sortConfig,
   onSortChange,
+  users = [],
+  onDeleteLead,
 }: LeadsTableProps) {
   const { user } = useAuth()
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null)
@@ -307,8 +328,58 @@ export function LeadsTable({
       columnHelper.accessor("address", {
         header: "Property Address",
         cell: ({ getValue, row, column }) => {
-          const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
+          // If lead has properties array, use first property
+          const properties = row.original.properties || []
+          const firstProperty = properties[0]
+          
+          if (firstProperty) {
+            const value = firstProperty.address
+            const isSold = firstProperty.isSold
+            const count = properties.length
+            
+            return (
+              <div
+                className="flex flex-col gap-1 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group"
+                onClick={() => onLeadSelect(row.original)}
+              >
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-white font-body leading-tight">
+                    {isValidUrl(value) ? (
+                      <a 
+                        href={value} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className={`text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 break-all ${isSold ? 'line-through opacity-70' : ''}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {value}
+                        <ExternalLink className="h-3 w-3 inline" />
+                      </a>
+                    ) : (
+                      <span className={isSold ? 'line-through opacity-70' : ''}>{value}</span>
+                    )}
+                  </div>
+                </div>
+                
+                {count > 1 && (
+                  <div className="text-xs text-gray-500 ml-6">
+                    + {count - 1} more propert{count - 1 === 1 ? 'y' : 'ies'}
+                  </div>
+                )}
+                
+                {isSold && (
+                  <div className="text-xs text-green-400 ml-6 flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Sold
+                  </div>
+                )}
+              </div>
+            )
+          }
+          
+          // Fallback to legacy address field
           const value = getValue()
+          const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
 
           if (isEditing) {
             return (
@@ -336,7 +407,22 @@ export function LeadsTable({
               onDoubleClick={() => setEditingCell({ rowId: row.id, columnId: column.id })}
             >
               <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-              <div className="text-white font-body leading-tight">{value}</div>
+              <div className="text-white font-body leading-tight">
+                {isValidUrl(value) ? (
+                  <a 
+                    href={value} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 break-all"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {value}
+                    <ExternalLink className="h-3 w-3 inline" />
+                  </a>
+                ) : (
+                  <span>{value}</span>
+                )}
+              </div>
             </div>
           )
         },
@@ -394,37 +480,92 @@ export function LeadsTable({
         header: "Owner",
         cell: ({ getValue, row }) => {
           const ownerName = getValue()
-          const isOwnedByCurrentUser = row.original.ownerId === user?.id
-
-          if (!ownerName) {
-            return (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleClaimLead(row.original.id)}
-                className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill px-3 py-1 transition-all duration-200 font-body"
-              >
-                <UserX className="h-3 w-3 mr-1" />
-                Unclaimed
-              </Button>
-            )
-          }
-
+          const currentOwnerId = row.original.ownerId
+          
           return (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => isOwnedByCurrentUser ? handleUnclaimLead(row.original.id) : null}
-              disabled={!isOwnedByCurrentUser}
-              className={`${
-                isOwnedByCurrentUser
-                  ? "bg-[#CD70E4]/20 text-[#CD70E4] border-[#CD70E4]/30 hover:bg-[#CD70E4]/30"
-                  : "bg-blue-500/20 text-blue-300 border-blue-500/30 cursor-default"
-              } rounded-pill px-2 py-1 font-body text-xs transition-all duration-200`}
-            >
-              <User className="h-3 w-3 mr-1" />
-              {ownerName}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`${
+                    ownerName
+                      ? "bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30"
+                      : "text-gray-400 hover:text-white hover:bg-white/10"
+                  } rounded-pill px-2 py-1 font-body text-xs transition-all duration-200 h-7`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {ownerName ? (
+                    <>
+                      <User className="h-3 w-3 mr-1" />
+                      {ownerName}
+                    </>
+                  ) : (
+                    <>
+                      <UserX className="h-3 w-3 mr-1" />
+                      Unclaimed
+                    </>
+                  )}
+                  <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-black/90 backdrop-blur-xl border-system rounded-xl shadow-2xl p-1" align="start">
+                <div className="text-xs text-gray-400 font-body px-2 py-1.5">Assign to...</div>
+                
+                {/* Current User (Quick Action) */}
+                {user && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleClaimLead(row.original.id)
+                    }}
+                    className="text-white hover:bg-white/10 rounded-lg px-2 py-1.5 cursor-pointer text-sm font-body"
+                  >
+                    <User className="h-3 w-3 mr-2 text-blue-400" />
+                    Me ({user.name})
+                    {currentOwnerId === user.id && <Check className="h-3 w-3 ml-auto text-green-400" />}
+                  </DropdownMenuItem>
+                )}
+                
+                <div className="h-px bg-white/10 my-1" />
+                
+                {/* Other Users */}
+                {users.filter(u => u.id !== user?.id).map((u) => (
+                  <DropdownMenuItem
+                    key={u.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onLeadUpdate(row.original.id, {
+                        ownerId: u.id,
+                        ownerName: u.name,
+                      })
+                    }}
+                    className="text-white hover:bg-white/10 rounded-lg px-2 py-1.5 cursor-pointer text-sm font-body"
+                  >
+                    <span className="w-5" />
+                    {u.name}
+                    {currentOwnerId === u.id && <Check className="h-3 w-3 ml-auto text-green-400" />}
+                  </DropdownMenuItem>
+                ))}
+                
+                {/* Unassign */}
+                {currentOwnerId && (
+                  <>
+                    <div className="h-px bg-white/10 my-1" />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleUnclaimLead(row.original.id)
+                      }}
+                      className="text-red-300 hover:bg-red-500/20 rounded-lg px-2 py-1.5 cursor-pointer text-sm font-body"
+                    >
+                      <UserX className="h-3 w-3 mr-2" />
+                      Unassign
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )
         },
       }),
@@ -468,18 +609,55 @@ export function LeadsTable({
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onLeadSelect(row.original)}
-                          className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
-          >
-            View Details
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onLeadSelect(row.original)}
+              className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
+            >
+              View Details
+            </Button>
+            
+            {onDeleteLead && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white font-title">Delete Lead?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400 font-body">
+                      Are you sure you want to delete <span className="text-white font-bold">{row.original.name}</span>? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteLead(row.original.id)
+                      }}
+                      className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         ),
       }),
     ],
-    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange],
+    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange, users, onDeleteLead],
   )
 
   const table = useReactTable({

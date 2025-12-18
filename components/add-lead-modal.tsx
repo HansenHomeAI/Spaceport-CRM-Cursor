@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Plus, Sparkles, User, Mail, Phone, Building, MapPin } from "lucide-react"
+import { X, Plus, Sparkles, User, Mail, Phone, Building, MapPin, Trash2, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -252,6 +252,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     phone: "",
     email: "",
     address: "",
+    properties: [] as string[],
     company: "",
     status: "Left Voicemail" as Lead["status"],
     lastInteraction: new Date().toISOString(),
@@ -265,12 +266,24 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     // Only require name - everything else is optional
     if (!formData.name.trim()) return
 
+    const allProperties = []
+    if (formData.address) allProperties.push(formData.address)
+    allProperties.push(...formData.properties)
+    
+    // Filter out empty properties
+    const validProperties = allProperties.filter(p => p.trim())
+
     onAddLead({
       ...formData,
       // Provide defaults for empty fields
       phone: formData.phone || "Not provided",
       email: formData.email || "Not provided",
-      address: formData.address || "Address not provided",
+      address: validProperties[0] || "Address not provided", // Primary address
+      properties: validProperties.map(addr => ({
+        id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        address: addr,
+        isSold: false
+      })),
       company: formData.company || "",
       nextActionDate: new Date().toISOString(),
       createdAt: new Date().toISOString(),
@@ -283,6 +296,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       phone: "",
       email: "",
       address: "",
+      properties: [],
       company: "",
       status: "Left Voicemail",
       lastInteraction: new Date().toISOString(),
@@ -346,6 +360,31 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       e.preventDefault() // Prevent default paste
       autoParseContent(pastedText)
     }
+  }
+
+  const handleAddPropertyField = () => {
+    setFormData(prev => ({
+      ...prev,
+      properties: [...prev.properties, ""]
+    }))
+  }
+
+  const handlePropertyChange = (index: number, value: string) => {
+    const newProperties = [...formData.properties]
+    newProperties[index] = value
+    setFormData(prev => ({
+      ...prev,
+      properties: newProperties
+    }))
+  }
+
+  const handleRemoveProperty = (index: number) => {
+    const newProperties = [...formData.properties]
+    newProperties.splice(index, 1)
+    setFormData(prev => ({
+      ...prev,
+      properties: newProperties
+    }))
   }
 
   return (
@@ -453,18 +492,54 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="address" className="text-white font-body flex items-center gap-2">
+                    <Label className="text-white font-body flex items-center gap-2">
                       <MapPin className="h-4 w-4" style={{ color: "#a855f7" }} />
-                      Property Address <span className="text-gray-400 text-sm">(optional)</span>
+                      Property Addresses <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                      onPaste={(e) => handlePaste("address", e)}
-                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
-                      placeholder="Enter property address or paste contact info block"
-                    />
+                    
+                    {/* Primary Address */}
+                    <div className="relative">
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => handleInputChange("address", e.target.value)}
+                        onPaste={(e) => handlePaste("address", e)}
+                        className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand pr-10"
+                        placeholder="Enter primary property address"
+                      />
+                    </div>
+
+                    {/* Additional Properties */}
+                    {formData.properties.map((prop, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          value={prop}
+                          onChange={(e) => handlePropertyChange(index, e.target.value)}
+                          className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand flex-1"
+                          placeholder="Enter additional property address"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveProperty(index)}
+                          className="text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleAddPropertyField}
+                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 text-xs font-body"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Another Property
+                    </Button>
                   </div>
 
                   <div className="space-y-2">
