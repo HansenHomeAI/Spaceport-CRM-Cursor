@@ -1106,7 +1106,7 @@ export default function DashboardPage() {
                 <p className="text-gray-400 font-body mb-6">
                   Get started by importing your CSV file with contact data, or add your first lead manually.
                 </p>
-                <div className="flex gap-3 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center px-4">
                   <Button
                     onClick={() => setIsImportOpen(true)}
                     className="bg-white text-black hover:bg-gray-100 rounded-pill px-6"
@@ -1150,8 +1150,8 @@ export default function DashboardPage() {
             </motion.div>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-3">
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                <div className="flex flex-wrap gap-3">
                   <Button
                     onClick={() => setIsAddModalOpen(true)}
                     className="bg-white text-black hover:bg-gray-100 rounded-pill px-6 transition-all duration-200 font-body"
@@ -1214,7 +1214,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Bottom Action Buttons */}
-              <div className={`flex justify-center gap-4 mt-12 mb-8 ${isMobile ? 'flex-col items-center' : ''}`}>
+              <div className={`flex flex-wrap justify-center gap-4 mt-12 mb-8 px-4 ${isMobile ? 'flex-col items-stretch' : ''}`}>
                 <Button
                   onClick={() => setIsImportOpen(true)}
                   variant="outline"
