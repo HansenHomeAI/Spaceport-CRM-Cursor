@@ -15,7 +15,7 @@ import Image from "next/image"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, signUp, confirmUser, resendVerificationCode } = useAuth()
+  const { signIn, signUp, confirmUser, resendVerificationCode, signInDemo } = useAuth()
 
   // Debug: Check localStorage on component mount
   useEffect(() => {
@@ -47,21 +47,27 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("🔍 LoginPage: Form submitted", { email: signInForm.email, password: signInForm.password ? "***" : "" })
     setIsLoading(true)
     setMessage(null)
 
     try {
+      console.log("🔍 LoginPage: Calling signIn...")
       const result = await signIn(signInForm.email, signInForm.password)
+      console.log("🔍 LoginPage: SignIn result:", result)
 
       if (result.success) {
         setMessage({ type: "success", text: result.message })
         // Use window.location for static export compatibility
-        if (process.env.NODE_ENV === 'production') {
-          console.log("🔍 LoginPage: Redirecting to production dashboard...")
-          window.location.href = '/dashboard/'
-        } else {
-          router.push("/dashboard")
-        }
+        setTimeout(() => {
+          if (process.env.NODE_ENV === 'production') {
+            console.log("🔍 LoginPage: Redirecting to production dashboard...")
+            window.location.href = '/dashboard/'
+          } else {
+            console.log("🔍 LoginPage: Redirecting to dashboard...")
+            router.push("/dashboard")
+          }
+        }, 500)
       } else {
         // Check if user needs to verify their email
         if (result.message.includes("User is not confirmed")) {
@@ -73,7 +79,37 @@ export default function LoginPage() {
         }
       }
     } catch (error) {
-      setMessage({ type: "error", text: "An unexpected error occurred" })
+      console.error("🔍 LoginPage: SignIn error:", error)
+      setMessage({ type: "error", text: `An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}` })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDemoSignIn = async () => {
+    console.log("🔍 LoginPage: Demo sign in clicked")
+    setIsLoading(true)
+    setMessage(null)
+    
+    try {
+      const result = await signInDemo()
+      console.log("🔍 LoginPage: Demo sign in result:", result)
+      
+      if (result.success) {
+        setMessage({ type: "success", text: result.message })
+        setTimeout(() => {
+          if (process.env.NODE_ENV === 'production') {
+            window.location.href = '/dashboard/'
+          } else {
+            router.push("/dashboard")
+          }
+        }, 500)
+      } else {
+        setMessage({ type: "error", text: result.message })
+      }
+    } catch (error) {
+      console.error("🔍 LoginPage: Demo sign in error:", error)
+      setMessage({ type: "error", text: `Failed to sign in as demo user: ${error instanceof Error ? error.message : "Unknown error"}` })
     } finally {
       setIsLoading(false)
     }
@@ -292,6 +328,24 @@ export default function LoginPage() {
                   Sign In
                 </Button>
               </form>
+              
+              {/* Demo Sign In Button (Development Mode Only) */}
+              {process.env.NEXT_PUBLIC_DEV_MODE === 'true' && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs text-gray-400 text-center mb-2">Development Mode</p>
+                  <Button
+                    type="button"
+                    onClick={handleDemoSignIn}
+                    className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/30 rounded-2xl transition-all duration-200"
+                    disabled={isLoading}
+                  >
+                    Sign In as Demo User
+                  </Button>
+                  <p className="text-xs text-gray-500 text-center mt-2">
+                    Demo: demo@spaceport.com / demo123
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="signup" className="mt-4">
@@ -368,8 +422,8 @@ export default function LoginPage() {
           )}
 
           {message && (
-            <Alert className={message.type === "error" ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>
-              <AlertDescription className={message.type === "error" ? "text-red-800" : "text-green-800"}>
+            <Alert className={message.type === "error" ? "border-red-500/50 bg-red-500/10" : "border-green-500/50 bg-green-500/10"}>
+              <AlertDescription className={message.type === "error" ? "text-red-300" : "text-green-300"}>
                 {message.text}
               </AlertDescription>
             </Alert>

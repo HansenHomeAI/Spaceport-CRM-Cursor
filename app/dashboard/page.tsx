@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, ClipboardList } from "lucide-react"
+import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, ClipboardList, Download } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { LeadsTable, type Lead } from "@/components/leads-table"
@@ -235,7 +235,7 @@ export default function DashboardPage() {
                 setLeads(JSON.parse(savedLeads))
               }
             }
-          } else           if (leadsResult.data) {
+          } else if (leadsResult.data) {
             console.log("🔍 Dashboard: Loaded leads from API:", leadsResult.data.length)
             
             // Migrate leads with properties array if needed
@@ -637,8 +637,128 @@ export default function DashboardPage() {
         return { success: false, message: "Import failed due to network error" }
       }
     }
-
     return { success: true, message: `Successfully imported ${leadsWithIds.length} leads!` }
+  }
+
+  const handleCSVExport = () => {
+    // Convert leads to CSV format matching the import format
+    // Format: Name,Phone,Email,Property,Notes,,
+    const csvRows: string[] = []
+    
+    // Add header row
+    csvRows.push("Name,Phone,Email,Property,Notes,,")
+    
+    // Process each lead
+    leads.forEach((lead) => {
+      // Build name field - include company if available (matching import format)
+      let nameField = lead.name
+      if (lead.company) {
+        nameField = `${lead.name}\n${lead.company}`
+      }
+      
+      // Get phone and email
+      const phone = lead.phone || ""
+      const email = lead.email || ""
+      
+      // Get property - use first property from properties array, or fall back to address
+      let property = ""
+      if (lead.properties && lead.properties.length > 0) {
+        property = lead.properties[0].address
+        // If there are multiple properties, mention them in notes
+        if (lead.properties.length > 1) {
+          const additionalProps = lead.properties.slice(1).map(p => p.address).join("; ")
+          if (lead.notes.length > 0 || additionalProps) {
+            // Will be added to notes below
+          }
+        }
+      } else {
+        property = lead.address || ""
+      }
+      
+      // Combine notes into a single text field
+      // Format notes with timestamps if available
+      let notesText = ""
+      if (lead.notes && lead.notes.length > 0) {
+        const noteTexts = lead.notes.map((note) => {
+          const date = new Date(note.timestamp)
+          const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined })
+          const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          
+          let notePrefix = ""
+          if (note.type === "call") {
+            notePrefix = "Called"
+          } else if (note.type === "email") {
+            notePrefix = "Emailed"
+          } else if (note.type === "video") {
+            notePrefix = "Video"
+          } else if (note.type === "social") {
+            notePrefix = "Social"
+          }
+          
+          return `${notePrefix ? notePrefix + ", " : ""}${dateStr}${timeStr ? " " + timeStr : ""}: ${note.text}`
+        })
+        notesText = noteTexts.join(". ")
+        
+        // Add additional properties info if there are multiple
+        if (lead.properties && lead.properties.length > 1) {
+          const additionalProps = lead.properties.slice(1).map((p, idx) => {
+            let propText = p.address
+            if (p.isSold) {
+              propText += " (Sold" + (p.soldDate ? ` ${new Date(p.soldDate).toLocaleDateString()}` : "") + ")"
+            }
+            return propText
+          }).join("; ")
+          if (additionalProps) {
+            notesText += (notesText ? ". " : "") + `Additional properties: ${additionalProps}`
+          }
+        }
+      } else if (lead.properties && lead.properties.length > 1) {
+        // No notes but multiple properties
+        const additionalProps = lead.properties.slice(1).map((p) => {
+          let propText = p.address
+          if (p.isSold) {
+            propText += " (Sold" + (p.soldDate ? ` ${new Date(p.soldDate).toLocaleDateString()}` : "") + ")"
+          }
+          return propText
+        }).join("; ")
+        notesText = `Additional properties: ${additionalProps}`
+      }
+      
+      // Escape CSV values (handle quotes and commas)
+      const escapeCSV = (value: string): string => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }
+      
+      // Build CSV row
+      const row = [
+        escapeCSV(nameField),
+        escapeCSV(phone),
+        escapeCSV(email),
+        escapeCSV(property),
+        escapeCSV(notesText),
+        "", // Empty column
+        ""  // Empty column
+      ].join(",")
+      
+      csvRows.push(row)
+    })
+    
+    // Create CSV content
+    const csvContent = csvRows.join("\n")
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `spaceport-crm-export-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const handleAddLead = async (leadData: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName">) => {
@@ -995,6 +1115,14 @@ export default function DashboardPage() {
                     Import CSV
                   </Button>
                   <Button
+                    onClick={handleCSVExport}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button
                     onClick={() => setIsAddModalOpen(true)}
                     variant="outline"
                     className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
@@ -1094,6 +1222,14 @@ export default function DashboardPage() {
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Import CSV
+                </Button>
+                <Button
+                  onClick={handleCSVExport}
+                  variant="outline"
+                  className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
                 </Button>
                 <Button
                   onClick={() => {
