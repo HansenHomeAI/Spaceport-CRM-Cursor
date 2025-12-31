@@ -8,17 +8,21 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, Filter, Upload, LogOut, Loader2, Clock, Info, Eye, EyeOff, AlertTriangle, ArrowUpDown, RefreshCw, X, ClipboardList, Download } from "lucide-react"
+import { Search, Plus, Upload, LogOut, Loader2, Clock, AlertTriangle, RefreshCw, X, ClipboardList, Download, Building2, Trash2 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
-import { LeadsTable, type Lead } from "@/components/leads-table"
+import { LeadsTable } from "@/components/leads-table"
+import type { Lead, Brokerage, NewLeadPayload } from "@/lib/crm-types"
 import { LeadPanel } from "@/components/lead-panel"
 import { AddLeadModal } from "@/components/add-lead-modal"
 import { CSVImport } from "@/components/csv-import"
 import { FollowUpPriority } from "@/components/follow-up-priority"
+import { RemindersPanel } from "@/components/reminders-panel"
 import { ProspectListModal } from "@/components/prospect-list-modal"
+import { BrokerageDirectoryModal } from "@/components/brokerage-directory-modal"
 import { apiClient } from "@/lib/api-client"
 import { awsConfig } from "@/lib/aws-config"
+import { getNeedsAttention } from "@/lib/lead-quality"
 import { useActivityRefresh } from "@/hooks/use-activity-refresh"
 import { useIsMobile } from "@/hooks/use-mobile"
 import Image from "next/image"
@@ -28,10 +32,12 @@ export default function DashboardPage() {
   const { user, loading, signOut } = useAuth()
   const isMobile = useIsMobile()
   const [leads, setLeads] = useState<Lead[]>([])
+  const [brokerages, setBrokerages] = useState<Brokerage[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isBrokerageModalOpen, setIsBrokerageModalOpen] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
   const [sortConfig, setSortConfig] = useState<{
     field: 'name' | 'status' | 'lastContact' | 'dateAdded' | 'interestLevel'
@@ -69,6 +75,13 @@ export default function DashboardPage() {
     
     return Array.from(userMap.entries()).map(([id, name]) => ({ id, name }))
   }, [leads, user])
+
+  const normalizeLead = useCallback((lead: Lead): Lead => {
+    return {
+      ...lead,
+      needsAttention: getNeedsAttention(lead),
+    }
+  }, [])
 
   // Helper function to migrate old status values to new ones
   const migrateLeadStatuses = useCallback(async () => {
@@ -183,7 +196,7 @@ export default function DashboardPage() {
         // Don't update connection status for background failures
       } else if (data) {
         console.log(`✅ Background refresh loaded ${data.length} leads`)
-        setLeads(data)
+        setLeads(data.map(normalizeLead))
         setDatabaseConnectionStatus('connected')
         setConnectionError(null)
       }
@@ -192,7 +205,7 @@ export default function DashboardPage() {
     } finally {
       setIsBackgroundRefreshing(false)
     }
-  }, [user, isProductionMode])
+  }, [user, isProductionMode, normalizeLead])
 
   // Activity refresh hook - triggers refresh on user activity after 15 minutes
   const { markAsRefreshed } = useActivityRefresh({
@@ -213,9 +226,10 @@ export default function DashboardPage() {
         if (isProductionMode) {
           // Production mode - load from API
           console.log("🔍 Dashboard: Loading data from API...")
-          const [leadsResult, prospectsResult] = await Promise.all([
+          const [leadsResult, prospectsResult, brokeragesResult] = await Promise.all([
             apiClient.getLeads(),
-            apiClient.getProspects()
+            apiClient.getProspects(),
+            apiClient.getBrokerages()
           ])
           
           if (leadsResult.error) {
@@ -241,16 +255,16 @@ export default function DashboardPage() {
             // Migrate leads with properties array if needed
             const migratedLeads = leadsResult.data.map(lead => {
               if (!lead.properties && lead.address) {
-                return {
+                return normalizeLead({
                   ...lead,
                   properties: [{
                     id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     address: lead.address,
                     isSold: false
                   }]
-                }
+                })
               }
-              return lead
+              return normalizeLead(lead)
             })
             
             setDatabaseConnectionStatus('connected')
@@ -261,32 +275,40 @@ export default function DashboardPage() {
           if (prospectsResult.data) {
             setProspects(prospectsResult.data)
           }
+
+          if (brokeragesResult.data) {
+            setBrokerages(brokeragesResult.data)
+          }
         } else {
           // Development mode - load from localStorage
           console.log("🔍 Dashboard: Loading data from localStorage...")
           setDatabaseConnectionStatus('fallback')
           const savedLeads = localStorage.getItem("spaceport_leads")
           const savedProspects = localStorage.getItem("spaceport_prospects")
+          const savedBrokerages = localStorage.getItem("spaceport_brokerages")
           if (savedLeads) {
             const parsedLeads = JSON.parse(savedLeads) as Lead[]
             // Migrate leads with properties array if needed
             const migratedLeads = parsedLeads.map(lead => {
               if (!lead.properties && lead.address) {
-                return {
+                return normalizeLead({
                   ...lead,
                   properties: [{
                     id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     address: lead.address,
                     isSold: false
                   }]
-                }
+                })
               }
-              return lead
+              return normalizeLead(lead)
             })
             setLeads(migratedLeads)
           }
           if (savedProspects) {
             setProspects(JSON.parse(savedProspects))
+          }
+          if (savedBrokerages) {
+            setBrokerages(JSON.parse(savedBrokerages))
           }
         }
       } catch (error) {
@@ -301,7 +323,7 @@ export default function DashboardPage() {
     if (!loading && user) {
       loadData()
     }
-  }, [user, loading, isProductionMode])
+  }, [user, loading, isProductionMode, normalizeLead, markAsRefreshed])
 
   // Save leads to localStorage when they change (development mode)
   useEffect(() => {
@@ -309,6 +331,12 @@ export default function DashboardPage() {
       localStorage.setItem("spaceport_leads", JSON.stringify(leads))
     }
   }, [leads, isProductionMode, dataLoading])
+
+  useEffect(() => {
+    if (!isProductionMode && !dataLoading) {
+      localStorage.setItem("spaceport_brokerages", JSON.stringify(brokerages))
+    }
+  }, [brokerages, isProductionMode, dataLoading])
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
@@ -329,18 +357,17 @@ export default function DashboardPage() {
     }
   }, [user, loading, router])
 
+  const activeLeads = useMemo(() => leads.filter((lead) => !lead.deletedAt), [leads])
+  const trashedLeads = useMemo(() => leads.filter((lead) => lead.deletedAt), [leads])
+
   // Calculate metrics
-  const callsMade = leads.reduce((acc, lead) => acc + lead.notes.filter((note) => note.type === "call").length, 0)
-  const responsesReceived = leads.filter((lead) => lead.status === "Interested").length
-  const myLeads = leads.filter((lead) => lead.ownerId === user?.id).length
-  const unclaimedLeads = leads.filter((lead) => !lead.ownerId).length
-  const interestedLeads = leads.filter((lead) => lead.status === "Interested").length
-  const contactedLeads = leads.filter((lead) => lead.status === "Contacted").length
-  const needsAttentionLeads = leads.filter((lead) => lead.needsAttention).length
+  const myLeads = activeLeads.filter((lead) => lead.ownerId === user?.id).length
+  const interestedLeads = activeLeads.filter((lead) => lead.status === "Interested").length
+  const needsAttentionLeads = activeLeads.filter((lead) => lead.needsAttention).length
 
   // Sort leads based on current configuration
-  const sortedLeads = useMemo(() => {
-    const sorted = [...leads].sort((a, b) => {
+  const sortLeads = useCallback((items: Lead[]) => {
+    return [...items].sort((a, b) => {
       let aValue: any
       let bValue: any
 
@@ -401,9 +428,10 @@ export default function DashboardPage() {
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
     })
+  }, [sortConfig])
 
-    return sorted
-  }, [leads, sortConfig])
+  const sortedLeads = useMemo(() => sortLeads(activeLeads), [activeLeads, sortLeads])
+  const sortedTrashedLeads = useMemo(() => sortLeads(trashedLeads), [trashedLeads, sortLeads])
 
   const handleLeadUpdate = async (leadId: string, updates: Partial<Lead>) => {
     const existingLead = leads.find(lead => lead.id === leadId)
@@ -412,6 +440,7 @@ export default function DashboardPage() {
     const updatedLead = { 
       ...existingLead, 
       ...updates,
+      needsAttention: getNeedsAttention({ ...existingLead, ...updates }),
       updatedAt: new Date().toISOString(),
       lastUpdatedBy: user?.id,
       lastUpdatedByName: user?.name
@@ -473,17 +502,38 @@ export default function DashboardPage() {
   }
 
   const handleDeleteLead = async (leadId: string) => {
-    // Determine if we should delete from local state or API
     const leadToDelete = leads.find(l => l.id === leadId)
     if (!leadToDelete) return
 
-    // Store panel state before closing it (in case we need to restore)
+    await handleLeadUpdate(leadId, {
+      deletedAt: new Date().toISOString(),
+      deletedBy: user?.id,
+      deletedByName: user?.name,
+    })
+
+    if (selectedLead?.id === leadId && activeFilter !== "trash") {
+      setSelectedLead(null)
+      setIsPanelOpen(false)
+    }
+  }
+
+  const handleRestoreLead = async (leadId: string) => {
+    await handleLeadUpdate(leadId, {
+      deletedAt: null,
+      deletedBy: null,
+      deletedByName: null,
+    })
+  }
+
+  const handlePermanentDeleteLead = async (leadId: string) => {
+    const leadToDelete = leads.find(l => l.id === leadId)
+    if (!leadToDelete) return
+
     const wasPanelOpen = selectedLead?.id === leadId
     const previousSelectedLead = selectedLead
 
-    // Optimistically update local state
     setLeads((prev) => prev.filter((lead) => lead.id !== leadId))
-    if (selectedLead?.id === leadId) {
+    if (wasPanelOpen) {
       setSelectedLead(null)
       setIsPanelOpen(false)
     }
@@ -493,7 +543,6 @@ export default function DashboardPage() {
         const { error } = await apiClient.deleteLead(leadId)
         if (error) {
           console.error("Error deleting lead:", error)
-          // Revert on error - restore both lead and panel state
           setLeads((prev) => [...prev, leadToDelete])
           if (wasPanelOpen && previousSelectedLead?.id === leadId) {
             setSelectedLead(leadToDelete)
@@ -505,7 +554,6 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("Error deleting lead:", error)
-        // Revert on error - restore both lead and panel state
         setLeads((prev) => [...prev, leadToDelete])
         if (wasPanelOpen && previousSelectedLead?.id === leadId) {
           setSelectedLead(leadToDelete)
@@ -521,9 +569,141 @@ export default function DashboardPage() {
     setIsPanelOpen(true)
   }
 
+  const handleCreateBrokerage = async (brokerage: Omit<Brokerage, "id" | "createdAt" | "updatedAt">) => {
+    const newBrokerage: Brokerage = {
+      ...brokerage,
+      id: `brokerage_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: user?.id,
+      createdByName: user?.name,
+      lastUpdatedBy: user?.id,
+      lastUpdatedByName: user?.name,
+    }
+
+    setBrokerages((prev) => [...prev, newBrokerage])
+
+    if (isProductionMode) {
+      try {
+        const { data, error } = await apiClient.createBrokerage(brokerage)
+        if (error) {
+          console.error("Error creating brokerage:", error)
+          setBrokerages((prev) => prev.filter((item) => item.id !== newBrokerage.id))
+        } else if (data) {
+          setBrokerages((prev) => prev.map((item) => (item.id === newBrokerage.id ? data : item)))
+        }
+      } catch (error) {
+        console.error("Error creating brokerage:", error)
+        setBrokerages((prev) => prev.filter((item) => item.id !== newBrokerage.id))
+      }
+    }
+  }
+
+  const handleUpdateBrokerage = async (brokerageId: string, updates: Partial<Brokerage>) => {
+    const existingBrokerage = brokerages.find((brokerage) => brokerage.id === brokerageId)
+    if (!existingBrokerage) return
+
+    const updatedBrokerage = {
+      ...existingBrokerage,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+      lastUpdatedBy: user?.id,
+      lastUpdatedByName: user?.name,
+    }
+
+    setBrokerages((prev) => prev.map((brokerage) => (brokerage.id === brokerageId ? updatedBrokerage : brokerage)))
+
+    const linkedLeads = leads.filter((lead) => lead.brokerageId === brokerageId)
+
+    if (updates.name) {
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.brokerageId === brokerageId ? { ...lead, brokerageName: updates.name } : lead
+        )
+      )
+      if (selectedLead?.brokerageId === brokerageId) {
+        setSelectedLead({ ...selectedLead, brokerageName: updates.name })
+      }
+    }
+
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.updateBrokerage(updatedBrokerage)
+        if (error) {
+          console.error("Error updating brokerage:", error)
+        }
+        if (updates.name && linkedLeads.length > 0) {
+          await Promise.all(
+            linkedLeads.map((lead) =>
+              apiClient.updateLead({
+                ...lead,
+                brokerageName: updates.name,
+                updatedAt: new Date().toISOString(),
+                lastUpdatedBy: user?.id,
+                lastUpdatedByName: user?.name,
+              })
+            )
+          )
+        }
+      } catch (error) {
+        console.error("Error updating brokerage:", error)
+      }
+    }
+  }
+
+  const handleDeleteBrokerage = async (brokerageId: string) => {
+    const brokerageToDelete = brokerages.find((brokerage) => brokerage.id === brokerageId)
+    if (!brokerageToDelete) return
+
+    const linkedLeads = leads.filter((lead) => lead.brokerageId === brokerageId)
+    if (linkedLeads.length > 0) {
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.brokerageId === brokerageId
+            ? { ...lead, brokerageId: undefined, brokerageName: undefined }
+            : lead
+        )
+      )
+      if (selectedLead?.brokerageId === brokerageId) {
+        setSelectedLead({ ...selectedLead, brokerageId: undefined, brokerageName: undefined })
+      }
+    }
+
+    setBrokerages((prev) => prev.filter((brokerage) => brokerage.id !== brokerageId))
+
+    if (isProductionMode) {
+      try {
+        const { error } = await apiClient.deleteBrokerage(brokerageId)
+        if (error) {
+          console.error("Error deleting brokerage:", error)
+          setBrokerages((prev) => [...prev, brokerageToDelete])
+        }
+        if (linkedLeads.length > 0) {
+          await Promise.all(
+            linkedLeads.map((lead) =>
+              apiClient.updateLead({
+                ...lead,
+                brokerageId: null,
+                brokerageName: null,
+                updatedAt: new Date().toISOString(),
+                lastUpdatedBy: user?.id,
+                lastUpdatedByName: user?.name,
+              })
+            )
+          )
+        }
+      } catch (error) {
+        console.error("Error deleting brokerage:", error)
+        setBrokerages((prev) => [...prev, brokerageToDelete])
+      }
+    }
+  }
+
   const handleMetricCardClick = (filterType: string) => {
     setActiveFilter(activeFilter === filterType ? null : filterType)
   }
+
+  const isTrashView = activeFilter === "trash"
 
   const getFilteredLeads = () => {
     if (!activeFilter) return sortedLeads
@@ -535,6 +715,8 @@ export default function DashboardPage() {
         return sortedLeads.filter(lead => lead.ownerId === user?.id)
       case 'needs-attention':
         return sortedLeads.filter(lead => lead.needsAttention)
+      case 'trash':
+        return sortedTrashedLeads
       case 'total':
         return sortedLeads
       default:
@@ -547,6 +729,8 @@ export default function DashboardPage() {
       id: Date.now().toString(),
       ...note,
       timestamp: note.timestamp || new Date().toISOString(),
+      createdBy: user?.id,
+      createdByName: user?.name,
     }
 
     // Update local state immediately
@@ -625,12 +809,14 @@ export default function DashboardPage() {
   }
 
   const handleCSVImport = async (importedLeads: Omit<Lead, "id">[]) => {
-    const leadsWithIds: Lead[] = importedLeads.map((lead) => ({
-      ...lead,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      ownerId: user?.id, // Assign imported leads to current user
-      ownerName: user?.name,
-    }))
+    const leadsWithIds: Lead[] = importedLeads.map((lead) =>
+      normalizeLead({
+        ...lead,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        ownerId: user?.id, // Assign imported leads to current user
+        ownerName: user?.name,
+      })
+    )
 
     // Update local state immediately
     setLeads((prev) => [...prev, ...leadsWithIds])
@@ -661,7 +847,7 @@ export default function DashboardPage() {
     csvRows.push("Name,Phone,Email,Property,Notes,,")
     
     // Process each lead
-    leads.forEach((lead) => {
+    activeLeads.forEach((lead) => {
       // Build name field - include company if available (matching import format)
       let nameField = lead.name
       if (lead.company) {
@@ -775,13 +961,27 @@ export default function DashboardPage() {
     URL.revokeObjectURL(url)
   }
 
-  const handleAddLead = async (leadData: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName">) => {
+  const handleAddLead = async (leadData: NewLeadPayload) => {
+    const { initialNote, ...leadPayload } = leadData
+    const noteTimestamp = new Date().toISOString()
+    const seededNotes = initialNote?.trim()
+      ? [{
+          id: Date.now().toString(),
+          text: initialNote.trim(),
+          timestamp: noteTimestamp,
+          type: "note" as const,
+          createdBy: user?.id,
+          createdByName: user?.name,
+        }]
+      : []
+
     const newLead: Lead = {
-      ...leadData,
+      ...leadPayload,
       id: Date.now().toString(),
       ownerId: user?.id, // Assign new leads to current user
       ownerName: user?.name,
-      notes: [],
+      notes: seededNotes,
+      needsAttention: getNeedsAttention(leadPayload),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       createdBy: user?.id,
@@ -795,8 +995,9 @@ export default function DashboardPage() {
     if (isProductionMode) {
       try {
         const apiLeadData = {
-          ...leadData,
-          notes: [],
+          ...leadPayload,
+          notes: seededNotes,
+          needsAttention: getNeedsAttention(leadPayload),
         }
         const { data: createdLead, error } = await apiClient.createLead(apiLeadData)
         if (error) {
@@ -1026,7 +1227,7 @@ export default function DashboardPage() {
           </motion.div>
 
           {/* Enhanced Metrics - removed unclaimed card */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-12">
             <Card 
               className={`bg-black/20 backdrop-blur-xl border-system rounded-brand cursor-pointer transition-all duration-300 hover:bg-black/30 ${
                 activeFilter === 'total' ? 'ring-2 ring-white/20 bg-black/30' : ''
@@ -1036,8 +1237,8 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-400 font-body text-sm">Total Leads</p>
-                    <p className="text-3xl font-title text-primary-hierarchy">{leads.length}</p>
+                    <p className="text-gray-400 font-body text-sm">Active Leads</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{activeLeads.length}</p>
                   </div>
                   <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center">
                     <Search className="h-6 w-6 text-white" />
@@ -1102,6 +1303,25 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card
+              className={`bg-black/20 backdrop-blur-xl border-system rounded-brand cursor-pointer transition-all duration-300 hover:bg-black/30 ${
+                activeFilter === 'trash' ? 'ring-2 ring-orange-500/20 bg-orange-500/10' : ''
+              }`}
+              onClick={() => handleMetricCardClick('trash')}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 font-body text-sm">Trash</p>
+                    <p className="text-3xl font-title text-primary-hierarchy">{trashedLeads.length}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <Trash2 className="h-6 w-6 text-orange-300" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {leads.length === 0 ? (
@@ -1159,6 +1379,14 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </Button>
+                  <Button
+                    onClick={() => setIsBrokerageModalOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 rounded-pill px-6"
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Brokerages
+                  </Button>
                 </div>
               </div>
             </motion.div>
@@ -1188,10 +1416,19 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </Button>
+                  <Button
+                    onClick={() => setIsBrokerageModalOpen(true)}
+                    variant="outline"
+                    className="border-white/20 text-gray-400 hover:bg-white/10 rounded-pill px-6 backdrop-blur-sm font-body"
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Brokerages
+                  </Button>
                 </div>
               </div>
 
-              <FollowUpPriority leads={getFilteredLeads()} onLeadSelect={handleLeadSelect} />
+              <FollowUpPriority leads={isTrashView ? [] : getFilteredLeads()} onLeadSelect={handleLeadSelect} />
+              <RemindersPanel leads={isTrashView ? [] : activeLeads} onLeadSelect={handleLeadSelect} />
 
               {/* Leads Table Section */}
               <div className="mb-8">
@@ -1203,6 +1440,7 @@ export default function DashboardPage() {
                         {activeFilter === 'interested' && 'Interested Leads'}
                         {activeFilter === 'my-leads' && 'My Leads'}
                         {activeFilter === 'needs-attention' && 'Needs Attention'}
+                        {activeFilter === 'trash' && 'Trash'}
                         {activeFilter === 'total' && 'All Leads'}
                       </Badge>
                       <Button
@@ -1224,6 +1462,9 @@ export default function DashboardPage() {
                   onSortChange={setSortConfig}
                   users={availableUsers}
                   onDeleteLead={handleDeleteLead}
+                  onRestoreLead={handleRestoreLead}
+                  onPermanentDeleteLead={handlePermanentDeleteLead}
+                  trashMode={isTrashView}
                 />
               </div>
 
@@ -1270,9 +1511,18 @@ export default function DashboardPage() {
             onUpdateLead={handleLeadUpdate}
             users={availableUsers}
             onDeleteLead={handleDeleteLead}
+            onRestoreLead={handleRestoreLead}
+            onPermanentDeleteLead={handlePermanentDeleteLead}
+            brokerages={brokerages}
+            onManageBrokerages={() => setIsBrokerageModalOpen(true)}
           />
 
-          <AddLeadModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddLead={handleAddLead} />
+          <AddLeadModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onAddLead={handleAddLead}
+            brokerages={brokerages}
+          />
 
           <CSVImport isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleCSVImport} />
 
@@ -1280,6 +1530,20 @@ export default function DashboardPage() {
             isOpen={isProspectModalOpen}
             onClose={() => setIsProspectModalOpen(false)}
             onAddLead={handleAddLead}
+          />
+
+          <BrokerageDirectoryModal
+            isOpen={isBrokerageModalOpen}
+            onClose={() => setIsBrokerageModalOpen(false)}
+            brokerages={brokerages}
+            leads={leads}
+            onCreateBrokerage={handleCreateBrokerage}
+            onUpdateBrokerage={handleUpdateBrokerage}
+            onDeleteBrokerage={handleDeleteBrokerage}
+            onSelectLead={(lead) => {
+              handleLeadSelect(lead)
+              setIsBrokerageModalOpen(false)
+            }}
           />
         </div>
       </div>

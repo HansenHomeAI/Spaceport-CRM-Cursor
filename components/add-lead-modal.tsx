@@ -11,12 +11,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import type { Lead } from "./leads-table"
+import type { Lead, Brokerage, NewLeadPayload } from "@/lib/crm-types"
+import { getMissingLeadFields } from "@/lib/lead-quality"
 
 interface AddLeadModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddLead: (lead: Omit<Lead, "id" | "notes">) => void
+  onAddLead: (lead: NewLeadPayload) => void
+  brokerages?: Brokerage[]
 }
 
 // Smart parsing function for contact info
@@ -246,7 +248,7 @@ const parseComplexRealEstate = (text: string) => {
   return result
 }
 
-export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) {
+export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: AddLeadModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -254,12 +256,25 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     address: "",
     properties: [] as string[],
     company: "",
+    brokerageId: "",
     status: "Left Voicemail" as Lead["status"],
     lastInteraction: new Date().toISOString(),
+    initialNote: "",
   })
 
   const [autoParseFeedback, setAutoParseFeedback] = useState("")
   const [showAutoParseFeedback, setShowAutoParseFeedback] = useState(false)
+  const missingFields = getMissingLeadFields({
+    name: formData.name,
+    phone: formData.phone,
+    email: formData.email,
+    address: formData.address,
+    properties: formData.properties.map((address, index) => ({
+      id: `temp_${index}`,
+      address,
+      isSold: false,
+    })),
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -273,6 +288,8 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
     // Filter out empty properties
     const validProperties = allProperties.filter(p => p.trim())
 
+    const selectedBrokerage = brokerages.find((brokerage) => brokerage.id === formData.brokerageId)
+
     onAddLead({
       ...formData,
       // Provide defaults for empty fields
@@ -285,9 +302,9 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
         isSold: false
       })),
       company: formData.company || "",
+      brokerageId: selectedBrokerage?.id || undefined,
+      brokerageName: selectedBrokerage?.name || undefined,
       nextActionDate: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     })
 
     // Reset form
@@ -298,8 +315,10 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
       address: "",
       properties: [],
       company: "",
+      brokerageId: "",
       status: "Left Voicemail",
       lastInteraction: new Date().toISOString(),
+      initialNote: "",
     })
     setAutoParseFeedback("")
     setShowAutoParseFeedback(false)
@@ -493,6 +512,37 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
 
                   <div className="space-y-2">
                     <Label className="text-white font-body flex items-center gap-2">
+                      <Home className="h-4 w-4" style={{ color: "#22c55e" }} />
+                      Brokerage <span className="text-gray-400 text-sm">(optional)</span>
+                    </Label>
+                    {brokerages.length > 0 ? (
+                      <Select
+                        value={formData.brokerageId || "none"}
+                        onValueChange={(value) => handleInputChange("brokerageId", value === "none" ? "" : value)}
+                      >
+                        <SelectTrigger className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body rounded-brand">
+                          <SelectValue placeholder="Select brokerage" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-xl">
+                          <SelectItem value="none" className="rounded-lg font-body">
+                            No brokerage
+                          </SelectItem>
+                          {brokerages.map((brokerage) => (
+                            <SelectItem key={brokerage.id} value={brokerage.id} className="rounded-lg font-body">
+                              {brokerage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="text-xs text-gray-500 font-body">
+                        No brokerages yet. Add one from the Brokerages menu.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white font-body flex items-center gap-2">
                       <MapPin className="h-4 w-4" style={{ color: "#a855f7" }} />
                       Property Addresses <span className="text-gray-400 text-sm">(optional)</span>
                     </Label>
@@ -569,6 +619,27 @@ export function AddLeadModal({ isOpen, onClose, onAddLead }: AddLeadModalProps) 
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="initialNote" className="text-white font-body flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" style={{ color: "#CD70E4" }} />
+                      Add Note <span className="text-gray-400 text-sm">(optional)</span>
+                    </Label>
+                    <Textarea
+                      id="initialNote"
+                      value={formData.initialNote}
+                      onChange={(e) => handleInputChange("initialNote", e.target.value)}
+                      className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand"
+                      placeholder="Write a quick note for future reference"
+                      rows={3}
+                    />
+                  </div>
+
+                  {missingFields.length > 0 && formData.name.trim() && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300 font-body">
+                      Missing {missingFields.join(", ")}. You can save now and fill in later.
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-4">
                     <Button

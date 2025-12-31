@@ -43,6 +43,14 @@ export class SpaceportCrmStack extends cdk.Stack {
       pointInTimeRecovery: true,
     })
 
+    const brokeragesTable = new dynamodb.Table(this, "BrokeragesTable", {
+      tableName: "spaceport-crm-brokerages",
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    })
+
     // Cognito User Pool
     const userPool = new cognito.UserPool(this, "SpaceportCrmUserPool", {
       userPoolName: "spaceport-crm-users",
@@ -142,11 +150,17 @@ export class SpaceportCrmStack extends cdk.Stack {
             const { httpMethod, pathParameters, body, headers, resource } = event;
             const leadsTableName = process.env.LEADS_TABLE_NAME;
             const prospectsTableName = process.env.PROSPECTS_TABLE_NAME;
+            const brokeragesTableName = process.env.BROKERAGES_TABLE_NAME;
             const user = getUserFromToken(headers.Authorization || headers.authorization);
             
             // Determine if this is a leads or prospects request
+            const isBrokeragesRequest = resource && resource.includes('/brokerages');
             const isProspectsRequest = resource && resource.includes('/prospects');
-            const tableName = isProspectsRequest ? prospectsTableName : leadsTableName;
+            const tableName = isBrokeragesRequest
+              ? brokeragesTableName
+              : isProspectsRequest
+              ? prospectsTableName
+              : leadsTableName;
             
             switch (httpMethod) {
               case 'GET':
@@ -179,7 +193,7 @@ export class SpaceportCrmStack extends cdk.Stack {
               
               case 'POST':
                 const newItem = JSON.parse(body);
-                const itemType = isProspectsRequest ? 'prospect' : 'lead';
+                const itemType = isBrokeragesRequest ? 'brokerage' : isProspectsRequest ? 'prospect' : 'lead';
                 newItem.id = \`\${itemType}_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;
                 newItem.createdAt = new Date().toISOString();
                 newItem.updatedAt = new Date().toISOString();
@@ -266,7 +280,7 @@ export class SpaceportCrmStack extends cdk.Stack {
                     }));
                   }
                   
-                  const itemType = isProspectsRequest ? 'prospects' : 'leads';
+                  const itemType = isBrokeragesRequest ? 'brokerages' : isProspectsRequest ? 'prospects' : 'leads';
                   return {
                     statusCode: 200,
                     headers: corsHeaders,
@@ -285,7 +299,7 @@ export class SpaceportCrmStack extends cdk.Stack {
                     body: ''
                   };
                 } else {
-                  const itemType = isProspectsRequest ? 'prospect' : 'lead';
+                  const itemType = isBrokeragesRequest ? 'brokerage' : isProspectsRequest ? 'prospect' : 'lead';
                   return {
                     statusCode: 400,
                     headers: corsHeaders,
@@ -316,6 +330,7 @@ export class SpaceportCrmStack extends cdk.Stack {
       environment: {
         LEADS_TABLE_NAME: leadsTable.tableName,
         PROSPECTS_TABLE_NAME: prospectsTable.tableName,
+        BROKERAGES_TABLE_NAME: brokeragesTable.tableName,
         ACTIVITIES_TABLE_NAME: activitiesTable.tableName,
         USER_POOL_ID: userPool.userPoolId,
       },
@@ -516,6 +531,7 @@ export class SpaceportCrmStack extends cdk.Stack {
     leadsTable.grantReadWriteData(leadsLambda)
     activitiesTable.grantReadWriteData(leadsLambda)
     activitiesTable.grantReadWriteData(activitiesLambda)
+    brokeragesTable.grantReadWriteData(leadsLambda)
     prospectsTable.grantReadWriteData(leadsLambda)
 
     // API Gateway with Cognito Authorizer
@@ -544,6 +560,8 @@ export class SpaceportCrmStack extends cdk.Stack {
     const activitiesResource = api.root.addResource("activities")
     const prospectsResource = api.root.addResource("prospects")
     const prospectResource = prospectsResource.addResource("{id}")
+    const brokeragesResource = api.root.addResource("brokerages")
+    const brokerageResource = brokeragesResource.addResource("{id}")
 
     // API Methods with Cognito authorization
     const methodOptions = {
@@ -600,6 +618,12 @@ export class SpaceportCrmStack extends cdk.Stack {
     prospectResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
     prospectResource.addMethod("PUT", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
     prospectResource.addMethod("DELETE", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+
+    brokeragesResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    brokeragesResource.addMethod("POST", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    brokerageResource.addMethod("GET", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    brokerageResource.addMethod("PUT", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
+    brokerageResource.addMethod("DELETE", new apigateway.LambdaIntegration(leadsLambda), methodOptions)
 
     // Add Gateway Responses for CORS support on authentication failures
     api.addGatewayResponse("AuthorizerFailure", {
@@ -673,6 +697,12 @@ export class SpaceportCrmStack extends cdk.Stack {
       value: activitiesTable.tableName,
       description: "DynamoDB Activities Table Name",
       exportName: "SpaceportCrmActivitiesTable",
+    })
+
+    new cdk.CfnOutput(this, "BrokeragesTableName", {
+      value: brokeragesTable.tableName,
+      description: "DynamoDB Brokerages Table Name",
+      exportName: "SpaceportCrmBrokeragesTable",
     })
   }
 }

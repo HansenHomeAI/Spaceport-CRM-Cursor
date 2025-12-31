@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Clock, AlertTriangle, Phone, Mail, ChevronDown, ChevronRight } from "lucide-react"
+import { Phone, Mail, ChevronDown, ChevronRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { Lead } from "./leads-table"
+import type { Lead } from "@/lib/crm-types"
 
 interface FollowUpItem {
   lead: Lead
@@ -19,18 +19,6 @@ interface FollowUpItem {
 interface FollowUpPriorityProps {
   leads: Lead[]
   onLeadSelect: (lead: Lead) => void
-}
-
-const urgencyColors = {
-  high: "bg-green-500/10 text-green-300 border-green-500/20",
-  medium: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
-  low: "bg-gray-500/10 text-gray-300 border-gray-500/20",
-}
-
-const urgencyIcons = {
-  high: AlertTriangle,
-  medium: Clock,
-  low: Clock,
 }
 
 export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps) {
@@ -329,7 +317,12 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4">
                     {items.map((item) => {
-                      const UrgencyIcon = urgencyIcons[item.urgency]
+                      const canCall = item.lead.phone && item.lead.phone !== "Not provided"
+                      const canEmail = item.lead.email && item.lead.email !== "Not provided"
+                      const actionHref = item.nextAction === "call"
+                        ? `tel:${item.lead.phone}`
+                        : `mailto:${item.lead.email}?subject=Follow%20up%20for%20${encodeURIComponent(item.lead.name)}`
+                      const actionDisabled = item.nextAction === "call" ? !canCall : !canEmail
 
                       return (
                         <motion.div
@@ -351,15 +344,30 @@ export function FollowUpPriority({ leads, onLeadSelect }: FollowUpPriorityProps)
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              {item.nextAction === "call" ? (
-                                <Phone className="h-3 w-3 text-emerald-400" />
-                              ) : (
-                                <Mail className="h-3 w-3 text-blue-400" />
-                              )}
-                              <span className="text-xs text-gray-300 font-medium">
-                                {item.nextAction === "call" ? "Call" : "Email"}
-                              </span>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                {item.nextAction === "call" ? (
+                                  <Phone className="h-3 w-3 text-emerald-400" />
+                                ) : (
+                                  <Mail className="h-3 w-3 text-blue-400" />
+                                )}
+                                <span className="text-xs text-gray-300 font-medium">
+                                  {item.nextAction === "call" ? "Call" : "Email"}
+                                </span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className={`border-white/10 text-white hover:bg-white/10 rounded-full text-xs px-3 ${
+                                  actionDisabled ? "opacity-40 pointer-events-none" : ""
+                                }`}
+                                onClick={(event) => event.stopPropagation()}
+                                asChild
+                              >
+                                <a href={actionHref}>
+                                  {item.nextAction === "call" ? "Dial" : "Send"}
+                                </a>
+                              </Button>
                             </div>
                           </div>
                         </motion.div>

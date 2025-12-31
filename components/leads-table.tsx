@@ -31,39 +31,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { colors } from "@/lib/colors"
 import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp, formatRelativeTime, isValidUrl, getGoogleMapsUrl } from "@/lib/utils"
-
-export interface Lead {
-  id: string
-  name: string
-  phone: string
-  email: string
-  address: string
-  properties?: Array<{
-    id: string
-    address: string
-    isSold: boolean
-    soldDate?: string
-  }>
-  company?: string
-  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Closed"
-  lastInteraction: string
-  ownerId?: string
-  ownerName?: string
-  nextActionDate: string
-  needsAttention?: boolean
-  notes: Array<{
-    id: string
-    text: string
-    timestamp: string
-    type: "call" | "email" | "note" | "video" | "social"
-  }>
-  createdAt: string
-  updatedAt: string
-  createdBy?: string
-  createdByName?: string
-  lastUpdatedBy?: string
-  lastUpdatedByName?: string
-}
+import { getMissingLeadFields } from "@/lib/lead-quality"
+import type { Lead } from "@/lib/crm-types"
 
 interface LeadsTableProps {
   leads: Lead[]
@@ -79,6 +48,9 @@ interface LeadsTableProps {
   }) => void
   users?: Array<{ id: string; name: string }>
   onDeleteLead?: (leadId: string) => void
+  onRestoreLead?: (leadId: string) => void
+  onPermanentDeleteLead?: (leadId: string) => void
+  trashMode?: boolean
 }
 
 const columnHelper = createColumnHelper<Lead>()
@@ -112,6 +84,9 @@ export function LeadsTable({
   onSortChange,
   users = [],
   onDeleteLead,
+  onRestoreLead,
+  onPermanentDeleteLead,
+  trashMode = false,
 }: LeadsTableProps) {
   const { user } = useAuth()
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null)
@@ -276,7 +251,7 @@ export function LeadsTable({
           const value = getValue()
           const lead = row.original
 
-          if (isEditing) {
+          if (isEditing && !trashMode) {
             return (
               <Input
                 defaultValue={value}
@@ -296,23 +271,32 @@ export function LeadsTable({
             )
           }
 
+          const missingFields = getMissingLeadFields(lead)
+          const showAttention = lead.needsAttention || missingFields.length > 0
+
           return (
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <div
                   className="text-white font-title cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200"
-                  onDoubleClick={() => setEditingCell({ rowId: row.id, columnId: column.id })}
+                  onDoubleClick={() => {
+                    if (!trashMode) {
+                      setEditingCell({ rowId: row.id, columnId: column.id })
+                    }
+                  }}
                 >
                   {value}
                 </div>
-                {lead.needsAttention && (
+                {showAttention && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
-                        <p className="font-body text-red-300">Missing required fields - needs attention</p>
+                        <p className="font-body text-red-300">
+                          Missing {missingFields.length > 0 ? missingFields.join(", ") : "required fields"}
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -381,7 +365,7 @@ export function LeadsTable({
           const value = getValue()
           const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id
 
-          if (isEditing) {
+          if (isEditing && !trashMode) {
             return (
               <Input
                 defaultValue={value}
@@ -404,7 +388,11 @@ export function LeadsTable({
           return (
             <div
               className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group"
-              onDoubleClick={() => setEditingCell({ rowId: row.id, columnId: column.id })}
+              onDoubleClick={() => {
+                if (!trashMode) {
+                  setEditingCell({ rowId: row.id, columnId: column.id })
+                }
+              }}
             >
               <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
               <div className="text-white font-body leading-tight">
@@ -449,7 +437,12 @@ export function LeadsTable({
           return (
             <Select
               value={normalizedStatus}
-              onValueChange={(newStatus) => onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })}
+              onValueChange={(newStatus) => {
+                if (!trashMode) {
+                  onLeadUpdate(row.original.id, { status: newStatus as Lead["status"] })
+                }
+              }}
+              disabled={trashMode}
             >
               <SelectTrigger className="w-40 bg-transparent border-none p-0">
                 <Badge
@@ -488,6 +481,7 @@ export function LeadsTable({
                 <Button
                   variant="ghost"
                   size="sm"
+                  disabled={trashMode}
                   className={`${
                     ownerName
                       ? "bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30"
@@ -610,54 +604,103 @@ export function LeadsTable({
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onLeadSelect(row.original)}
-              className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
-            >
-              View Details
-            </Button>
-            
-            {onDeleteLead && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-white font-title">Delete Lead?</AlertDialogTitle>
-                    <AlertDialogDescription className="text-gray-400 font-body">
-                      Are you sure you want to delete <span className="text-white font-bold">{row.original.name}</span>? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteLead(row.original.id)
-                      }}
-                      className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            {trashMode ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onRestoreLead?.(row.original.id)}
+                  className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
+                >
+                  Restore
+                </Button>
+                {onPermanentDeleteLead && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-white font-title">Delete Permanently?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400 font-body">
+                          Permanently delete <span className="text-white font-bold">{row.original.name}</span>? This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onPermanentDeleteLead(row.original.id)
+                          }}
+                          className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                        >
+                          Delete Forever
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onLeadSelect(row.original)}
+                  className="text-white hover:text-white hover:bg-white/10 rounded-brand px-4 py-2 transition-all duration-200 font-body border border-white/20"
+                >
+                  View Details
+                </Button>
+                
+                {onDeleteLead && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-white font-title">Move to Trash?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400 font-body">
+                          Move <span className="text-white font-bold">{row.original.name}</span> to the trash? You can restore it later.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDeleteLead(row.original.id)
+                          }}
+                          className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                        >
+                          Move to Trash
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
             )}
           </div>
         ),
       }),
     ],
-    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange, users, onDeleteLead],
+    [editingCell, onLeadUpdate, onLeadSelect, user, sortConfig, onSortChange, users, onDeleteLead, onRestoreLead, onPermanentDeleteLead, trashMode],
   )
 
   const table = useReactTable({
