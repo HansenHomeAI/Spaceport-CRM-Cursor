@@ -153,6 +153,7 @@ export function BrokerageDirectoryModal({
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
+                  aria-label="Close brokerage directory"
                   className="text-gray-400 hover:text-white hover:bg-white/10 rounded-pill"
                 >
                   <X className="h-4 w-4" />
