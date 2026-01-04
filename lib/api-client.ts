@@ -1,38 +1,6 @@
 import { awsConfig } from "./aws-config"
 import { cognitoAuth } from "./cognito-auth"
-
-export interface Lead {
-  id: string
-  name: string
-  phone: string
-  email: string
-  address: string
-  properties?: Array<{
-    id: string
-    address: string
-    isSold: boolean
-    soldDate?: string
-  }>
-  company?: string
-  status: "Left Voicemail" | "Contacted" | "Interested" | "Not Interested" | "Closed"
-  lastInteraction: string
-  ownerId?: string
-  ownerName?: string
-  nextActionDate: string
-  needsAttention?: boolean
-  notes: Array<{
-    id: string
-    text: string
-    timestamp: string
-    type: "call" | "email" | "note" | "video" | "social"
-  }>
-  createdAt: string
-  updatedAt: string
-  createdBy?: string
-  createdByName?: string
-  lastUpdatedBy?: string
-  lastUpdatedByName?: string
-}
+import type { Lead, Brokerage } from "./crm-types"
 
 export interface Prospect {
   id: string
@@ -208,6 +176,33 @@ class ApiClient {
 
   async deleteLead(id: string): Promise<{ data: null; error: string | null }> {
     return this.request<null>(`/leads/${id}`, {
+      method: "DELETE",
+    })
+  }
+
+  // Brokerages API
+  async getBrokerages(): Promise<{ data: Brokerage[] | null; error: string | null }> {
+    return this.request<Brokerage[]>("/brokerages")
+  }
+
+  async createBrokerage(
+    brokerage: Omit<Brokerage, "id" | "createdAt" | "updatedAt">,
+  ): Promise<{ data: Brokerage | null; error: string | null }> {
+    return this.request<Brokerage>("/brokerages", {
+      method: "POST",
+      body: JSON.stringify(brokerage),
+    })
+  }
+
+  async updateBrokerage(brokerage: Brokerage): Promise<{ data: Brokerage | null; error: string | null }> {
+    return this.request<Brokerage>(`/brokerages/${brokerage.id}`, {
+      method: "PUT",
+      body: JSON.stringify(brokerage),
+    })
+  }
+
+  async deleteBrokerage(id: string): Promise<{ data: null; error: string | null }> {
+    return this.request<null>(`/brokerages/${id}`, {
       method: "DELETE",
     })
   }

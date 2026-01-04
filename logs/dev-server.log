@@ -1,0 +1,86 @@
+
+> spaceport-crm@0.1.0 dev /Users/gabrielhansen/Downloads/spaceport-crm
+> next dev
+
+  ▲ Next.js 14.2.16
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+  - Experiments (use with caution):
+    · esmExternals
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.2s (679 modules)
+ GET /login 200 in 2303ms
+ ✓ Compiled in 207ms (344 modules)
+ ✓ Compiled in 163ms (344 modules)
+ ✓ Compiled in 123ms (344 modules)
+ ✓ Compiled in 111ms (344 modules)
+ ✓ Compiled in 106ms (344 modules)
+ ✓ Compiled in 86ms (344 modules)
+ GET /login 200 in 31ms
+ ✓ Compiled in 93ms (344 modules)
+ ✓ Compiled in 108ms (344 modules)
+ ✓ Compiled in 168ms (344 modules)
+ ✓ Compiled in 103ms (344 modules)
+ ✓ Compiled in 101ms (344 modules)
+ GET /login 200 in 27ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1976ms (1720 modules)
+ ✓ Compiled in 154ms (870 modules)
+ ✓ Compiled in 149ms (870 modules)
+ ✓ Compiled in 140ms (870 modules)
+ GET /login 200 in 96ms
+ ✓ Compiled in 114ms (870 modules)
+ ✓ Compiled in 332ms (1734 modules)
+ ✓ Compiled in 140ms (870 modules)
+ ✓ Compiled in 110ms (870 modules)
+ ✓ Compiled in 105ms (870 modules)
+ ✓ Compiled in 125ms (870 modules)
+ GET /login 200 in 94ms
+ ✓ Compiled in 195ms (870 modules)
+ ✓ Compiled in 196ms (870 modules)
+ ✓ Compiled in 129ms (870 modules)
+ ✓ Compiled in 113ms (870 modules)
+ ✓ Compiled in 128ms (870 modules)
+ GET /login 200 in 29ms
+ ✓ Compiled in 122ms (870 modules)
+ ✓ Compiled in 106ms (870 modules)
+ ✓ Compiled in 120ms (870 modules)
+ ✓ Compiled in 107ms (870 modules)
+ ✓ Compiled in 133ms (870 modules)
+ GET /login 200 in 19ms
+ ✓ Compiled in 114ms (870 modules)
+ ✓ Compiled in 159ms (870 modules)
+ ✓ Compiled in 155ms (870 modules)
+ ✓ Compiled in 115ms (870 modules)
+ ✓ Compiled in 113ms (870 modules)
+ GET /login 200 in 16ms
+ ✓ Compiled in 186ms (870 modules)
+ ✓ Compiled in 165ms (870 modules)
+ ✓ Compiled in 124ms (870 modules)
+ ✓ Compiled in 113ms (870 modules)
+ ✓ Compiled in 107ms (870 modules)
+ GET /login 200 in 13ms
+ ✓ Compiled in 113ms (870 modules)
+ ✓ Compiled in 140ms (870 modules)
+ ✓ Compiled in 116ms (870 modules)
+ ✓ Compiled in 107ms (870 modules)
+ ✓ Compiled in 132ms (870 modules)
+ GET /login 200 in 16ms
+ ✓ Compiled in 112ms (870 modules)
+ ✓ Compiled in 158ms (870 modules)
+ ✓ Compiled in 153ms (870 modules)
+ ✓ Compiled in 110ms (870 modules)
+ ✓ Compiled in 127ms (870 modules)
+ GET /login 200 in 45ms
+ ✓ Compiled in 129ms (870 modules)
+ ✓ Compiled in 142ms (870 modules)
+ ✓ Compiled in 152ms (870 modules)
+ ✓ Compiled in 112ms (870 modules)
+ ✓ Compiled in 124ms (870 modules)
+ GET /login 200 in 23ms
+ ✓ Compiled in 125ms (870 modules)
+ ✓ Compiled in 229ms (870 modules)
+[?25h

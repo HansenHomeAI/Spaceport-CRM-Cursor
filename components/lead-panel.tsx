@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Video, Users, Check, ExternalLink, ChevronDown, User, UserX, Trash2, Home, CheckCircle } from "lucide-react"
+import { X, Phone, Mail, Calendar, Plus, MapPin, Edit3, Users, Check, ExternalLink, ChevronDown, User, UserX, Trash2, Home, CheckCircle, Building2, AlertTriangle, RotateCcw } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { colors } from "@/lib/colors"
 import { formatTimestamp, isValidUrl, getGoogleMapsUrl } from "@/lib/utils"
-import type { Lead } from "./leads-table"
+import type { Lead, Brokerage } from "@/lib/crm-types"
 import { useAuth } from "@/lib/auth-context"
+import { getMissingLeadFields } from "@/lib/lead-quality"
 
 interface LeadPanelProps {
   lead: Lead | null
@@ -36,9 +37,26 @@ interface LeadPanelProps {
   onUpdateLead: (leadId: string, updates: Partial<Lead>) => void
   users?: Array<{ id: string; name: string }>
   onDeleteLead?: (leadId: string) => void
+  onRestoreLead?: (leadId: string) => void
+  onPermanentDeleteLead?: (leadId: string) => void
+  brokerages?: Brokerage[]
+  onManageBrokerages?: () => void
 }
 
-export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUpdateLead, users = [], onDeleteLead }: LeadPanelProps) {
+export function LeadPanel({
+  lead,
+  isOpen,
+  onClose,
+  onAddNote,
+  onUpdateNote,
+  onUpdateLead,
+  users = [],
+  onDeleteLead,
+  onRestoreLead,
+  onPermanentDeleteLead,
+  brokerages = [],
+  onManageBrokerages,
+}: LeadPanelProps) {
   const { user } = useAuth()
   const [newNote, setNewNote] = useState("")
   const [noteType, setNoteType] = useState<"call" | "email" | "note" | "video" | "social">("note")
@@ -89,7 +107,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
 
   const handleSetReminder = (timeframe: string) => {
-    if (!lead) return
+    if (!lead || isReadOnly) return
 
     let reminderDate: Date
     let reminderText: string
@@ -128,7 +146,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   }
 
   const handleAddNote = () => {
-    if (!lead || !newNote.trim()) return
+    if (!lead || isReadOnly || !newNote.trim()) return
 
     onAddNote(lead.id, {
       text: newNote,
@@ -138,19 +156,20 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   }
 
   const handleStatusChange = (newStatus: Lead["status"]) => {
-    if (!lead) return
+    if (!lead || isReadOnly) return
     onUpdateLead(lead.id, { status: newStatus })
     setIsEditingStatus(false)
   }
 
   const handleStartEditNote = (note: any) => {
+    if (isReadOnly) return
     setEditingNoteId(note.id)
     setEditingNoteText(note.text)
     setEditingNoteDate(new Date(note.timestamp).toISOString())
   }
 
   const handleSaveNoteEdit = () => {
-    if (!lead || !editingNoteId) return
+    if (!lead || isReadOnly || !editingNoteId) return
     
     onUpdateNote(lead.id, editingNoteId, {
       text: editingNoteText,
@@ -170,12 +189,13 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   // Inline editing handlers
   const handleStartEditField = (field: string, value: string) => {
+    if (isReadOnly) return
     setEditingField(field)
     setEditingValue(value)
   }
 
   const handleSaveFieldEdit = () => {
-    if (!lead || !editingField) return
+    if (!lead || isReadOnly || !editingField) return
     
     const updates: Partial<Lead> = {}
     if (editingField === 'name') updates.name = editingValue
@@ -190,7 +210,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
 
   // Properties handlers
   const handleAddProperty = () => {
-    if (!lead) return
+    if (!lead || isReadOnly) return
     const newProperty = {
       id: `prop_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       address: "New Property Address",
@@ -203,7 +223,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   }
 
   const handleUpdateProperty = (propertyId: string, updates: Partial<{ address: string; isSold: boolean }>) => {
-    if (!lead) return
+    if (!lead || isReadOnly) return
     const updatedProperties = (lead.properties || []).map(p => 
       p.id === propertyId ? { ...p, ...updates } : p
     )
@@ -211,20 +231,22 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   }
 
   const handleDeleteProperty = (propertyId: string) => {
-    if (!lead) return
+    if (!lead || isReadOnly) return
     const updatedProperties = (lead.properties || []).filter(p => p.id !== propertyId)
     onUpdateLead(lead.id, { properties: updatedProperties })
   }
 
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null)
+  const isReadOnly = Boolean(lead?.deletedAt)
   
   const handleStartEditProperty = (propertyId: string, address: string) => {
+    if (isReadOnly) return
     setEditingPropertyId(propertyId)
     setEditingValue(address)
   }
 
   const handleSavePropertyEdit = () => {
-    if (!lead || !editingPropertyId) return
+    if (!lead || isReadOnly || !editingPropertyId) return
     handleUpdateProperty(editingPropertyId, { address: editingValue })
     setEditingPropertyId(null)
     setEditingValue("")
@@ -249,6 +271,14 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
   }
 
   if (!isOpen || !lead) return null
+
+  const missingFields = getMissingLeadFields(lead)
+  const phoneDisplay = lead.phone && lead.phone !== "Not provided" ? lead.phone : "Add phone number"
+  const emailDisplay = lead.email && lead.email !== "Not provided" ? lead.email : "Add email address"
+  const companyDisplay = lead.company && lead.company.trim() ? lead.company : "Add company"
+  const phoneIsMissing = phoneDisplay === "Add phone number"
+  const emailIsMissing = emailDisplay === "Add email address"
+  const companyIsMissing = companyDisplay === "Add company"
 
   // Get colors for the normalized status
   const normalizedStatus = normalizeStatus(lead.status)
@@ -276,7 +306,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-title text-primary-hierarchy">Lead Details</h2>
                 <div className="flex items-center gap-2">
-                  {onDeleteLead && (
+                  {onDeleteLead && !lead.deletedAt && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -289,9 +319,9 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                       </AlertDialogTrigger>
                       <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
                         <AlertDialogHeader>
-                          <AlertDialogTitle className="text-white font-title">Delete Lead?</AlertDialogTitle>
+                          <AlertDialogTitle className="text-white font-title">Move to Trash?</AlertDialogTitle>
                           <AlertDialogDescription className="text-gray-400 font-body">
-                            Are you sure you want to delete <span className="text-white font-bold">{lead.name}</span>? This action cannot be undone.
+                            Move <span className="text-white font-bold">{lead.name}</span> to the trash? You can restore it later.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -300,7 +330,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             onClick={() => onDeleteLead(lead.id)}
                             className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
                           >
-                            Delete
+                            Move to Trash
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -316,6 +346,65 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                   </Button>
                 </div>
               </div>
+
+              {lead.deletedAt && (
+                <div className="mb-6 bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 text-orange-200 font-body">
+                        <AlertTriangle className="h-4 w-4" />
+                        This lead is in the trash
+                      </div>
+                      <div className="text-xs text-orange-300 font-body mt-1">
+                        Deleted {formatTimestamp(lead.deletedAt)}{lead.deletedByName ? ` by ${lead.deletedByName}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {onRestoreLead && (
+                        <Button
+                          size="sm"
+                          onClick={() => onRestoreLead(lead.id)}
+                          className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Restore
+                        </Button>
+                      )}
+                      {onPermanentDeleteLead && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-300 hover:text-red-200 hover:bg-red-500/10 rounded-full"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Delete Forever
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-white font-title">Delete Permanently?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-gray-400 font-body">
+                                Permanently delete <span className="text-white font-bold">{lead.name}</span>? This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => onPermanentDeleteLead(lead.id)}
+                                className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                              >
+                                Delete Forever
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
 
 
@@ -340,7 +429,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     <Button
                       size="sm"
                       onClick={() => handleSetReminder("2weeks")}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                      disabled={isReadOnly}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full disabled:opacity-40"
                     >
                       <Calendar className="h-3 w-3 mr-1" />
                       2 Weeks
@@ -348,7 +438,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     <Button
                       size="sm"
                       onClick={() => handleSetReminder("1month")}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                      disabled={isReadOnly}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full disabled:opacity-40"
                     >
                       <Calendar className="h-3 w-3 mr-1" />
                       1 Month
@@ -356,7 +447,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     <Button
                       size="sm"
                       onClick={() => setShowCustomReminder(!showCustomReminder)}
-                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full"
+                      disabled={isReadOnly}
+                      className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-full disabled:opacity-40"
                     >
                       <Calendar className="h-3 w-3 mr-1" />
                       Custom
@@ -375,13 +467,14 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           type="datetime-local"
                           value={customReminderDate.slice(0, 16)}
                           onChange={(e) => setCustomReminderDate(e.target.value + ':00.000Z')}
-                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                          disabled={isReadOnly}
+                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm disabled:opacity-50"
                           min={new Date().toISOString().slice(0, 16)}
                         />
                         <Button
                           size="sm"
                           onClick={() => handleSetReminder("custom")}
-                          disabled={!customReminderDate}
+                          disabled={!customReminderDate || isReadOnly}
                           className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full disabled:opacity-50"
                         >
                           Set
@@ -425,10 +518,12 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                       ) : (
                         <CardTitle 
                           className="text-primary-hierarchy font-title cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
-                          onDoubleClick={() => handleStartEditField('name', lead.name)}
+                          onClick={() => handleStartEditField('name', lead.name)}
                         >
                           {lead.name}
-                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          {!isReadOnly && (
+                            <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          )}
                         </CardTitle>
                       )}
                     </div>
@@ -497,20 +592,31 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                             />
                             {normalizedStatus}
                           </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsEditingStatus(true)}
-                            className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
+                          {!isReadOnly && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsEditingStatus(true)}
+                              className="text-medium-hierarchy hover:text-primary-hierarchy hover:bg-white/10 rounded-full p-1"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {missingFields.length > 0 && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-3">
+                      <div className="flex items-center gap-2 text-red-300 text-sm font-body">
+                        <AlertTriangle className="h-4 w-4" />
+                        Missing {missingFields.join(", ")}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Properties List */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between mb-2">
@@ -519,7 +625,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                         size="sm"
                         variant="ghost"
                         onClick={handleAddProperty}
-                        className="h-6 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-full"
+                        disabled={isReadOnly}
+                        className="h-6 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-full disabled:opacity-40"
                       >
                         <Plus className="h-3 w-3 mr-1" />
                         Add Property
@@ -615,6 +722,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                   <Switch
                                     checked={property.isSold}
                                     onCheckedChange={(checked) => handleUpdateProperty(property.id, { isSold: checked })}
+                                    disabled={isReadOnly}
                                     className="scale-75 data-[state=checked]:bg-green-500"
                                   />
                                 </div>
@@ -623,7 +731,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleStartEditProperty(property.id, property.address)}
-                                  className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+                                  disabled={isReadOnly}
+                                  className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-white/10 rounded-full disabled:opacity-40"
                                 >
                                   <Edit3 className="h-3 w-3" />
                                 </Button>
@@ -633,7 +742,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full"
+                                      disabled={isReadOnly}
+                                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-40"
                                     >
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
@@ -696,11 +806,15 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                         </div>
                       ) : (
                         <div
-                          className="text-primary-hierarchy font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
-                          onDoubleClick={() => handleStartEditField('phone', lead.phone)}
+                          className={`font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative ${
+                            phoneIsMissing ? 'text-gray-500 italic' : 'text-primary-hierarchy'
+                          }`}
+                          onClick={() => handleStartEditField('phone', phoneIsMissing ? "" : lead.phone)}
                         >
-                          {lead.phone}
-                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          {phoneDisplay}
+                          {!isReadOnly && (
+                            <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          )}
                         </div>
                       )}
                     </div>
@@ -738,59 +852,124 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                         </div>
                       ) : (
                         <div
-                          className="text-primary-hierarchy font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
-                          onDoubleClick={() => handleStartEditField('email', lead.email)}
+                          className={`font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative ${
+                            emailIsMissing ? 'text-gray-500 italic' : 'text-primary-hierarchy'
+                          }`}
+                          onClick={() => handleStartEditField('email', emailIsMissing ? "" : lead.email)}
                         >
-                          {lead.email}
-                          <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          {emailDisplay}
+                          {!isReadOnly && (
+                            <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Company - Inline Editable (if exists) */}
-                  {lead.company && (
-                    <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
-                      <Users className="h-4 w-4 flex-shrink-0 text-blue-400" />
-                      <div className="flex-1">
-                        <div className="text-sm text-medium-hierarchy font-body mb-1">Company</div>
-                        {editingField === 'company' ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={handleSaveFieldEdit}
-                              onKeyDown={handleFieldKeyDown}
-                              className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
-                              autoFocus
-                            />
-                            <Button
-                              size="sm"
-                              onClick={handleSaveFieldEdit}
-                              className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
-                            >
-                              <Check className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={handleCancelFieldEdit}
-                              className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div
-                            className="text-primary-hierarchy font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative"
-                            onDoubleClick={() => handleStartEditField('company', lead.company || '')}
+                  {/* Company - Inline Editable */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                    <Users className="h-4 w-4 flex-shrink-0 text-blue-400" />
+                    <div className="flex-1">
+                      <div className="text-sm text-medium-hierarchy font-body mb-1">Company</div>
+                      {editingField === 'company' ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onBlur={handleSaveFieldEdit}
+                            onKeyDown={handleFieldKeyDown}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleSaveFieldEdit}
+                            className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full p-1"
                           >
-                            {lead.company}
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelFieldEdit}
+                            className="bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full p-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          className={`font-body cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all duration-200 group relative ${
+                            companyIsMissing ? 'text-gray-500 italic' : 'text-primary-hierarchy'
+                          }`}
+                          onClick={() => handleStartEditField('company', companyIsMissing ? "" : lead.company || '')}
+                        >
+                          {companyDisplay}
+                          {!isReadOnly && (
                             <Edit3 className="h-3 w-3 text-gray-500 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                          </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Brokerage */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
+                    <Building2 className="h-4 w-4 flex-shrink-0 text-blue-400" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-sm text-medium-hierarchy font-body">Brokerage</div>
+                        {onManageBrokerages && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={onManageBrokerages}
+                            className="text-xs text-gray-400 hover:text-white hover:bg-white/10 rounded-full px-2 py-1"
+                          >
+                            Manage
+                          </Button>
                         )}
                       </div>
+                      {brokerages.length > 0 ? (
+                        <Select
+                          value={lead.brokerageId || "none"}
+                          onValueChange={(value) => {
+                            if (value === "none") {
+                              onUpdateLead(lead.id, { brokerageId: null, brokerageName: null })
+                              return
+                            }
+                            const brokerage = brokerages.find((item) => item.id === value)
+                            onUpdateLead(lead.id, {
+                              brokerageId: value,
+                              brokerageName: brokerage?.name,
+                            })
+                          }}
+                          disabled={isReadOnly}
+                        >
+                          <SelectTrigger className="w-full bg-black/20 backdrop-blur-sm border-system rounded-lg text-sm">
+                            <SelectValue placeholder="Select brokerage" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black/90 backdrop-blur-xl border-2 border-white/10 rounded-2xl p-2">
+                            <SelectItem value="none" className="rounded-xl font-body hover:bg-white/10">
+                              No brokerage
+                            </SelectItem>
+                            {brokerages.map((brokerage) => (
+                              <SelectItem
+                                key={brokerage.id}
+                                value={brokerage.id}
+                                className="rounded-xl font-body hover:bg-white/10"
+                              >
+                                {brokerage.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="text-sm text-gray-500 font-body italic">
+                          No brokerages yet
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Lead Ownership */}
                   <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl">
@@ -803,6 +982,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={isReadOnly}
                             className={`w-full justify-between ${
                               lead.ownerName
                                 ? "bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30"
@@ -888,6 +1068,7 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                           variant={noteType === type ? "default" : "outline"}
                           size="sm"
                           onClick={() => setNoteType(type)}
+                          disabled={isReadOnly}
                           className={
                             noteType === type
                               ? `bg-gradient-to-r ${colors.primary.gradient} text-white rounded-full font-body shadow-lg ring-2 ring-white/20`
@@ -905,11 +1086,12 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                     placeholder="Enter your note..."
                     className="bg-black/20 backdrop-blur-sm border-system text-primary-hierarchy font-body placeholder:text-medium-hierarchy rounded-2xl"
                     rows={3}
+                    disabled={isReadOnly}
                   />
                   <Button
                     onClick={handleAddNote}
                     className={`w-full bg-gradient-to-r ${colors.primary.gradient} hover:from-purple-700 hover:to-purple-800 text-white rounded-full font-body`}
-                    disabled={!newNote.trim()}
+                    disabled={isReadOnly || !newNote.trim()}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add
@@ -939,15 +1121,32 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                 className="border-l-2 pl-4 py-3 bg-blue-500/5 rounded-r-2xl"
                                 style={{ borderLeftColor: colors.interaction.note.icon }}
                               >
-                                <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
                                   <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs rounded-full">
                                     Reminder
                                   </Badge>
                                   <span className="text-xs text-medium-hierarchy font-body">
                                     {new Date(note.timestamp).toLocaleDateString()}
                                   </span>
+                                  {note.createdByName && (
+                                    <span className="text-xs text-gray-500 font-body">by {note.createdByName}</span>
+                                  )}
                                 </div>
-                                <p className="text-primary-hierarchy font-body text-sm leading-relaxed">{note.text}</p>
+                                <div className="flex items-start justify-between gap-3">
+                                  <p className="text-primary-hierarchy font-body text-sm leading-relaxed flex-1">{note.text}</p>
+                                  {!emailIsMissing && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-white/10 text-white hover:bg-white/10 rounded-full text-xs px-3"
+                                      asChild
+                                    >
+                                      <a href={`mailto:${lead.email}?subject=Follow%20up%20for%20${encodeURIComponent(lead.name)}`}>
+                                        Email
+                                      </a>
+                                    </Button>
+                                  )}
+                                </div>
                               </motion.div>
                             ))}
                         </div>
@@ -988,9 +1187,14 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                       className="text-xs text-medium-hierarchy font-body bg-black/20 border border-white/10 rounded px-2 py-1"
                                     />
                                   ) : (
-                                    <span className="text-xs text-medium-hierarchy font-body">
-                                      {formatTimestamp(note.timestamp)}
-                                    </span>
+                                    <>
+                                      <span className="text-xs text-medium-hierarchy font-body">
+                                        {formatTimestamp(note.timestamp)}
+                                      </span>
+                                      {note.createdByName && (
+                                        <span className="text-xs text-gray-500 font-body">by {note.createdByName}</span>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -1017,7 +1221,8 @@ export function LeadPanel({ lead, isOpen, onClose, onAddNote, onUpdateNote, onUp
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => handleStartEditNote(note)}
-                                      className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full"
+                                      disabled={isReadOnly}
+                                      className="h-6 w-6 p-0 text-white hover:bg-white/10 rounded-full disabled:opacity-40"
                                     >
                                       <Edit3 className="h-3 w-3" />
                                     </Button>

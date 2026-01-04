@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-import { apiClient, type Prospect, type Lead } from "@/lib/api-client"
+import { apiClient, type Prospect } from "@/lib/api-client"
+import type { Lead, NewLeadPayload } from "@/lib/crm-types"
 import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp } from "@/lib/utils"
 import { colors } from "@/lib/colors"
@@ -134,7 +135,7 @@ const parseContactInfo = (text: string) => {
 interface ProspectListModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddLead?: (lead: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName">) => void
+  onAddLead?: (lead: NewLeadPayload) => void
 }
 
 export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListModalProps) {
@@ -312,10 +313,10 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
     }
 
     // Create lead from prospect data
-    const newLead: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName"> = {
+    const newLead: NewLeadPayload = {
       name: prospect.contactName,
-      phone: prospect.contactPhone || "",
-      email: prospect.contactEmail || "",
+      phone: prospect.contactPhone || "Not provided",
+      email: prospect.contactEmail || "Not provided",
       address: prospect.propertyAddress,
       company: prospect.contactCompany,
       status: selectedStatus,
@@ -580,10 +581,10 @@ export function ProspectListModal({ isOpen, onClose, onAddLead }: ProspectListMo
                               <Button
                                 type="button"
                                 onClick={() => {
-                                  const newLead: Omit<Lead, "id" | "notes" | "createdAt" | "updatedAt" | "createdBy" | "createdByName" | "lastUpdatedBy" | "lastUpdatedByName"> = {
+                                  const newLead: NewLeadPayload = {
                                     name: formData.contactName,
-                                    phone: formData.contactPhone,
-                                    email: formData.contactEmail,
+                                    phone: formData.contactPhone || "Not provided",
+                                    email: formData.contactEmail || "Not provided",
                                     address: formData.propertyAddress,
                                     company: formData.contactCompany,
                                     status: "Contacted",
