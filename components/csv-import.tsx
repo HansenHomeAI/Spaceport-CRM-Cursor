@@ -10,96 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import type { Lead } from "./leads-table"
+import { parseContactInfo } from "@/lib/parsing-utils"
 
 interface CSVImportProps {
   isOpen: boolean
   onClose: () => void
   onImport: (leads: Omit<Lead, "id">[]) => Promise<{ success: boolean; message: string }>
-}
-
-// Enhanced parsing functions for complex data
-const parseContactInfo = (text: string) => {
-  const result = {
-    name: "",
-    phone: "",
-    email: "",
-    company: "",
-  }
-
-  if (!text) return result
-
-  // Clean up the text first - handle multi-line content
-  text = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim()
-
-  // Email regex
-  const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
-  if (emailMatch) {
-    result.email = emailMatch[0]
-    text = text.replace(emailMatch[0], "").trim()
-  }
-
-  // Improved phone regex - handles parentheses and more formats
-  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
-  if (phoneMatch) {
-    const phoneStr = phoneMatch[0]
-    // Double-check this isn't a date by ensuring it doesn't match date patterns
-    const isDatePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(phoneStr) || 
-                         /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(phoneStr)
-    
-    if (!isDatePattern) {
-      result.phone = phoneStr
-      text = text.replace(phoneStr, "").trim()
-    }
-  }
-
-  // Enhanced company detection - real estate keywords
-  const companyKeywords = [
-    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", 
-    "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc",
-    "Partners", "HomeServices", "Sotheby's", "Compass", "Keller Williams", 
-    "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", 
-    "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", 
-    "Upside", "Premier", "Edina", "Real Broker", "Toll Brothers", 
-    "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", 
-    "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", 
-    "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", 
-    "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", 
-    "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", 
-    "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", 
-    "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"
-  ]
-
-  // Look for company names in the text
-  for (const keyword of companyKeywords) {
-    if (text.toLowerCase().includes(keyword.toLowerCase())) {
-      // Find the full company name (including variations)
-      const companyRegex = new RegExp(`[^,]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,]*`, "i")
-      const match = text.match(companyRegex)
-      if (match) {
-        result.company = match[0].trim()
-        text = text.replace(match[0], "").trim()
-        break
-      }
-    }
-  }
-
-  // Clean up remaining text for name extraction
-  text = text.replace(/\([^)]*\)/g, "") // Remove parenthetical content
-  text = text.replace(/,+/g, " ") // Replace commas with spaces
-  text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
-
-  // Extract name (should be what's left after removing phone, email, company)
-  if (text.length > 0) {
-    // Remove any remaining non-alphabetic characters at the start/end
-    const nameMatch = text.match(/^[^a-zA-Z]*([A-Za-z\s]+?)[^a-zA-Z]*$/)
-    if (nameMatch) {
-      result.name = nameMatch[1].trim()
-    } else {
-      result.name = text.trim()
-    }
-  }
-
-  return result
 }
 
 const parseNotes = (notesText: string): Array<{ id: string; text: string; timestamp: string; type: "call" | "email" | "note" }> => {

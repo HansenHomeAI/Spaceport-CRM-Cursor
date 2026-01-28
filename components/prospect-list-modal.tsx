@@ -15,6 +15,7 @@ import type { Lead, NewLeadPayload } from "@/lib/crm-types"
 import { useAuth } from "@/lib/auth-context"
 import { formatTimestamp } from "@/lib/utils"
 import { colors } from "@/lib/colors"
+import { parseContactInfo } from "@/lib/parsing-utils"
 
 // Helper function to render clickable links
 const renderClickableText = (text: string) => {
@@ -40,96 +41,6 @@ const renderClickableText = (text: string) => {
     }
     return part
   })
-}
-
-// Smart parsing function for contact info (same as add lead modal)
-const parseContactInfo = (text: string) => {
-  const result = {
-    name: "",
-    phone: "",
-    email: "",
-    company: "",
-    address: "",
-  }
-
-  // Email regex
-  const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/)
-  if (emailMatch) {
-    result.email = emailMatch[0]
-    text = text.replace(emailMatch[0], "").trim()
-  }
-
-  // Improved phone regex - handles parentheses and more formats
-  const phoneMatch = text.match(/(?:\(?(\d{3})\)?[-.\s]?)?(\d{3})[-.\s]?(\d{4})/)
-  if (phoneMatch) {
-    result.phone = phoneMatch[0]
-    text = text.replace(phoneMatch[0], "").trim()
-  }
-
-  // Address detection (contains numbers and common address words)
-  const addressKeywords = [
-    "Street", "St", "Avenue", "Ave", "Road", "Rd", "Drive", "Dr", 
-    "Lane", "Ln", "Boulevard", "Blvd", "Way", "Circle", "Cir",
-  ]
-  const addressMatch = addressKeywords.find((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
-
-  if (addressMatch) {
-    const addressRegex = new RegExp(`[^,]*\\d+[^,]*${addressMatch}[^,]*`, "i")
-    const match = text.match(addressRegex)
-    if (match) {
-      result.address = match[0].trim()
-      text = text.replace(match[0], "").trim()
-    }
-  }
-
-  // Enhanced company detection - real estate keywords
-  const companyKeywords = [
-    "Real Estate", "Realty", "Properties", "Group", "Team", "Associates", 
-    "Brokers", "Homes", "Land", "Development", "Investment", "LLC", "Inc",
-    "Partners", "HomeServices", "Sotheby's", "Compass", "Keller Williams", 
-    "Berkshire Hathaway", "Hall & Hall", "Best Choice", "McCann", "Summit", 
-    "PureWest", "ERA", "Corcoran", "Houlihan Lawrence", "The Dow Group", 
-    "Upside", "Premier", "Edina", "Real Broker", "Toll Brothers", 
-    "Keystone Construction", "Axis Realty", "Realtypath", "Summit Sotheby's", 
-    "Compass Real Estate", "The Big Sky Real Estate Co", "Big Sky Sotheby's", 
-    "ERA Landmark", "PureWest Real Estate", "Hall & Hall Partners", 
-    "Best Choice Realty", "Tom Evans & Ashley DiPrisco Real Estate", 
-    "Berkshire Hathaway HomeServices Alaska Realty", "Keller Williams Realty Alaska Group", 
-    "Real Broker Alaska", "Premier Commercial Realty", "Edina Realty", 
-    "Corcoran", "Houlihan Lawrence", "Construction", "Builders", "HomeServices"
-  ]
-
-  // Look for company names in the text
-  for (const keyword of companyKeywords) {
-    if (text.toLowerCase().includes(keyword.toLowerCase())) {
-      // Find the full company name (including variations)
-      const companyRegex = new RegExp(`[^,]*${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^,]*`, "i")
-      const match = text.match(companyRegex)
-      if (match) {
-        result.company = match[0].trim()
-        text = text.replace(match[0], "").trim()
-        break
-      }
-    }
-  }
-
-  // Clean up name - remove parenthetical aliases and extra info
-  text = text.replace(/\([^)]*\)/g, "") // Remove (aka Lawrence) type content
-  text = text.replace(/,+/g, " ") // Replace commas with spaces
-  text = text.replace(/\s+/g, " ").trim() // Clean up whitespace
-
-  // Extract name (should be what's left after removing phone, email, company)
-  if (text.length > 0) {
-    // Remove any remaining non-alphabetic characters at the start/end
-    const nameMatch = text.match(/^[^a-zA-Z]*([A-Za-z\s]+?)[^a-zA-Z]*$/)
-    if (nameMatch) {
-      result.name = nameMatch[1].trim()
-    } else {
-      result.name = text.trim()
-    }
-  }
-
-  return result
 }
 
 interface ProspectListModalProps {
