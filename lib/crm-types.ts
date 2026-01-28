@@ -14,6 +14,14 @@ export interface LeadProperty {
   soldDate?: string
 }
 
+export interface Contact {
+  id: string
+  name: string
+  role?: string
+  email?: string
+  phone?: string
+}
+
 export interface Lead {
   id: string
   name: string
@@ -21,6 +29,7 @@ export interface Lead {
   email: string
   address: string
   properties?: LeadProperty[]
+  additionalContacts?: Contact[]
   company?: string
   brokerageId?: string | null
   brokerageName?: string | null

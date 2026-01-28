@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle, ExternalLink, ChevronDown, Check, Trash2 } from "lucide-react"
+import { MapPin, ArrowUpDown, Info, User, UserX, X, Clock, AlertTriangle, ExternalLink, ChevronDown, Check, Trash2, Users } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -273,6 +273,9 @@ export function LeadsTable({
 
           const missingFields = getMissingLeadFields(lead)
           const showAttention = lead.needsAttention || missingFields.length > 0
+          const additionalContacts = (lead.additionalContacts || []).filter((contact) => contact.name)
+          const additionalContactsCount = additionalContacts.length
+          const additionalContactsLabel = additionalContacts.map((contact) => contact.name).join(", ")
 
           return (
             <div className="space-y-1">
@@ -296,6 +299,23 @@ export function LeadsTable({
                       <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
                         <p className="font-body text-red-300">
                           Missing {missingFields.length > 0 ? missingFields.join(", ") : "required fields"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {additionalContactsCount > 0 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-white/10 text-gray-200 rounded-full text-xs font-body">
+                          <Users className="h-3 w-3" />
+                          +{additionalContactsCount}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black/90 backdrop-blur-xl border-white/10 rounded-2xl">
+                        <p className="font-body text-gray-200">
+                          Additional contacts: {additionalContactsLabel}
                         </p>
                       </TooltipContent>
                     </Tooltip>

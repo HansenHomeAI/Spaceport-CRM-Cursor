@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import type { Lead, Brokerage, NewLeadPayload } from "@/lib/crm-types"
+import type { Lead, Brokerage, NewLeadPayload, Contact } from "@/lib/crm-types"
 import { getMissingLeadFields } from "@/lib/lead-quality"
 
 interface AddLeadModalProps {
@@ -255,6 +255,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: Ad
     email: "",
     address: "",
     properties: [] as string[],
+    additionalContacts: [] as Contact[],
     company: "",
     brokerageId: "",
     status: "Left Voicemail" as Lead["status"],
@@ -290,6 +291,16 @@ export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: Ad
 
     const selectedBrokerage = brokerages.find((brokerage) => brokerage.id === formData.brokerageId)
 
+    const validAdditionalContacts = formData.additionalContacts
+      .map((contact) => ({
+        ...contact,
+        name: contact.name.trim(),
+        role: contact.role?.trim() || "",
+        email: contact.email?.trim() || "",
+        phone: contact.phone?.trim() || "",
+      }))
+      .filter((contact) => contact.name || contact.role || contact.email || contact.phone)
+
     onAddLead({
       ...formData,
       // Provide defaults for empty fields
@@ -301,6 +312,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: Ad
         address: addr,
         isSold: false
       })),
+      additionalContacts: validAdditionalContacts.length > 0 ? validAdditionalContacts : undefined,
       company: formData.company || "",
       brokerageId: selectedBrokerage?.id || undefined,
       brokerageName: selectedBrokerage?.name || undefined,
@@ -314,6 +326,7 @@ export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: Ad
       email: "",
       address: "",
       properties: [],
+      additionalContacts: [],
       company: "",
       brokerageId: "",
       status: "Left Voicemail",
@@ -403,6 +416,40 @@ export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: Ad
     setFormData(prev => ({
       ...prev,
       properties: newProperties
+    }))
+  }
+
+  const handleAddContactField = () => {
+    setFormData(prev => ({
+      ...prev,
+      additionalContacts: [
+        ...prev.additionalContacts,
+        {
+          id: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: "",
+          role: "",
+          email: "",
+          phone: "",
+        },
+      ],
+    }))
+  }
+
+  const handleContactChange = (index: number, field: keyof Contact, value: string) => {
+    const updatedContacts = [...formData.additionalContacts]
+    updatedContacts[index] = { ...updatedContacts[index], [field]: value }
+    setFormData(prev => ({
+      ...prev,
+      additionalContacts: updatedContacts
+    }))
+  }
+
+  const handleRemoveContact = (index: number) => {
+    const updatedContacts = [...formData.additionalContacts]
+    updatedContacts.splice(index, 1)
+    setFormData(prev => ({
+      ...prev,
+      additionalContacts: updatedContacts
     }))
   }
 
@@ -589,6 +636,73 @@ export function AddLeadModal({ isOpen, onClose, onAddLead, brokerages = [] }: Ad
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       Add Another Property
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white font-body flex items-center gap-2">
+                      <User className="h-4 w-4" style={{ color: "#3b82f6" }} />
+                      Additional Contacts <span className="text-gray-400 text-sm">(optional)</span>
+                    </Label>
+
+                    {formData.additionalContacts.length === 0 && (
+                      <div className="text-xs text-gray-500 font-body italic">
+                        No additional contacts added
+                      </div>
+                    )}
+
+                    {formData.additionalContacts.map((contact, index) => (
+                      <div key={contact.id} className="space-y-2 p-3 bg-white/5 rounded-xl">
+                        <div className="flex gap-2">
+                          <Input
+                            value={contact.name}
+                            onChange={(e) => handleContactChange(index, "name", e.target.value)}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand flex-1"
+                            placeholder="Contact name"
+                          />
+                          <Input
+                            value={contact.role || ""}
+                            onChange={(e) => handleContactChange(index, "role", e.target.value)}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand flex-1"
+                            placeholder="Role"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveContact(index)}
+                            className="text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            value={contact.email || ""}
+                            onChange={(e) => handleContactChange(index, "email", e.target.value)}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand flex-1"
+                            placeholder="Email"
+                            type="email"
+                          />
+                          <Input
+                            value={contact.phone || ""}
+                            onChange={(e) => handleContactChange(index, "phone", e.target.value)}
+                            className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body placeholder:text-gray-400 rounded-brand flex-1"
+                            placeholder="Phone"
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleAddContactField}
+                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 text-xs font-body"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Contact
                     </Button>
                   </div>
 

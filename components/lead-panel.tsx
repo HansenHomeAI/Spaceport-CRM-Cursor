@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { colors } from "@/lib/colors"
 import { formatTimestamp, isValidUrl, getGoogleMapsUrl } from "@/lib/utils"
-import type { Lead, Brokerage } from "@/lib/crm-types"
+import type { Lead, Brokerage, Contact } from "@/lib/crm-types"
 import { useAuth } from "@/lib/auth-context"
 import { getMissingLeadFields } from "@/lib/lead-quality"
 
@@ -71,6 +71,14 @@ export function LeadPanel({
   // Inline editing state
   const [editingField, setEditingField] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState("")
+  const [editingContactId, setEditingContactId] = useState<string | null>(null)
+  const [editingContact, setEditingContact] = useState<Contact>({
+    id: "",
+    name: "",
+    role: "",
+    email: "",
+    phone: "",
+  })
 
   // Helper function to normalize old status values
   const normalizeStatus = (status: string): string => {
@@ -260,6 +268,76 @@ export function LeadPanel({
   const handleCancelFieldEdit = () => {
     setEditingField(null)
     setEditingValue("")
+  }
+
+  const handleStartEditContact = (contact: Contact) => {
+    if (isReadOnly) return
+    setEditingContactId(contact.id)
+    setEditingContact({
+      id: contact.id,
+      name: contact.name || "",
+      role: contact.role || "",
+      email: contact.email || "",
+      phone: contact.phone || "",
+    })
+  }
+
+  const handleSaveContactEdit = () => {
+    if (!lead || isReadOnly || !editingContactId) return
+    const updatedContacts = (lead.additionalContacts || []).map((contact) =>
+      contact.id === editingContactId
+        ? {
+            ...contact,
+            name: editingContact.name.trim() || "New Contact",
+            role: editingContact.role?.trim() || "",
+            email: editingContact.email?.trim() || "",
+            phone: editingContact.phone?.trim() || "",
+          }
+        : contact,
+    )
+    onUpdateLead(lead.id, { additionalContacts: updatedContacts })
+    setEditingContactId(null)
+    setEditingContact({
+      id: "",
+      name: "",
+      role: "",
+      email: "",
+      phone: "",
+    })
+  }
+
+  const handleCancelContactEdit = () => {
+    setEditingContactId(null)
+    setEditingContact({
+      id: "",
+      name: "",
+      role: "",
+      email: "",
+      phone: "",
+    })
+  }
+
+  const handleAddContact = () => {
+    if (!lead || isReadOnly) return
+    const newContact: Contact = {
+      id: `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: "New Contact",
+      role: "",
+      email: "",
+      phone: "",
+    }
+    const updatedContacts = [...(lead.additionalContacts || []), newContact]
+    onUpdateLead(lead.id, { additionalContacts: updatedContacts })
+    handleStartEditContact(newContact)
+  }
+
+  const handleDeleteContact = (contactId: string) => {
+    if (!lead || isReadOnly) return
+    const updatedContacts = (lead.additionalContacts || []).filter((contact) => contact.id !== contactId)
+    onUpdateLead(lead.id, { additionalContacts: updatedContacts })
+    if (editingContactId === contactId) {
+      handleCancelContactEdit()
+    }
   }
 
   const handleFieldKeyDown = (e: React.KeyboardEvent) => {
@@ -639,11 +717,11 @@ export function LeadPanel({
                       </div>
                     )}
 
-                    {(lead.properties || []).map((property) => (
-                      <div 
-                        key={property.id} 
-                        className={`flex items-start gap-3 p-3 bg-white/5 rounded-2xl group ${property.isSold ? 'opacity-70' : ''}`}
-                      >
+                  {(lead.properties || []).map((property) => (
+                    <div 
+                      key={property.id} 
+                      className={`flex items-start gap-3 p-3 bg-white/5 rounded-2xl group ${property.isSold ? 'opacity-70' : ''}`}
+                    >
                         <div className="mt-0.5">
                           {property.isSold ? (
                             <CheckCircle className="h-5 w-5 text-green-500" />
@@ -772,6 +850,147 @@ export function LeadPanel({
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Additional Contacts */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-medium-hierarchy font-body">Additional Contacts</div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleAddContact}
+                        disabled={isReadOnly}
+                        className="h-6 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-full disabled:opacity-40"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Contact
+                      </Button>
+                    </div>
+
+                    {(lead.additionalContacts || []).length === 0 && (
+                      <div className="text-sm text-gray-500 italic p-3 bg-white/5 rounded-2xl text-center">
+                        No additional contacts
+                      </div>
+                    )}
+
+                    {(lead.additionalContacts || []).map((contact) => {
+                      const isEditingContact = editingContactId === contact.id
+                      return (
+                        <div key={contact.id} className="p-3 bg-white/5 rounded-2xl">
+                          {isEditingContact ? (
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <Input
+                                  value={editingContact.name}
+                                  onChange={(e) => setEditingContact((prev) => ({ ...prev, name: e.target.value }))}
+                                  className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                                  placeholder="Name"
+                                  autoFocus
+                                />
+                                <Input
+                                  value={editingContact.role || ""}
+                                  onChange={(e) => setEditingContact((prev) => ({ ...prev, role: e.target.value }))}
+                                  className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                                  placeholder="Role"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={editingContact.email || ""}
+                                  onChange={(e) => setEditingContact((prev) => ({ ...prev, email: e.target.value }))}
+                                  className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                                  placeholder="Email"
+                                  type="email"
+                                />
+                                <Input
+                                  value={editingContact.phone || ""}
+                                  onChange={(e) => setEditingContact((prev) => ({ ...prev, phone: e.target.value }))}
+                                  className="bg-black/20 backdrop-blur-sm border-white/10 text-white font-body text-sm rounded-lg flex-1"
+                                  placeholder="Phone"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveContactEdit}
+                                  className="bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-full px-3"
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleCancelContactEdit}
+                                  className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full px-3"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white font-body text-sm truncate">{contact.name}</div>
+                                {contact.role && (
+                                  <div className="text-xs text-gray-500 font-body truncate">{contact.role}</div>
+                                )}
+                                <div className="text-xs text-gray-400 font-body mt-1 space-y-1">
+                                  {contact.email && <div>{contact.email}</div>}
+                                  {contact.phone && <div>{contact.phone}</div>}
+                                  {!contact.email && !contact.phone && (
+                                    <div className="text-gray-500 italic">No contact details</div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStartEditContact(contact)}
+                                  disabled={isReadOnly}
+                                  className="h-6 w-6 p-0 text-gray-400 hover:text-white hover:bg-white/10 rounded-full disabled:opacity-40"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={isReadOnly}
+                                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full disabled:opacity-40"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-black/90 backdrop-blur-xl border-system rounded-xl">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="text-white font-title">Delete Contact?</AlertDialogTitle>
+                                      <AlertDialogDescription className="text-gray-400 font-body">
+                                        Are you sure you want to delete {contact.name || "this contact"}?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel className="bg-transparent border-white/10 text-white hover:bg-white/10 rounded-full font-body">
+                                        Cancel
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteContact(contact.id)}
+                                        className="bg-red-600 text-white hover:bg-red-700 rounded-full font-body border-none"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
 
                   {/* Phone Number - Inline Editable */}
